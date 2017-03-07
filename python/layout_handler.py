@@ -380,7 +380,7 @@ def _main():
     else:
         raise Exception('Unsupport operation: [{}]'.format(op))
 
-    print ('All done. No Excepitons.')
+    print('All done. No Excepitons.')
 
 
 if __name__ == '__main__':

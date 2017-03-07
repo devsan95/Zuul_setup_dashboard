@@ -90,10 +90,8 @@ fi
 cd "$VENV_PATH"
 export no_proxy=gerrit.app.alcatel-lucent.com:$no_proxy
 source "$VENV_PATH"/bin/activate python2
-pip install zuul
-pip install jenkins-job-builder
-pip install PyZMQ
-pip install ruamel.yaml
+pip install zuul jenkins-job-builder PyZMQ ruamel.yaml
+pip install gitpython arrow sh pyyaml
 export PYTHONPATH=${PYTHONPATH}:${CIHOME_PATH}/python
 cd "$OLD_PATH"
 
