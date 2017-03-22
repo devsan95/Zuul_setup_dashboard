@@ -103,7 +103,9 @@ class ZuulCheck(object):
             mailfile,
             attachments=[None])
 
+
 if __name__ == "__main__":
+    citools.print_path()
     zuul_check_obj = ZuulCheck(
         conf.get(
             'Monitor', 'gearman_server'), conf.get(

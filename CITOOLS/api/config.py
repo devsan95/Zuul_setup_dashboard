@@ -1,9 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
 
-"""
-A module manipulating properties files.
-"""
+"""A module manipulating properties files."""
 
 import ConfigParser
 import os
@@ -39,6 +37,7 @@ class ConfigTool(object):
             value = config.get('section', 'key')
 
     """
+
     _config_dict = {}
     _config_path = os.path.realpath(os.path.join(
         os.path.split(os.path.realpath(__file__))[0],

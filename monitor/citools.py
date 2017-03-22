@@ -19,4 +19,5 @@ def _add_path():
 def print_path():
     print 'Added', _citools_path, 'in sys.path. '
 
+
 _citools_path = _add_path()

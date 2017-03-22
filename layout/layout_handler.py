@@ -53,7 +53,7 @@ def merge_layout(base_dict, merge_dict):
             yaml2 = yaml.round_trip_dump(merge_dict[k])
             ret_dict[k] = yaml.round_trip_load(
                 yaml1 + '\n' + yaml2, version='1.1')
-            print(ret_dict[k])
+            # print(ret_dict[k])
 
         else:
             ret_dict[k] = merge_dict[k]

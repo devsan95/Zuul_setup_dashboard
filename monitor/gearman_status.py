@@ -70,3 +70,7 @@ class GearmanStatus(object):
                 if worker['type'] == type_name:
                     workers.append(worker)
             return workers
+
+
+if __name__ == '__main__':
+    citools.print_path()

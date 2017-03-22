@@ -1,5 +1,3 @@
-import sys
-import time
 import traceback
 import telnetlib
 
@@ -9,9 +7,7 @@ class TelnetClient(object):
     def __init__(self, host, port):
         self.client = telnetlib.Telnet(host, port)
 
-
-
-    def run_cmd(self, cmd, end_str, start_str = None):
+    def run_cmd(self, cmd, end_str, start_str=None):
         if start_str:
             try:
                 self.client.read_until(start_str + "\n", 2)

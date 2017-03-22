@@ -12,12 +12,6 @@ else
     exit 1
 fi
 
-if [ $# -gt 0 ]; then
-    (>&2 echo "Error: did not expect any argument.")
-    (>&2 echo "    (Got $@)")
-    exit 1
-fi
-
 # Ensure that this script is sourced, not executed
 # Also note that errors are ignored as `activate foo` doesn't generate a bad
 # value for $0 which would cause errors.
@@ -41,7 +35,7 @@ fi
 EECLOUD_PATH="/ephemeral"
 LINSEE_PATH="/var/fpwork"
 VAR_PATH="/var"
-HOME_PATH="~"
+HOME_PATH=~
 VENV_PATH=""
 unset PYTHONPATH
 
@@ -88,11 +82,11 @@ then
 fi
 
 cd "$VENV_PATH"
-export no_proxy=gerrit.app.alcatel-lucent.com:$no_proxy
+export no_proxy=gerrit.app.alcatel-lucent.com,$no_proxy
 source "$VENV_PATH"/bin/activate python2
 pip install zuul jenkins-job-builder PyZMQ ruamel.yaml
-pip install gitpython arrow sh pyyaml
-export PYTHONPATH=${PYTHONPATH}:${CIHOME_PATH}/python
+pip install gitpython arrow sh pyyaml flake8 ptpython pydocstyle
+export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${PYTHONPATH}
 cd "$OLD_PATH"
 
 echo "Python Virtualenv init finished. "
