@@ -16,6 +16,7 @@ class ErrCheck(object):
 
     def check(self):
         for key, obj in self.check_dict.items():
+            print "check function for %s start" % key
             try:
                 obj['result'] = obj['fun']()
             except:

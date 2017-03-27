@@ -20,10 +20,15 @@ class ZuulCheck(object):
         self.host = host
         self.port = port
         self.gearman_status = gearman_status.GearmanStatus(host, port)
-        self.jenkins_list = conf.get('Monitor', 'jenkins_list')
+        self.jenkins_list = conf.get('Monitor', 'jenkins_list').splitlines()
         self.exec_list = self.gearman_status.get_workers_bytype('exec')
         self.exec_name_list = self.get_key_list(self.exec_list, 'host')
         self.warn_msgs = []
+        self.print_status()
+
+    def print_status(self):
+        print "### Jenkins List: %s" % self.jenkins_list
+        print "### Exec IP List: %s" % self.exec_name_list
 
     def warn_msg(self, msg):
         self.warn_msgs.append(msg)
@@ -33,23 +38,29 @@ class ZuulCheck(object):
         for dt in dt_list:
             if dt[key]:
                 key_list.append(dt[key])
-        return key_list
+        return set(key_list)
 
     def check_jenkins_exists(self):
         ret = True
-        for jenkins in self.jenkins_list.splitlines():
+        for jenkins in self.jenkins_list:
             if socket.gethostbyname(jenkins) not in self.exec_name_list:
                 self.warn_msg('jenkins %s not in worker list' % jenkins)
                 ret = False
         return ret
 
+    def get_jenkins_ips(self):
+        jenkins_ip_list = []
+        for jenkins in self.jenkins_list:
+            jenkins_ip_list.append(socket.gethostbyname(jenkins))
+        return set(jenkins_ip_list)
+
     def check_extra_jenkins(self):
         ret = True
-        for worker_obj in self.exec_list:
-            if worker_obj['host'] not in self.jenkins_list:
+        for worker_obj_host in set([x['host'] for x in self.exec_list]):
+            if worker_obj_host not in self.get_jenkins_ips():
                 self.warn_msg(
                     'external jenkins %s connect to gearman server %s:%s' %
-                    (worker_obj['host'], self.host, self.port))
+                    (worker_obj_host, self.host, self.port))
                 ret = False
         return ret
 
@@ -76,13 +87,13 @@ class ZuulCheck(object):
             (self.host,
              self.port))
         err_check_obj.add_check(
-            'check_extra_jenkins',
+            'check_jenkins_jobs',
             self.check_jenkins_jobs,
             'there is jenskins job list is empty')
         err_msgs, err_num, pass_num = err_check_obj.check()
         head_msg = "Errors: %s <br>Passed check: %d" % (err_msgs, pass_num)
+        print "[SET_DESCRIPTION]%s" % head_msg
         mail_content = head_msg + '<br>' + '<br>'.join(self.warn_msgs)
-        print mail_content
         if err_num > 0:
             self.send_warn_msg(mail_content)
             sys.exit(2)
