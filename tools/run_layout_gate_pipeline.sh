@@ -10,4 +10,6 @@ if [ -z "$$SCRIPT_DIR" ] ; then
 fi
 
 . ${SCRIPT_DIR}/pyenv.sh
-python ${SCRIPT_DIR}/layout/validate_pipeline.py $@
+set -e
+python ${SCRIPT_DIR}/layout/update_layout_with_patch_set.py $@
+python ${SCRIPT_DIR}/pipeline/validate_pipeline.py
