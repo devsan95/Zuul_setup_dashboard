@@ -51,8 +51,8 @@ def SendHtmlMail(sender, recipents, ccrecipents, title, content):
 def analyse_log(filename, lines):
     sender = "5g_hz.scm@nokia.com"
     receiver = "I_5G_HZ_SCM@internal.nsn.com"
-    ccrecipents = "5g_hz.scm@nokia.com"
-    hostname = commands.getoutput("hostname")
+    ccrecipents = " "
+    hostname = commands.getoutput("cat /etc/hostname")
 
     title = 'Found error in {}'.format(filename) + " @ " + hostname
     if filename not in _line_cache:
