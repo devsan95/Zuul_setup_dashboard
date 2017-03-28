@@ -11,10 +11,21 @@ import sys
 import time
 import traceback
 import citools
+import argparse
 from api import file_api, gerrit_api, config
 
 
+def _parse_args():
+    parser = argparse.ArgumentParser(description='Validate pipeline.')
+    parser.add_argument('--project', '-p', nargs='?', default='dummy-project',
+                        type=str, dest='project', required=False,
+                        help='Gerrit project to create ticket.')
+    args = parser.parse_args()
+    return vars(args)
+
+
 def _main():
+    args = _parse_args()
     tmp_dir = file_api.TempFolder()
     cf = config.ConfigTool()
     cf.load('qa')
@@ -25,7 +36,7 @@ def _main():
     ssh_user = cf.get('qa-gerrit', 'user')
     ssh_server = cf.get('qa-gerrit', 'server')
     ssh_port = cf.get('qa-gerrit', 'port')
-    ssh_project = cf.get('dummy-project', 'project')
+    ssh_project = cf.get(args['project'], 'project')
 
     # fetch code
     if not os.path.exists(test_repo_path):
