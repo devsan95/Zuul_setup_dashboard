@@ -35,7 +35,7 @@ EOF
 
 . ${SCRIPT_DIR}/pyenv.sh
 python ${SCRIPT_DIR}/layout/layout_handler.py -i "${work_path}/layout/layout.yaml" \
- -z "/etc/zuul/zuul.conf" merge -o "/etc/zuul/layout.etc"
+ -z "/etc/zuul/zuul.conf" merge -o "/etc/zuul/layout.yaml"
 
 #restart service
 supervisorctl restart zuul-launcher

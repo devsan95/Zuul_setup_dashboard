@@ -19,5 +19,5 @@ git clone http://gerrit.app.alcatel-lucent.com/gerrit/MN/SCMTA/zuul/conf
 
 . ${SCRIPT_DIR}/pyenv.sh
 python ${SCRIPT_DIR}/layout/layout_handler.py -i "${work_path}/layout/layout.yaml" \
- -z "${work_path}/conf/zuul_conf/zuul.conf" merge -o "/etc/zuul/layout.etc"
+ -z "${work_path}/conf/zuul_conf/zuul.conf" merge -o "/etc/zuul/layout.yaml"
 kill -SIGHUP `supervisorctl pid zuul-server`
