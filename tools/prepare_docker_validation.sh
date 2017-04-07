@@ -28,9 +28,9 @@ projects:
     check:
       - qa_download_patch_set
     gate:
-      - qa_always_succeed
+      - qa_dummy_job
     post:
-      - qa_always_succeed
+      - qa_dummy_job
 EOF
 
 . ${SCRIPT_DIR}/pyenv.sh
