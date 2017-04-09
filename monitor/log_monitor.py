@@ -52,42 +52,30 @@ def analyse_log(filename, lines):
     receiver = "I_5G_HZ_SCM@internal.nsn.com"
     ccrecipents = " "
     hostname = commands.getoutput("cat /etc/hostname")
-    mail_content = 'With Following error lines:<br>'
-
     title = 'Found error in {}'.format(filename) + " @ " + hostname
-    if filename not in _line_cache:
-        _line_cache[filename] = []
+
+    if filename not in _mail_content:
+        _mail_content[filename] = ''
     if filename not in _time_flag:
-        _time_flag[filename] = int(_time_record)
+        _time_flag[filename] = int(time.time())
     for line in lines:
-        error = re.findall(r'ERROR|WARNING|Traceback|Exception',
+        error = re.findall(r'ERROR|WARNING |Traceback|Exception',
                            line, flags=re.IGNORECASE)
         if error:
-            line = line.strip('\n')
-            _line_cache[filename].append(line)
-        break
-    # if len(_line_cache[filename]) > _max_line:
-    #    _line_cache[filename] = _line_cache[filename][
-    #        len(_line_cache[filename]) - _max_line:]
-
-    for line in _line_cache[filename]:
-        mail_content += '<br>'
-        mail_content += line
-
-    mail_content += '<br>'
-
+            _mail_content[filename] += '<br>With following errors:<br>'
+            _mail_content[filename] += line
+            _mail_content[filename] += '<br>'
     time_curr = int(time.time())
     if time_curr - _time_flag[filename] >= _time_slice:
-        _line_cache[filename] = []
-        SendHtmlMail(sender, receiver, ccrecipents, title,
-                     mail_content)
-        _time_flag[filename] = time_curr
+        if _mail_content[filename]:
+            SendHtmlMail(sender, receiver, ccrecipents, title,
+                         _mail_content[filename])
+            _time_flag[filename] = time_curr
+            _mail_content[filename] = ''
 
 
 if __name__ == '__main__':
-    _line_cache = {}
-    _max_line = 20
-    _time_record = int(time.time())
+    _mail_content = {}
     _time_slice = 60
     if 'time_slice' in os.environ.keys():
         _time_slice = int(os.environ["time_slice"])*60
