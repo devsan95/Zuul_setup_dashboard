@@ -46,20 +46,30 @@ class ConfigTool(object):
     def __init__(self):
         self._load_list = []
 
-    def load(self, filename):
+    @classmethod
+    def _get_normal_path(cls, path, absolute=False):
+        file_path = path
+        if not absolute:
+            file_path = os.path.join(cls._config_path,
+                                     file_path + '.properties')
+        ret_path = os.path.normpath(file_path)
+        return ret_path
+
+    def load(self, filename, absolute=False):
         """
         Load config file, and mark the file as the first priority.
 
         Args:
             filename(str): the name of the file to load.
+            absolute(bool): if the path is absolute or not
 
         Returns:
             ConfigParser.ConfigParser: a ConfigParser object that loaded the
             properties file.
 
         """
-        parser = self._load_config(filename)
-        self._load_list.insert(0, filename)
+        parser = self._load_config(filename, absolute)
+        self._load_list.insert(0, self._get_normal_path(filename, absolute))
         return parser
 
     def get(self, section, key, raw=False, vars=None):
@@ -78,7 +88,8 @@ class ConfigTool(object):
         last_exception = None
         for filename in self._load_list:
             try:
-                return self.get_config(filename, section, key, raw, vars)
+                return self.get_config(filename, section,
+                                       key, raw, vars, absolute=True)
             except ConfigParser.NoOptionError as e:
                 last_exception = e
             except ConfigParser.NoSectionError as e:
@@ -100,7 +111,8 @@ class ConfigTool(object):
         last_exception = None
         for filename in self._load_list:
             try:
-                return self.get_config_section(filename, section, **kwargs)
+                return self.get_config_section(filename, section,
+                                               absolute=True, **kwargs)
             except ConfigParser.NoOptionError as e:
                 last_exception = e
             except ConfigParser.NoSectionError as e:
@@ -108,30 +120,31 @@ class ConfigTool(object):
         raise last_exception
 
     @classmethod
-    def _load_config(cls, filename):
-        if filename in cls._config_dict:
-            return cls._config_dict[filename]
+    def _load_config(cls, filename, absolute=False):
+        file_path = cls._get_normal_path(filename, absolute)
+        if file_path in cls._config_dict:
+            return cls._config_dict[file_path]
         else:
             parser = ConfigParser.ConfigParser()
-            file_path = os.path.join(cls._config_path,
-                                     filename + '.properties')
+
             read_list = parser.read(file_path)
             if not read_list:
                 raise Exception("Can't find the file. ")
                 # TODO Xie Use more specific exception
-            cls._config_dict[filename] = parser
-            print 'Loaded %s. Display contents: ' % filename
-            print 'Sections are:'
-            list = parser.sections()
-            print list
-            print 'Items are:'
-            for sect in list:
-                items = parser.items(sect)
-                print sect, ': ', items
+            cls._config_dict[file_path] = parser
+            # print 'Loaded %s. Display contents: ' % filename
+            # print 'Sections are:'
+            # list = parser.sections()
+            # print list
+            # print 'Items are:'
+            # for sect in list:
+            #     items = parser.items(sect)
+            #     print sect, ': ', items
             return parser
 
     @classmethod
-    def get_config(cls, filename, section, key, raw=False, vars=None):
+    def get_config(cls, filename, section, key,
+                   raw=False, vars=None, absolute=False):
         """
         Get value from properties file you input.
 
@@ -141,11 +154,12 @@ class ConfigTool(object):
             key(str): key of the value.
             raw(bool): same as the same name parameter in ConfigParser.
             vars(dict): same as the same name parameter in ConfigParser.
+            absolute(bool): if the filename is absolute or not
 
         Returns:
             str: the value you want to get.
         """
-        parser = cls._load_config(filename)
+        parser = cls._load_config(filename, absolute)
         return parser.get(section, key, raw, vars)
 
     @classmethod
@@ -161,7 +175,7 @@ class ConfigTool(object):
         Returns:
             dict: the dict you want to get.
         """
-        parser = cls._load_config(filename)
+        parser = cls._load_config(filename, **kwargs)
         return dict(parser.items(section, **kwargs))
 
 
