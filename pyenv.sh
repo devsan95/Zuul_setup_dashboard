@@ -38,6 +38,7 @@ VAR_PATH="/var"
 HOME_PATH=~
 VENV_PATH=""
 unset PYTHONPATH
+export no_proxy=nokia.com,alcatel-lucent.com,$no_proxy
 
 if [ -d "$EECLOUD_PATH" ] ;
 then
@@ -78,13 +79,14 @@ then
   "$VENV_PATH"/bin/conda install python=2.7 -y
   "$VENV_PATH"/bin/conda update python -y
   "$VENV_PATH"/bin/conda create --name python2 python=2.7 -y
+  source "$VENV_PATH"/bin/activate python2
+  pip install git+http://gerrit.app.alcatel-lucent.com/gerrit/MN/SCMTA/zuul/zuul
   chmod -R 777 "$VENV_PATH"
 fi
 
 cd "$VENV_PATH"
-export no_proxy=gerrit.app.alcatel-lucent.com,$no_proxy
 source "$VENV_PATH"/bin/activate python2
-pip install zuul jenkins-job-builder PyZMQ ruamel.yaml
+pip install jenkins-job-builder PyZMQ ruamel.yaml
 pip install gitpython arrow sh pyyaml flake8 ptpython pydocstyle
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${PYTHONPATH}
 cd "$OLD_PATH"

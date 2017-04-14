@@ -17,11 +17,17 @@ OLD_PATH="`pwd`"
 cd ${work_path}
 git clone http://gerrit.app.alcatel-lucent.com/gerrit/MN/SCMTA/zuul/layout
 
+# validate connection
+${SCRIPT_DIR}/tools/update_zuul_config.sh
+. ${SCRIPT_DIR}/pyenv.sh
+python ${SCRIPT_DIR}/monitor/check_zuul_gerrit_connection.py
+
 # update conf
 ${SCRIPT_DIR}/tools/update_zuul_qa_config.sh
 sed -i 's#zuul.zuulqa.dynamic.nsn-net.net#zuul-docker.zuulqa2.dynamic.nsn-net.net#g' /etc/zuul/zuul.conf
 
 #update layout
+rm -rf ${work_path}/layout/layout.d/*
 cat <<EOF > ${work_path}/layout/layout.d/docker_test.yaml
 projects:
   - name: qa_dummy_job_docker
