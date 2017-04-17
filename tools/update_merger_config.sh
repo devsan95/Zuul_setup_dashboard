@@ -13,7 +13,7 @@ mkdir -p /tmp/zuul_tmp/${script_pwd}/
 rm -rf /tmp/zuul_tmp/${script_pwd}/*
 OLD_PATH="`pwd`"
 cd ${work_path}
-git clone http://gerrit.app.alcatel-lucent.com/gerrit/MN/SCMTA/zuul/conf
+git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/conf
 cp -rf ${work_path}/conf/http_conf/* /etc/httpd/
 sed -i 's#domain.to.merger#$hostname#g' ${work_path}/conf/merger_conf/zuul/zuul.conf
 cp -rf ${work_path}/conf/zuul_conf/* /etc/zuul/

@@ -80,7 +80,7 @@ then
   "$VENV_PATH"/bin/conda update python -y
   "$VENV_PATH"/bin/conda create --name python2 python=2.7 -y
   source "$VENV_PATH"/bin/activate python2
-  pip install git+http://gerrit.app.alcatel-lucent.com/gerrit/MN/SCMTA/zuul/zuul
+  pip install git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
   chmod -R 777 "$VENV_PATH"
 fi
 
