@@ -38,7 +38,7 @@ VAR_PATH="/var"
 HOME_PATH=~
 VENV_PATH=""
 unset PYTHONPATH
-export no_proxy=nokia.com,alcatel-lucent.com,$no_proxy
+export no_proxy=nokia.com,alcatel-lucent.com,nsn-net.net,$no_proxy
 
 if [ -d "$EECLOUD_PATH" ] ;
 then
