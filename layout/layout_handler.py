@@ -87,12 +87,12 @@ def merge_layout(base_dict, merge_dict):
                             ret_one_repo_node[key] = \
                                 yaml.round_trip_load(
                                     yaml.round_trip_dump(
-                                        ret_one_repo_node[key]) +
+                                        ret_one_repo_node[key]) + '\n' +
                                     yaml.round_trip_dump(to_merge_node[key]),
                                     version='1.1')
                 to_ret.remove(to_ret_node)
                 to_merge.remove(to_merge_node)
-                ret_content = yaml.round_trip_dump(to_ret) + \
+                ret_content = yaml.round_trip_dump(to_ret) + '\n' +\
                     yaml.round_trip_dump(to_merge)
                 ret_dict[k] = yaml.round_trip_load(ret_content, version='1.1')
                 ret_dict[k].append(ret_one_repo_node)
