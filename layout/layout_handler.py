@@ -21,6 +21,18 @@ import zuul.lib.connections
 import git
 
 
+__author__ = "HZ 5G SCM Team"
+__copyright__ = "Copyright 2007, Nokia"
+__credits__ = []
+__license__ = "Apache"
+__version__ = "1.0.1"
+__maintainer__ = "HZ 5G SCM Team"
+__email__ = "5g_hz.scm@nokia.com"
+__status__ = "Production"
+
+one_repo_name = 'MN/5G/NB/gnb'
+
+
 class LayoutNotExistException(Exception):
     pass
 
@@ -45,16 +57,50 @@ class LayoutSnippet(object):
             return self.path
 
 
+def get_project_node(project, projects):
+    for item in projects:
+        if 'name' in item and item['name'] == project:
+            return item
+
+    return None
+
+
 def merge_layout(base_dict, merge_dict):
     ret_dict = deepcopy(base_dict)
     for k, v in merge_dict.iteritems():
         if k in ret_dict:
-            yaml1 = yaml.round_trip_dump(ret_dict[k])
-            yaml2 = yaml.round_trip_dump(merge_dict[k])
-            ret_dict[k] = yaml.round_trip_load(
-                yaml1 + '\n' + yaml2, version='1.1')
-            # print(ret_dict[k])
+            require_one_repo_process = False
+            if k == 'projects':
+                if get_project_node(one_repo_name, ret_dict[k]) and \
+                        get_project_node(one_repo_name, merge_dict[k]):
+                    require_one_repo_process = True
 
+            if require_one_repo_process:
+                to_merge = deepcopy(merge_dict[k])
+                to_ret = deepcopy(ret_dict[k])
+                to_merge_node = get_project_node(one_repo_name, to_merge)
+                to_ret_node = get_project_node(one_repo_name, to_ret)
+                ret_one_repo_node = deepcopy(to_ret_node)
+                for key in ret_one_repo_node:
+                    if key != 'name':
+                        if key in to_merge_node:
+                            ret_one_repo_node[key] = \
+                                yaml.round_trip_load(
+                                    yaml.round_trip_dump(
+                                        ret_one_repo_node[key]) +
+                                    yaml.round_trip_dump(to_merge_node[key]),
+                                    version='1.1')
+                to_ret.remove(to_ret_node)
+                to_merge.remove(to_merge_node)
+                ret_content = yaml.round_trip_dump(to_ret) + \
+                    yaml.round_trip_dump(to_merge)
+                ret_dict[k] = yaml.round_trip_load(ret_content, version='1.1')
+                ret_dict[k].append(ret_one_repo_node)
+            else:
+                yaml1 = yaml.round_trip_dump(ret_dict[k])
+                yaml2 = yaml.round_trip_dump(merge_dict[k])
+                ret_dict[k] = yaml.round_trip_load(
+                    yaml1 + '\n' + yaml2, version='1.1')
         else:
             ret_dict[k] = merge_dict[k]
     return ret_dict
@@ -80,18 +126,21 @@ def check_layout_d_duplication(snippet_list, section='projects'):
                     or not snippet1.obj[section]\
                     or not snippet2.obj[section]:
                 continue
-            project_list_x = \
+            item_list_x = \
                 [x['name'] for x in [y for y in snippet1.obj[section]]]
 
-            project_list_y = \
+            item_list_y = \
                 [x['name'] for x in [y for y in snippet2.obj[section]]]
 
-            duplicate_projects = set(project_list_x) & set(project_list_y)
+            duplicate_projects = set(item_list_x) & set(item_list_y)
 
             for item in duplicate_projects:
-                duplication_list.append({'project': item,
-                                         'file1': snippet1.get_identity(),
-                                         'file2': snippet2.get_identity(), })
+                # one repo in projects does not count
+                if not (item == one_repo_name and section == 'projects'):
+                    duplication_list.append({'project': item,
+                                             'file1': snippet1.get_identity(),
+                                             'file2': snippet2.get_identity()
+                                             })
     if duplication_list:
         ex_str = 'Found duplication in list: \n'
         for item in duplication_list:
@@ -119,6 +168,36 @@ def list_job_in_projects(projects_section):
                     _scan_jobs_recursive(v, ret_list)
 
     return list(set(ret_list))
+
+
+def list_job_in_one_repo_by_pipeline(projects_section):
+    ret_list = {}
+
+    def _scan_jobs_recursive(pipeline, joblist, ret_list):
+        for item in joblist:
+            if isinstance(item, yaml.comments.CommentedMap):
+                for k, v in list(item.items()):
+                    if pipeline not in ret_list:
+                        ret_list[pipeline] = []
+                    ret_list[pipeline].append(k)
+                    _scan_jobs_recursive(pipeline, v, ret_list)
+            else:
+                if pipeline not in ret_list:
+                    ret_list[pipeline] = []
+                ret_list[pipeline].append(item)
+
+    for item in projects_section:
+        if isinstance(item, yaml.comments.CommentedMap):
+            if item['name'] != one_repo_name:
+                continue
+            for k, v in list(item.items()):
+                if isinstance(v, yaml.comments.CommentedSeq):
+                    _scan_jobs_recursive(k, v, ret_list)
+
+    for k in ret_list:
+        ret_list[k] = list(set(ret_list[k]))
+
+    return ret_list
 
 
 def check_layout_d_consistency(snippet_list):
@@ -195,6 +274,52 @@ def check_layout_d_consistency(snippet_list):
             for item in list_no_matching:
                 ex_str += '{} '.format(item)
             raise Exception(ex_str)
+
+
+def check_one_repo_availability(snippet_list):
+    check_one_repo_job_unique(snippet_list)
+    for snippet in snippet_list:
+        check_one_repo_job_filtered(snippet)
+
+
+def check_one_repo_job_filtered(snippet):
+    ret_dict = list_job_in_one_repo_by_pipeline(snippet.obj['projects'])
+    for pipeline in ret_dict:
+        for job in ret_dict[pipeline]:
+            job_filtered = False
+            for item in snippet.obj['jobs']:
+                if item['name'] == job:
+                    job_filtered = True
+                    break
+                reg = re.compile(item['name'])
+                if reg.match(job):
+                    job_filtered = True
+                    break
+            if not job_filtered:
+                raise Exception('Job [{}] of [{}] of [{}] is not filtered '
+                                'in jobs section.'.format(
+                                    job, one_repo_name, snippet.path))
+
+
+def check_one_repo_job_unique(snippet_list):
+    job_list = {}
+    for snippet in snippet_list:
+        job_list[snippet.path] = list_job_in_one_repo_by_pipeline(
+            snippet.obj['projects'])
+
+    for i in range(0, len(job_list.keys())):
+        for j in range(i + 1, len(job_list.keys())):
+            k1 = job_list.keys()[i]
+            k2 = job_list.keys()[j]
+            for pipeline in job_list[k1]:
+                if pipeline in job_list[k2]:
+                    for job in job_list[k1][pipeline]:
+                        if job in job_list[k2][pipeline]:
+                            raise Exception('[{}] and [{}] have the same job '
+                                            '[{}] in pipeline [{}] '
+                                            'of [{}]'.format(k1, k2, job,
+                                                             pipeline,
+                                                             one_repo_name))
 
 
 def archive_layout_file(path):
@@ -277,7 +402,7 @@ class LayoutGroup(object):
         ret_snippet = LayoutSnippet(path=None, obj=ret_dct)
         self._set_head_comments(ret_snippet)
         if output_path is not None:
-            output_directory = os.path.dirname(output_path)
+            output_directory = os.path.dirname(os.path.abspath(output_path))
             if not os.path.exists(output_directory):
                 print('Make dir for output: [{}]'.format(output_directory))
                 os.makedirs(output_directory)
@@ -298,6 +423,7 @@ class LayoutGroup(object):
         check_layout_d_duplication(check_list, 'projects')
         check_layout_d_duplication(check_list, 'jobs')
         check_layout_d_consistency(check_list)
+        check_one_repo_availability(check_list)
         for snippet in self._yaml['layout.d']:
             if not snippet.obj:
                 continue
@@ -376,6 +502,7 @@ def _main():
         check_snip = LayoutSnippet(path=insnip, obj=yaml.round_trip_load(
             open(insnip), version='1.1'))
         check_layout_d_consistency([check_snip])
+        check_one_repo_availability([check_snip])
         verify_layout_with_zuul(group.combine_one(check_snip), connections)
     else:
         raise Exception('Unsupport operation: [{}]'.format(op))
