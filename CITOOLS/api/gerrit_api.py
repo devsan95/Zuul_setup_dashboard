@@ -12,12 +12,40 @@ import os
 from api import file_api, git_api
 
 
-def does_patch_set_match_condition(ssh_user, ssh_server, patchset,
-                                   condition_list):
+def get_ticket_info(ssh_user, ssh_server, change_id,
+                    ssh_key=None, port='29418'):
+    if ssh_key:
+        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+                       '-i', ssh_key,
+                       'gerrit', 'query', '--comments',
+                       '--format=JSON', '--current-patch-set',
+                       'change:{}'.format(change_id))
+    else:
+        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+                       'gerrit', 'query', '--comments',
+                       '--format=JSON', '--current-patch-set',
+                       'change:{}'.format(change_id))
+    print(json_str)
+
+    return json.loads(json_str.split('\n')[0])
+
+
+def does_patch_set_match_condition(ssh_user, ssh_server, change_id,
+                                   condition_list, ssh_key=None, port='29418'):
+    condition_list = ['label:' + x for x in condition_list]
     print(condition_list)
-    json_str = ssh('-p', '29418', ssh_user + '@' + ssh_server,
-                   'gerrit', 'query', '--format=JSON', '--current-patch-set',
-                   'change:{}'.format(patchset), *condition_list)
+
+    if ssh_key:
+        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+                       '-i', ssh_key,
+                       'gerrit', 'query',
+                       '--format=JSON', '--current-patch-set',
+                       'change:{}'.format(change_id), *condition_list)
+    else:
+        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+                       'gerrit', 'query',
+                       '--format=JSON', '--current-patch-set',
+                       'change:{}'.format(change_id), *condition_list)
     print(json_str)
 
     try:
@@ -28,8 +56,8 @@ def does_patch_set_match_condition(ssh_user, ssh_server, patchset,
             return False
 
         json_dict = json.loads(json_list[0])
-        if int(json_dict['number']) != int(patchset):
-            print('{} not match {}'.format(json_dict['number'], patchset))
+        if int(json_dict['number']) != int(change_id):
+            print('{} not match {}'.format(json_dict['number'], change_id))
             return False
         print('Patch set matches condition.')
         return True
@@ -38,14 +66,27 @@ def does_patch_set_match_condition(ssh_user, ssh_server, patchset,
         return False
 
 
-def review_patch_set(ssh_user, ssh_server, patchset, label_list):
+def review_patch_set(ssh_user, ssh_server, change_id,
+                     label_list, message=None, ssh_key=None, port='29418'):
     param_list = []
     for label in label_list:
         param_list.append('--label')
         param_list.append(label)
-    param_list.append(patchset+',1')
-    print(ssh('-p', '29418', ssh_user + '@' + ssh_server,
-              'gerrit', 'review', *param_list))
+    if message:
+        param_list.append('--message')
+        param_list.append('"'+message+'"')
+    param_list.append(str(change_id) + ',' + str(get_last_patchset(
+        ssh_user, ssh_server, change_id, ssh_key)))
+    ssh_msg = ''
+    if ssh_key:
+        ssh_msg = ssh('-p', str(port), '-i', ssh_key,
+                      ssh_user + '@' + ssh_server,
+                      'gerrit', 'review', *param_list)
+    else:
+        ssh_msg = ssh('-p', str(port),
+                      ssh_user + '@' + ssh_server,
+                      'gerrit', 'review', *param_list)
+    print(ssh_msg)
 
 
 def init_msg_hook(repo_path, scp_user, scp_server, port):
@@ -87,3 +128,9 @@ def create_one_ticket(gerrit_server, gerrit_user, gerrit_port, gerrit_project,
     origin = repo.remotes.origin
     origin.push('HEAD:refs/for/%s' % branch, progress=git_progress)
     return git_progress.stdout
+
+
+def get_last_patchset(ssh_user, ssh_server, change_id,
+                      ssh_key=None, port='29418'):
+    info = get_ticket_info(ssh_user, ssh_server, change_id, ssh_key, port)
+    return info['currentPatchSet']['number']
