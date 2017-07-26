@@ -37,40 +37,60 @@ LINSEE_PATH="/var/fpwork"
 VAR_PATH="/var"
 HOME_PATH=~
 VENV_PATH=""
+CHECK_PATH=""
 unset PYTHONPATH
 export no_proxy=nokia.com,alcatel-lucent.com,nsn-net.net,$no_proxy
 
-if [ -d "$EECLOUD_PATH" ] ;
+function check_and_make(){
+    if [ -d "$VENV_PATH" ] && [ -w "$VENV_PATH" ] ;
+    then
+        :
+    else
+        if [ -d "$1" ] && [ -w "$1" ] ;
+        then
+            echo "Can't find path to init conda, use $1"
+            CHECK_PATH="$1"/5g_conda/
+            if [ -d "$CHECK_PATH" ] && [ -w "$CHECK_PATH" ] ;
+            then
+                echo "$CHECK_PATH not exist. Try to make..."
+                set +e
+                mkdir -p "$CHECK_PATH"
+                set -e
+                if [ -d "$CHECK_PATH" ] && [ -w "$CHECK_PATH" ] ;
+                then
+                    echo "$CHECK_PATH is ready for use"
+                    VENV_PATH="$CHECK_PATH"
+                else
+                    echo "$CHECK_PATH not exist or not writable"
+                fi
+            fi
+        else
+            :
+        fi
+
+
+    fi
+}
+
+check_and_make "$LINSEE_PATH"
+check_and_make "$EECLOUD_PATH"
+check_and_make "$VAR_PATH"
+check_and_make "$HOME_PATH"
+
+if [ -d "$VENV_PATH" ] && [ -w "$VENV_PATH" ] ;
 then
-  VENV_PATH="$EECLOUD_PATH"/5g_conda/
-elif [  -d "$LINSEE_PATH" ] ;
-then
-  VENV_PATH="$LINSEE_PATH"/5g_conda/
+    echo "Directory for conda is ready, checking..."
 else
-  echo "Can't find path to init venv, use var"
-  VENV_PATH="$VAR_PATH"/5g_conda/
+    echo "Directory for conda is not ready, abort"
+    exit 1
 fi
+
+export http_proxy=http://10.158.100.1:8080
+export https_proxy=http://10.158.100.1:8080
 
 if [ ! -e "$VENV_PATH"/envs/python2/bin/activate ];
 then
-  if [ ! -d "$VENV_PATH" ] ;
-  then
-    set +e
-    mkdir -p "$VENV_PATH"
-    set -e
-  fi
-
-  if [ ! -d "$VENV_PATH" ] ;
-  then
-    echo "Can't make directory to init venv, use home"
-    VENV_PATH="$HOME_PATH"/5g_conda/
-  fi
-
-  if [ ! -d "$VENV_PATH" ] ;
-  then
-    mkdir -p "$VENV_PATH"
-  fi
-
+  cd "$VENV_PATH"
   wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
   bash Miniconda2-latest-Linux-x86_64.sh -b -p "$VENV_PATH" -f
   rm -rf Miniconda2-latest-Linux-x86_64.sh
