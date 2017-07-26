@@ -52,6 +52,9 @@ function check_and_make(){
             CHECK_PATH="$1"/5g_conda/
             if [ -d "$CHECK_PATH" ] && [ -w "$CHECK_PATH" ] ;
             then
+                 echo "$CHECK_PATH is ready for use"
+                 VENV_PATH="$CHECK_PATH"
+            else
                 echo "$CHECK_PATH not exist. Try to make..."
                 set +e
                 mkdir -p "$CHECK_PATH"
