@@ -69,7 +69,7 @@ def _main(**kwargs):
         for i in range(1, 20):
             if api.gerrit_api.does_patch_set_match_condition(
                     kwargs['gerrit_user'], kwargs['gerrit_url'], patchset,
-                    ['Verified=+1'], key, kwargs['gerrit_port']):
+                    ['label:Verified=+1'], key, kwargs['gerrit_port']):
                 check_pipeline_passed = True
                 break
             print('Not found. Waiting for 5 secs...')

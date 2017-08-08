@@ -32,9 +32,6 @@ def get_ticket_info(ssh_user, ssh_server, change_id,
 
 def does_patch_set_match_condition(ssh_user, ssh_server, change_id,
                                    condition_list, ssh_key=None, port='29418'):
-    condition_list = ['label:' + x for x in condition_list]
-    print(condition_list)
-
     if ssh_key:
         json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
                        '-i', ssh_key,
