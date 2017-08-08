@@ -72,7 +72,7 @@ def _main():
         raise Exception('Patchset has not been checked')
 
     gerrit_api.review_patch_set(
-        ssh_user, ssh_server, patchset, ['label:Code-Review=+2'])
+        ssh_user, ssh_server, patchset, ['Code-Review=+2'])
 
     for i in range(1, 20):
         print('Waiting for 5 secs...')
