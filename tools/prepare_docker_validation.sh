@@ -25,7 +25,8 @@ python ${SCRIPT_DIR}/monitor/check_zuul_gerrit_connection.py
 
 # update conf
 ${SCRIPT_DIR}/tools/update_zuul_qa_config.sh
-sed -i 's#zuul.zuulqa.dynamic.nsn-net.net#zuul-docker.zuulqa2.dynamic.nsn-net.net#g' /etc/zuul/zuul.conf
+sed -i 's#zuul.zuulqa.dynamic.nsn-net.net#zuul-docker.zuulqa.dynamic.nsn-net.net#g' /etc/zuul/zuul.conf
+sed -i 's#user=admin#user=dxuan#g' /etc/zuul/zuul.conf
 echo "Check qa gerrit connection"
 python ${SCRIPT_DIR}/monitor/check_zuul_gerrit_connection.py
 
