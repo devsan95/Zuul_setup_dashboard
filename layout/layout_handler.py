@@ -367,7 +367,9 @@ class LayoutGroup(object):
                                                  self._main_file_path),
                                                  version='1.1'))
         if os.path.exists(self._layout_d_path):
-            for file_name in os.listdir(self._layout_d_path):
+            file_list = os.listdir(self._layout_d_path)
+            file_list = sorted(file_list, reverse=True)
+            for file_name in file_list:
                 path = os.path.join(self._layout_d_path, file_name)
                 self._yaml['layout.d'].append(
                     LayoutSnippet(path, yaml.round_trip_load(open(path),
