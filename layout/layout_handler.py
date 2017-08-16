@@ -90,6 +90,9 @@ def merge_layout(base_dict, merge_dict):
                                         ret_one_repo_node[key]) +
                                     yaml.round_trip_dump(to_merge_node[key]),
                                     version='1.1')
+                for key in to_merge_node:
+                    if key not in ret_one_repo_node:
+                        ret_one_repo_node[key] = deepcopy(to_merge_node[key])
                 to_ret.remove(to_ret_node)
                 to_merge.remove(to_merge_node)
                 ret_dict[k] = to_ret + to_merge
@@ -368,7 +371,6 @@ class LayoutGroup(object):
                                                  version='1.1'))
         if os.path.exists(self._layout_d_path):
             file_list = os.listdir(self._layout_d_path)
-            file_list = sorted(file_list, reverse=True)
             for file_name in file_list:
                 path = os.path.join(self._layout_d_path, file_name)
                 self._yaml['layout.d'].append(
