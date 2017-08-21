@@ -9,6 +9,9 @@ if [ -z "$$SCRIPT_DIR" ] ; then
   exit 1  # fail
 fi
 
+${SCRIPT_DIR}/tools/update_zuul_config.sh
+${SCRIPT_DIR}/tools/update_zuul.sh
+
 . ${SCRIPT_DIR}/pyenv.sh
 set -e
 python ${SCRIPT_DIR}/layout/update_layout_with_patch_set.py $@
