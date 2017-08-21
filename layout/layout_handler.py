@@ -266,13 +266,13 @@ def check_layout_d_consistency(snippet_list):
 
         if reg_no_matching:
             ex_str = 'Some strings in jobs does not present in projects: \n'
-            for item in list_no_matching:
+            for item in reg_no_matching:
                 ex_str += '{} '.format(item)
             raise Exception(ex_str)
 
         if reg_wildly_matching:
             ex_str = 'Some strings in jobs may effect other projects: \n'
-            for item in list_no_matching:
+            for item in reg_wildly_matching:
                 ex_str += '{} '.format(item)
             raise Exception(ex_str)
 
