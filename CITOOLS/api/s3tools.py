@@ -1,7 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
 
-""" A collection of functions relating to s3 operations. """
+"""A collection of functions relating to s3 operations."""
 
 import os
 import sys
@@ -394,7 +394,7 @@ class S3Server(object):
             t.write('Get Folder [{}] to [{}]'.format(
                 s3_path, local_path
             ))
-            for file_name in file_list:
+            for file_name in t:
                 self.download_file(s3_path + file_name,
                                    os.path.join(local_path, file_name))
 
@@ -427,11 +427,11 @@ class S3Server(object):
         if not list:
             raise FolderEmptyException(
                 'Folder [{}] is empty!'.format(target_directory))
-        t = tqdm(list)
-        t.write('Delete lists from [{}]'.format(target_directory))
-        for file in t:
-            t.write('Delete [{}]'.format(target_directory + file))
-            self.delete_file(target_directory + file)
+        with tqdm(list) as t:
+            t.write('Delete lists from [{}]'.format(target_directory))
+            for file in t:
+                t.write('Delete [{}]'.format(target_directory + file))
+                self.delete_file(target_directory + file)
 
     def upload(self, file_path, target_path, is_public=False):
         """

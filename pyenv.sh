@@ -113,7 +113,7 @@ fi
 cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
 pip install jenkins-job-builder PyZMQ ruamel.yaml
-pip install gitpython arrow sh pyyaml flake8 ptpython pydocstyle
+pip install gitpython arrow sh pyyaml flake8 ptpython pydocstyle python-slugify
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${PYTHONPATH}
 cd "$OLD_PATH"
 
