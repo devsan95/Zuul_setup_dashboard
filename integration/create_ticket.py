@@ -196,12 +196,13 @@ def add_structure_string(root_node, integration_node, graph_obj,
     gerrit_client.review_ticket(root_node['rest_id'], result)
 
 
-def review_all_tickets(root_node, integration_node, graph_obj,
-                       nodes, gerrit_client):
+def label_all_tickets(root_node, integration_node, graph_obj,
+                      nodes, gerrit_client):
     for node in nodes.values():
         if node is not root_node and node is not integration_node:
             gerrit_client.review_ticket(node['rest_id'],
-                                        'Initial label', {'Code-Review': 2})
+                                        'Initial label', {'Code-Review': 2,
+                                                          'Integrated': -1})
 
 
 def _main(path, topic_suffix, init_ticket):
@@ -235,8 +236,8 @@ def _main(path, topic_suffix, init_ticket):
                            topic, gerrit_client)
     add_structure_string(root_node, integration_node, graph_obj, nodes,
                          gerrit_client)
-    review_all_tickets(root_node, integration_node, graph_obj, nodes,
-                       gerrit_client)
+    label_all_tickets(root_node, integration_node, graph_obj, nodes,
+                      gerrit_client)
 
 
 if __name__ == '__main__':

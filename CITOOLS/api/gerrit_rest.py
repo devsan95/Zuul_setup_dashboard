@@ -120,3 +120,15 @@ class GerritRestClient:
 
         result = self.parse_rest_response(changes)
         return result
+
+    def generate_http_password(self, account_id):
+        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        rest_url = '{}/accounts/{}/password.http'.format(
+            self.server_url, account_id)
+        content = {"generate": True}
+        ret = requests.put(rest_url, json=content, auth=auth)
+        if not ret.ok:
+            raise Exception(
+                'generate_http_password account_id [{}] failed.\n'
+                'Status code is [{}], content is [{}]'.format(
+                    account_id, ret.status_code, ret.content))
