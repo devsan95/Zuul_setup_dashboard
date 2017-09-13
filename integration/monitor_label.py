@@ -14,6 +14,8 @@ def _parse_args():
     parser = argparse.ArgumentParser(description='Monitor ticket status')
     parser.add_argument('ssh_server', type=str,
                         help='server url of gerrit')
+    parser.add_argument('ssh_port', type=str,
+                        help='server port of gerrit')
     parser.add_argument('ssh_user', type=str,
                         help='user of gerrit')
     parser.add_argument('ssh_key', type=str,
@@ -31,22 +33,23 @@ def _if_checklist_all_pass(checklist):
     return True
 
 
-def _check_ticket_ok(ssh_server, ssh_user, ssh_key, ticket):
+def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
     return api.gerrit_api.does_patch_set_match_condition(
         ssh_user, ssh_server, ticket,
         ['Verified=+1', 'Integrated=+2', 'Code-Review=+2'],
-        ssh_key)
+        ssh_key, port=ssh_port)
 
 
-def _check_manager_ticket_ok(ssh_server, ssh_user, ssh_key, ticket):
+def _check_manager_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
     if api.gerrit_api.does_patch_set_match_condition(
-            ssh_user, ssh_server, ticket, ['Integrated=-2'], ssh_key):
+            ssh_user, ssh_server, ticket, ['Integrated=-2'],
+            ssh_key, port=ssh_port):
         raise Exception(
             'Manager ticket [{}] integration failed'.format(ticket))
     return api.gerrit_api.does_patch_set_match_condition(
         ssh_user, ssh_server, ticket,
         ['Verified=+1', 'Integrated=+2'],
-        ssh_key)
+        ssh_key, port=ssh_port)
 
 
 def get_ticket_list_from_comments(info):
@@ -58,11 +61,12 @@ def get_ticket_list_from_comments(info):
     return None
 
 
-def _main(ssh_server, ssh_user, ssh_key, change_id):
+def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id):
     targets = None
     while not targets:
         info = api.gerrit_api.get_ticket_info(ssh_user, ssh_server,
-                                              change_id, ssh_key)
+                                              change_id, ssh_key,
+                                              port=ssh_port)
         targets = get_ticket_list_from_comments(info)
         sys.stdout.flush()
         time.sleep(30)
@@ -80,7 +84,8 @@ def _main(ssh_server, ssh_user, ssh_key, change_id):
         print('Starting a new checking cycle...')
         for item in checklist:
             if not item['status']:
-                item['status'] = _check_ticket_ok(ssh_server, ssh_user,
+                item['status'] = _check_ticket_ok(ssh_server, ssh_port,
+                                                  ssh_user,
                                                   ssh_key, item['ticket'])
                 print('Ticket {} pass status: {}'.format(
                     item['ticket'], item['status']))
@@ -92,22 +97,23 @@ def _main(ssh_server, ssh_user, ssh_key, change_id):
     print('All ticket are done. Labeling manager ticket...')
     api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
                                     ['Verified=+1', 'Integrated=-1'],
-                                    'Set labels for integration', ssh_key)
+                                    'Set labels for integration', ssh_key,
+                                    port=ssh_port)
     api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
-                                    [], 'reintegrate', ssh_key)
+                                    [], 'reintegrate', ssh_key, port=ssh_port)
     print('Check if manager ticket is done with integration...')
     while not _check_manager_ticket_ok(
-            ssh_server, ssh_user, ssh_key, targets['manager']):
+            ssh_server, ssh_port, ssh_user, ssh_key, targets['manager']):
         sys.stdout.flush()
         time.sleep(30)
     print('Integration test done, make root and manager ticket into gating...')
     api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
                                     ['Code-Review=+2'], None,
-                                    ssh_key)
+                                    ssh_key, port=ssh_port)
     api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
                                     ['Verified=+1', 'Integrated=+2',
                                      'Code-Review=+2'], None,
-                                    ssh_key)
+                                    ssh_key, port=ssh_port)
 
 
 if __name__ == '__main__':
