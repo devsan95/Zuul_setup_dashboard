@@ -9,6 +9,7 @@ import networkx as nx
 from datetime import datetime
 import json
 from api import gerrit_rest
+from api import gerrit_api
 from slugify import slugify
 
 
@@ -23,6 +24,15 @@ def _parse_args():
 
     parser.add_argument('--init-ticket', type=str, dest='init_ticket',
                         help='initial ticket')
+
+    parser.add_argument('--zuul-user', type=str, dest='zuul_user',
+                        help='')
+
+    parser.add_argument('--zuul-port', type=str, dest='zuul_port',
+                        help='')
+
+    parser.add_argument('--zuul-key', type=str, dest='zuul_key',
+                        help='')
 
     args = parser.parse_args()
     return vars(args)
@@ -197,15 +207,22 @@ def add_structure_string(root_node, integration_node, graph_obj,
 
 
 def label_all_tickets(root_node, integration_node, graph_obj,
-                      nodes, gerrit_client):
+                      nodes, gerrit_client, zuul_user, zuul_port, zuul_key):
+    gerrit_api.review_patch_set(zuul_user, gerrit_client.server_url,
+                                root_node['ticket_id'],
+                                {'Integrated': -1}, 'init label',
+                                zuul_key, zuul_port)
     for node in nodes.values():
         if node is not root_node and node is not integration_node:
             gerrit_client.review_ticket(node['rest_id'],
-                                        'Initial label', {'Code-Review': 2,
-                                                          'Integrated': -1})
+                                        'Initial label', {'Code-Review': 2})
+            gerrit_api.review_patch_set(zuul_user, gerrit_client.server_url,
+                                        node['ticket_id'],
+                                        {'Integrated': -1}, 'init label',
+                                        zuul_key, zuul_port)
 
 
-def _main(path, topic_suffix, init_ticket):
+def _main(path, topic_suffix, init_ticket, zuul_user, zuul_port, zuul_key):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
@@ -237,7 +254,7 @@ def _main(path, topic_suffix, init_ticket):
     add_structure_string(root_node, integration_node, graph_obj, nodes,
                          gerrit_client)
     label_all_tickets(root_node, integration_node, graph_obj, nodes,
-                      gerrit_client)
+                      gerrit_client, zuul_user, zuul_port, zuul_key)
 
 
 if __name__ == '__main__':
