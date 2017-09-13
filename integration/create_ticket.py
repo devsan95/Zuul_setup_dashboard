@@ -28,9 +28,6 @@ def _parse_args():
     parser.add_argument('--zuul-user', type=str, dest='zuul_user',
                         help='')
 
-    parser.add_argument('--zuul-port', type=str, dest='zuul_port',
-                        help='')
-
     parser.add_argument('--zuul-key', type=str, dest='zuul_key',
                         help='')
 
@@ -207,8 +204,9 @@ def add_structure_string(root_node, integration_node, graph_obj,
 
 
 def label_all_tickets(root_node, integration_node, graph_obj,
-                      nodes, gerrit_client, zuul_user, zuul_port, zuul_key):
-    gerrit_api.review_patch_set(zuul_user, gerrit_client.server_url,
+                      nodes, gerrit_client, zuul_user,
+                      zuul_server, zuul_port, zuul_key):
+    gerrit_api.review_patch_set(zuul_user, zuul_server,
                                 root_node['ticket_id'],
                                 {'Integrated': -1}, 'init label',
                                 zuul_key, zuul_port)
@@ -216,13 +214,13 @@ def label_all_tickets(root_node, integration_node, graph_obj,
         if node is not root_node and node is not integration_node:
             gerrit_client.review_ticket(node['rest_id'],
                                         'Initial label', {'Code-Review': 2})
-            gerrit_api.review_patch_set(zuul_user, gerrit_client.server_url,
+            gerrit_api.review_patch_set(zuul_user, zuul_server,
                                         node['ticket_id'],
                                         {'Integrated': -1}, 'init label',
                                         zuul_key, zuul_port)
 
 
-def _main(path, topic_suffix, init_ticket, zuul_user, zuul_port, zuul_key):
+def _main(path, topic_suffix, init_ticket, zuul_user, zuul_key):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
@@ -235,6 +233,8 @@ def _main(path, topic_suffix, init_ticket, zuul_user, zuul_port, zuul_key):
     gerrit_server = structure_obj['gerrit']['url']
     gerrit_user = structure_obj['gerrit']['user']
     gerrit_pwd = structure_obj['gerrit']['pwd']
+    gerrit_ssh_server = structure_obj['gerrit']['ssh_server']
+    gerrit_ssh_port = structure_obj['gerrit']['ssh_port']
     gerrit_client = gerrit_rest.GerritRestClient(
         gerrit_server, gerrit_user, gerrit_pwd)
     root_node, integration_node, nodes, graph_obj = create_graph(structure_obj)
@@ -254,7 +254,8 @@ def _main(path, topic_suffix, init_ticket, zuul_user, zuul_port, zuul_key):
     add_structure_string(root_node, integration_node, graph_obj, nodes,
                          gerrit_client)
     label_all_tickets(root_node, integration_node, graph_obj, nodes,
-                      gerrit_client, zuul_user, zuul_port, zuul_key)
+                      gerrit_client, zuul_user,
+                      gerrit_ssh_server, gerrit_ssh_port, zuul_key)
 
 
 if __name__ == '__main__':
