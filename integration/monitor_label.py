@@ -36,19 +36,19 @@ def _if_checklist_all_pass(checklist):
 def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
     return api.gerrit_api.does_patch_set_match_condition(
         ssh_user, ssh_server, ticket,
-        ['Verified=+1', 'Integrated=+2', 'Code-Review=+2'],
+        ['label:Verified=+1', 'label:Integrated=+2', 'label:Code-Review=+2'],
         ssh_key, port=ssh_port)
 
 
 def _check_manager_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
     if api.gerrit_api.does_patch_set_match_condition(
-            ssh_user, ssh_server, ticket, ['Integrated=-2'],
+            ssh_user, ssh_server, ticket, ['label:Integrated=-2'],
             ssh_key, port=ssh_port):
         raise Exception(
             'Manager ticket [{}] integration failed'.format(ticket))
     return api.gerrit_api.does_patch_set_match_condition(
         ssh_user, ssh_server, ticket,
-        ['Verified=+1', 'Integrated=+2'],
+        ['label:Verified=+1', 'label:Integrated=+2'],
         ssh_key, port=ssh_port)
 
 
