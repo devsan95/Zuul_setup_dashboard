@@ -15,13 +15,17 @@ from api import file_api, git_api
 def get_ticket_info(ssh_user, ssh_server, change_id,
                     ssh_key=None, port='29418'):
     if ssh_key:
-        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+        json_str = ssh('-o', 'StrictHostKeyChecking=no',
+                       '-o', 'UserKnownHostsFile=/dev/null',
+                       '-p', str(port), ssh_user + '@' + ssh_server,
                        '-i', ssh_key,
                        'gerrit', 'query', '--comments',
                        '--format=JSON', '--current-patch-set',
                        'change:{}'.format(change_id))
     else:
-        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+        json_str = ssh('-o', 'StrictHostKeyChecking=no',
+                       '-o', 'UserKnownHostsFile=/dev/null',
+                       '-p', str(port), ssh_user + '@' + ssh_server,
                        'gerrit', 'query', '--comments',
                        '--format=JSON', '--current-patch-set',
                        'change:{}'.format(change_id))
@@ -33,13 +37,17 @@ def get_ticket_info(ssh_user, ssh_server, change_id,
 def does_patch_set_match_condition(ssh_user, ssh_server, change_id,
                                    condition_list, ssh_key=None, port='29418'):
     if ssh_key:
-        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+        json_str = ssh('-o', 'StrictHostKeyChecking=no',
+                       '-o', 'UserKnownHostsFile=/dev/null',
+                       '-p', str(port), ssh_user + '@' + ssh_server,
                        '-i', ssh_key,
                        'gerrit', 'query',
                        '--format=JSON', '--current-patch-set',
                        'change:{}'.format(change_id), *condition_list)
     else:
-        json_str = ssh('-p', str(port), ssh_user + '@' + ssh_server,
+        json_str = ssh('-o', 'StrictHostKeyChecking=no',
+                       '-o', 'UserKnownHostsFile=/dev/null',
+                       '-p', str(port), ssh_user + '@' + ssh_server,
                        'gerrit', 'query',
                        '--format=JSON', '--current-patch-set',
                        'change:{}'.format(change_id), *condition_list)
@@ -76,11 +84,15 @@ def review_patch_set(ssh_user, ssh_server, change_id,
         ssh_user, ssh_server, change_id, ssh_key)))
     ssh_msg = ''
     if ssh_key:
-        ssh_msg = ssh('-p', str(port), '-i', ssh_key,
+        ssh_msg = ssh('-o', 'StrictHostKeyChecking=no',
+                      '-o', 'UserKnownHostsFile=/dev/null',
+                      '-p', str(port), '-i', ssh_key,
                       ssh_user + '@' + ssh_server,
                       'gerrit', 'review', *param_list)
     else:
-        ssh_msg = ssh('-p', str(port),
+        ssh_msg = ssh('-o', 'StrictHostKeyChecking=no',
+                      '-o', 'UserKnownHostsFile=/dev/null',
+                      '-p', str(port),
                       ssh_user + '@' + ssh_server,
                       'gerrit', 'review', *param_list)
     print(ssh_msg)
