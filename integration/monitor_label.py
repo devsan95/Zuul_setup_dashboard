@@ -7,6 +7,7 @@ import argparse
 import json
 import time
 import api.gerrit_api
+import api.gerrit_rest
 import re
 
 
@@ -21,7 +22,13 @@ def _parse_args():
     parser.add_argument('ssh_key', type=str,
                         help='private key of the user')
     parser.add_argument('change_id', type=str,
-                        help='private key of the user')
+                        help='change id')
+    parser.add_argument('rest_url', type=str,
+                        help='')
+    parser.add_argument('rest_user', type=str,
+                        help='')
+    parser.add_argument('rest_pwd', type=str,
+                        help='')
     args = parser.parse_args()
     return vars(args)
 
@@ -61,7 +68,8 @@ def get_ticket_list_from_comments(info):
     return None
 
 
-def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id):
+def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
+          rest_url, rest_user, rest_pwd):
     targets = None
     while not targets:
         info = api.gerrit_api.get_ticket_info(ssh_user, ssh_server,
@@ -107,13 +115,20 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id):
         sys.stdout.flush()
         time.sleep(30)
     print('Integration test done, make root and manager ticket into gating...')
-    api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
-                                    ['Code-Review=+2'], None,
-                                    ssh_key, port=ssh_port)
-    api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
-                                    ['Verified=+1', 'Integrated=+2',
-                                     'Code-Review=+2'], None,
-                                    ssh_key, port=ssh_port)
+    # api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
+    #                                 ['Code-Review=+2'], None,
+    #                                 ssh_key, port=ssh_port)
+    # api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
+    #                                 ['Verified=+1', 'Integrated=+2',
+    #                                  'Code-Review=+2'], None,
+    #                                 ssh_key, port=ssh_port)
+    rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
+    rest_id = rest.query_ticket(targets['manager'])['id']
+    rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
+    rest_id = rest.query_ticket(targets['root'])['id']
+    rest.review_ticket(rest_id, 'Make into gate', {'Verified': 1,
+                                                   'Code-Review': 2,
+                                                   'Integrated': 2})
 
 
 if __name__ == '__main__':
