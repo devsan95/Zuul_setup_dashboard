@@ -122,13 +122,14 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     #                                 ['Verified=+1', 'Integrated=+2',
     #                                  'Code-Review=+2'], None,
     #                                 ssh_key, port=ssh_port)
+    api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
+                                    ['Verified=+1', 'Integrated=+2'], None,
+                                    ssh_key, port=ssh_port)
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     rest_id = rest.query_ticket(targets['manager'])['id']
     rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
     rest_id = rest.query_ticket(targets['root'])['id']
-    rest.review_ticket(rest_id, 'Make into gate', {'Verified': 1,
-                                                   'Code-Review': 2,
-                                                   'Integrated': 2})
+    rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
 
 
 if __name__ == '__main__':
