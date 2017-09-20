@@ -85,17 +85,14 @@ class ConfigTool(object):
         Returns:
             str: the value you want to get.
         """
-        last_exception = None
         for filename in self._load_list:
             try:
                 return self.get_config(filename, section,
                                        key, raw, vars, absolute=True)
             except ConfigParser.NoOptionError as e:
-                last_exception = e
+                raise NoOptionError(e)
             except ConfigParser.NoSectionError as e:
-                last_exception = e
-                pass
-        raise last_exception
+                raise NoSectionError(e)
 
     def get_dict(self, section, **kwargs):
         """
@@ -108,16 +105,14 @@ class ConfigTool(object):
         Returns:
             dict: the dict you want to get.
         """
-        last_exception = None
         for filename in self._load_list:
             try:
                 return self.get_config_section(filename, section,
                                                absolute=True, **kwargs)
             except ConfigParser.NoOptionError as e:
-                last_exception = e
+                raise NoOptionError(e)
             except ConfigParser.NoSectionError as e:
-                last_exception = e
-        raise last_exception
+                raise NoSectionError(e)
 
     @classmethod
     def _load_config(cls, filename, absolute=False):
@@ -163,19 +158,20 @@ class ConfigTool(object):
         return parser.get(section, key, raw, vars)
 
     @classmethod
-    def get_config_section(cls, filename, section, **kwargs):
+    def get_config_section(cls, filename, section, absolute=False, **kwargs):
         """
         Get a dict of a section from properties file you input.
 
         Args:
             filename(str): the name of the file you want to search.
             section(str): section of the value.
+            absolute(str): if the filename is absolute or relative
             **kwargs: other parameters needed to pass to ConfigParse.
 
         Returns:
             dict: the dict you want to get.
         """
-        parser = cls._load_config(filename, **kwargs)
+        parser = cls._load_config(filename, absolute, **kwargs)
         return dict(parser.items(section, **kwargs))
 
 
