@@ -85,14 +85,16 @@ class ConfigTool(object):
         Returns:
             str: the value you want to get.
         """
+        last_exception = None
         for filename in self._load_list:
-            try:
-                return self.get_config(filename, section,
-                                       key, raw, vars, absolute=True)
-            except ConfigParser.NoOptionError as e:
-                raise NoOptionError(e)
-            except ConfigParser.NoSectionError as e:
-                raise NoSectionError(e)
+            for filename in self._load_list:
+                try:
+                    return self.get_config(filename, section,
+                                           key, raw, vars, absolute=True)
+                except Exception as e:
+                    last_exception = e
+        if last_exception:
+            raise last_exception
 
     def get_dict(self, section, **kwargs):
         """
@@ -105,14 +107,15 @@ class ConfigTool(object):
         Returns:
             dict: the dict you want to get.
         """
+        last_exception = None
         for filename in self._load_list:
             try:
                 return self.get_config_section(filename, section,
                                                absolute=True, **kwargs)
-            except ConfigParser.NoOptionError as e:
-                raise NoOptionError(e)
-            except ConfigParser.NoSectionError as e:
-                raise NoSectionError(e)
+            except Exception as e:
+                last_exception = e
+        if last_exception:
+            raise last_exception
 
     @classmethod
     def _load_config(cls, filename, absolute=False):
