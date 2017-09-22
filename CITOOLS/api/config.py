@@ -87,12 +87,11 @@ class ConfigTool(object):
         """
         last_exception = None
         for filename in self._load_list:
-            for filename in self._load_list:
-                try:
-                    return self.get_config(filename, section,
-                                           key, raw, vars, absolute=True)
-                except Exception as e:
-                    last_exception = e
+            try:
+                return self.get_config(filename, section,
+                                       key, raw, vars, absolute=True)
+            except Exception as e:
+                last_exception = e
         if last_exception:
             raise last_exception
 
