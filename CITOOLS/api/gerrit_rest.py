@@ -15,6 +15,13 @@ class GerritRestClient:
         self.server_url = url
         self.user = user
         self.pwd = pwd
+        self.auth = requests.auth.HTTPDigestAuth
+
+    def change_to_digest_auth(self):
+        self.auth = requests.auth.HTTPDigestAuth
+
+    def change_to_basic_auth(self):
+        self.auth = requests.auth.HTTPBasicAuth
 
     @staticmethod
     def parse_rest_response(response):
@@ -27,7 +34,7 @@ class GerritRestClient:
         return json.loads(content)
 
     def add_file_to_change(self, rest_id, file_path, content=''):
-        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        auth = self.auth(self.user, self.pwd)
         rest_url = self.server_url + '/a/changes/' + rest_id + \
             '/edit/' + requests.utils.quote(file_path, safe='')
         ret = requests.put(rest_url, content, auth=auth)
@@ -38,7 +45,7 @@ class GerritRestClient:
                     file_path, rest_id, ret.status_code, ret.content))
 
     def publish_edit(self, rest_id):
-        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        auth = self.auth(self.user, self.pwd)
         rest_url = '{}/a/changes/{}/edit:publish'.format(
             self.server_url, rest_id)
         ret = requests.post(rest_url, auth=auth)
@@ -49,7 +56,7 @@ class GerritRestClient:
                     rest_id, ret.status_code, ret.content))
 
     def delete_edit(self, rest_id):
-        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        auth = self.auth(self.user, self.pwd)
         rest_url = '{}/a/changes/{}/edit'.format(
             self.server_url, rest_id)
         ret = requests.delete(rest_url, auth=auth)
@@ -64,10 +71,11 @@ class GerritRestClient:
             "project": project,
             "subject": message,
             "branch": branch,
-            "topic": topic,
             "status": 'DRAFT' if drafted else 'NEW'
         }
-        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        if topic:
+            input_data['topic'] = topic
+        auth = self.auth(self.user, self.pwd)
         headers = {}
         changes = requests.post(self.server_url + "/a/changes/",
                                 json=input_data, auth=auth, headers=headers)
@@ -91,7 +99,7 @@ class GerritRestClient:
         if labels:
             review_input['labels'] = labels
 
-        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/{}/revisions/current/review'.format(
             self.server_url, rest_id)
 
@@ -108,7 +116,7 @@ class GerritRestClient:
             'q': 'change:{}'.format(ticket_id),
             'n': 1
         }
-        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/'.format(self.server_url)
         changes = requests.get(url, params=get_param, auth=auth)
 
@@ -122,7 +130,7 @@ class GerritRestClient:
         return result
 
     def generate_http_password(self, account_id):
-        auth = requests.auth.HTTPDigestAuth(self.user, self.pwd)
+        auth = self.auth(self.user, self.pwd)
         rest_url = '{}/accounts/{}/password.http'.format(
             self.server_url, account_id)
         content = {"generate": True}

@@ -29,6 +29,8 @@ def _parse_args():
                         help='')
     parser.add_argument('rest_pwd', type=str,
                         help='')
+    parser.add_argument('auth_type', type=str, default='digest',
+                        help='')
     args = parser.parse_args()
     return vars(args)
 
@@ -69,7 +71,7 @@ def get_ticket_list_from_comments(info):
 
 
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
-          rest_url, rest_user, rest_pwd):
+          rest_url, rest_user, rest_pwd, auth_type):
     targets = None
     while not targets:
         info = api.gerrit_api.get_ticket_info(ssh_user, ssh_server,
@@ -126,6 +128,11 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                                     ['Verified=+1', 'Integrated=+2'], None,
                                     ssh_key, port=ssh_port)
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
+    if auth_type == 'basic':
+        rest.change_to_basic_auth()
+    elif auth_type == 'digest':
+        rest.change_to_digest_auth()
+
     rest_id = rest.query_ticket(targets['manager'])['id']
     rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
     rest_id = rest.query_ticket(targets['root'])['id']

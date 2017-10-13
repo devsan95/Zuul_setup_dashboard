@@ -114,8 +114,8 @@ def make_dirs_for_file(file_path):
 
 
 class TempFolder(object):
-    def __init__(self):
-        self._path = tempfile.mkdtemp(prefix='layout_test_')
+    def __init__(self, prefix='layout_test_'):
+        self._path = tempfile.mkdtemp(prefix=prefix)
         print('Create Temp Folder: {}'.format(self._path))
 
     def get_directory(self, sub_folder='.'):
