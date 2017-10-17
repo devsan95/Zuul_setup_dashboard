@@ -90,6 +90,8 @@ def update_submodule(submodule_commit_dict, rest_id, rest_client):
         need_publish = True
     if need_publish:
         rest_client.publish_edit(rest_id)
+        rest_client.review_ticket(rest_id, 'Make into gate',
+                                  {'Code-Review': 2})
 
 
 def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):

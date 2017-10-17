@@ -135,8 +135,8 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
 
     rest_id = rest.query_ticket(targets['manager'])['id']
     rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
-    rest_id = rest.query_ticket(targets['root'])['id']
-    rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
+    # rest_id = rest.query_ticket(targets['root'])['id']
+    # rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
 
 
 if __name__ == '__main__':
