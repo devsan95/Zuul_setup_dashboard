@@ -6,7 +6,6 @@ A module to do gerrit rest operation.
 """
 
 import requests
-import re
 import json
 
 
@@ -26,11 +25,7 @@ class GerritRestClient:
     @staticmethod
     def parse_rest_response(response):
         content = response.content
-        reg = re.compile(r'{.*}', re.MULTILINE | re.DOTALL)
-        result = reg.findall(content)
-        if not result:
-            raise Exception('Invalid result: \n{}'.format(content))
-        content = result[0]
+        content = content.split("\n", 1)[1]
         return json.loads(content)
 
     def add_file_to_change(self, rest_id, file_path, content=''):
@@ -127,6 +122,22 @@ class GerritRestClient:
                     ticket_id, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
+        return result[0]
+
+    def get_commit(self, rest_id, revision_id='current'):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}/revisions/{}/commit'.format(
+            self.server_url, rest_id, revision_id)
+        changes = requests.get(url, auth=auth)
+
+        if not changes.ok:
+            raise Exception(
+                'get_commit_message [{},{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, revision_id,
+                    changes.status_code, changes.content))
+
+        result = self.parse_rest_response(changes)
         return result
 
     def generate_http_password(self, account_id):
@@ -140,3 +151,46 @@ class GerritRestClient:
                 'generate_http_password account_id [{}] failed.\n'
                 'Status code is [{}], content is [{}]'.format(
                     account_id, ret.status_code, ret.content))
+
+    def get_file_list(self, rest_id, revision_id='current'):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}/revisions/{}/files/'.format(
+            self.server_url, rest_id, revision_id)
+        changes = requests.get(url, auth=auth)
+
+        if not changes.ok:
+            raise Exception(
+                'get_file_list [{},{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, revision_id,
+                    changes.status_code, changes.content))
+
+        result = self.parse_rest_response(changes)
+        return result
+
+    def get_file_change(self, file_path, rest_id, revision_id='current'):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}/revisions/{}/files/{}/diff'.format(
+            self.server_url, rest_id, revision_id,
+            requests.utils.quote(file_path, safe=''))
+        changes = requests.get(url, auth=auth)
+
+        if not changes.ok:
+            raise Exception(
+                'get_file_change [{}, {},{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    file_path, rest_id, revision_id,
+                    changes.status_code, changes.content))
+
+        result = self.parse_rest_response(changes)
+        ret_dict = {'old': '', 'new': ''}
+        for change in result['content']:
+            for fid, content in change.items():
+                if fid == 'ab':
+                    ret_dict['old'] += '\n'.join(content)
+                    ret_dict['new'] += '\n'.join(content)
+                elif fid == 'a':
+                    ret_dict['old'] += '\n'.join(content)
+                elif fid == 'b':
+                    ret_dict['new'] += '\n'.join(content)
+        return ret_dict

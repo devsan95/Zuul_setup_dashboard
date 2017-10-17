@@ -8,8 +8,11 @@ import ruamel.yaml as yaml
 import networkx as nx
 from datetime import datetime
 import json
+import git
+import os
 from api import gerrit_rest
 from api import gerrit_api
+from api import file_api
 from slugify import slugify
 
 
@@ -29,6 +32,9 @@ def _parse_args():
                         help='')
 
     parser.add_argument('--zuul-key', type=str, dest='zuul_key',
+                        help='')
+
+    parser.add_argument('--input-branch', type=str, dest='input_branch',
                         help='')
 
     args = parser.parse_args()
@@ -141,49 +147,126 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, gerrit_client):
             if 'change_id' not in nodes[depend] or \
                     not nodes[depend]['change_id']:
                 return
-        message = make_description_by_node(node_obj, nodes, graph_obj)
+        message = make_description_by_node(node_obj, nodes, graph_obj, topic)
         change_id, ticket_id, rest_id = gerrit_client.create_ticket(
-            node_obj['repo'], topic, node_obj['branch'], message
+            node_obj['repo'], None, node_obj['branch'], message
         )
         node_obj['change_id'] = change_id
         node_obj['ticket_id'] = ticket_id
         node_obj['rest_id'] = rest_id
 
-    if 'file' in node_obj and node_obj['file']:
+    need_publish = False
+
+    # add files to trigger jobs
+    if 'files' in node_obj and node_obj['files']:
         if 'file_path' not in node_obj or not node_obj['file_path']:
-            file_path = node_obj['file'] + slugify(topic)
+            file_paths = []
+            for _file in node_obj['files']:
+                file_path = _file + slugify(topic)
+                file_paths.append(file_path)
+                gerrit_client.add_file_to_change(node_obj['rest_id'],
+                                                 file_path,
+                                                 datetime.utcnow().
+                                                 strftime('%Y%m%d%H%M%S'))
+                need_publish = True
+            node_obj['file_path'] = file_paths
+
+    # add files for env
+    if 'add_files' in node_obj and node_obj['add_files']:
+        for filename, content in node_obj['add_files'].items():
             gerrit_client.add_file_to_change(node_obj['rest_id'],
-                                             file_path,
-                                             datetime.utcnow().
-                                             strftime('%Y%m%d%H%M%S'))
-            gerrit_client.publish_edit(node_obj['rest_id'])
-            node_obj['file_path'] = file_path
+                                             filename, content)
+            need_publish = True
+
+    # add files for submodule
+    if 'submodules' in node_obj and node_obj['submodules']:
+        for path, repo in node_obj['submodules'].items():
+            if repo in nodes and 'temp_commit' in nodes[repo] and \
+                    nodes[repo]['temp_commit']:
+                gerrit_client.add_file_to_change(
+                    node_obj['rest_id'], path, '{}'.format(
+                        nodes[repo]['temp_commit']))
+                need_publish = True
+
+    if need_publish:
+        gerrit_client.publish_edit(node_obj['rest_id'])
 
     for child in graph_obj.successors(node_obj['name']):
         create_ticket_by_node(nodes[child], topic, graph_obj, nodes,
                               gerrit_client)
 
 
-def make_description_by_node(node_obj, nodes, graph_obj):
-    lines = ['This is the ticket for integration of '
-             'project {}'.format(node_obj['name'])]
+def make_description_by_node(node_obj, nodes, graph_obj, topic):
+    lines = ['Project <{}> Integration For <{}>'.format(
+        node_obj['name'], topic)]
+
     if 'type' in node_obj:
         if node_obj['type'] == 'root':
-            lines.append('ROOT CHANGE of one integration process')
+            lines.append('ROOT CHANGE')
+            lines.append('Please do not modify this change.')
         elif node_obj['type'] == 'integration':
-            lines.append('MANAGER CHANGE of one integration process\n'
-                         'Please do not modify this change.')
-    if 'path' in node_obj and node_obj['path']:
+            lines.append('MANAGER CHANGE')
+            lines.append('Please do not modify this change.')
+    if 'submodules' in node_obj and node_obj['submodules']:
+        lines.append('SUBMODULES PLACEHOLDER CHANGE')
+        lines.append('Please do not modify this change.')
+
+    lines.append('  ')
+    lines.append('  ')
+
+    section_showed = False
+    if 'paths' in node_obj and node_obj['paths']:
         lines.append('Please only modify files '
-                     'under the path [<project root>/{}]'.format(
-                          node_obj['path']))
+                     'under the following path(s):')
+        section_showed = True
+        for path in node_obj['paths']:
+            lines.append('  - <project root>/{}'.format(path))
     if 'remark' in node_obj and node_obj['remark']:
         lines.append('Remarks: {}'.format(node_obj['remark']))
+        section_showed = True
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
+    if 'submodules' in node_obj and node_obj['submodules']:
+        sub_dict = node_obj['submodules']
+        if len(sub_dict) > 0:
+            lines.append('This change contains following submodule(s):')
+            section_showed = True
+            for sub_path, sub_project in sub_dict.items():
+                if sub_project in nodes and 'ticket_id' in nodes[sub_project] \
+                        and nodes[sub_project]['ticket_id']:
+                    lines.append('  - SUBMODULE <{}> <{}> <{}>'.format(
+                        sub_path, sub_project,
+                        nodes[sub_project]['ticket_id']))
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
+    if len(graph_obj.predecessors(node_obj['name'])) > 0:
+        lines.append('This change depends on following change(s):')
+        section_showed = True
+        for depend in graph_obj.predecessors(node_obj['name']):
+            if depend in nodes and 'ticket_id' in nodes[depend] and \
+                    nodes[depend]['ticket_id']:
+                lines.append('  - Project:<{}> Change:<{}>'.format(
+                    depend, nodes[depend]['ticket_id']))
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
     for depend in graph_obj.predecessors(node_obj['name']):
         if depend in nodes and 'change_id' in nodes[depend] and \
                 nodes[depend]['change_id']:
             lines.append('Depends-on: {}'.format(
                 nodes[depend]['change_id']))
+
+    lines.append('  ')
 
     description = '\n'.join(lines)
     return description
@@ -220,8 +303,9 @@ def label_all_tickets(root_node, integration_node, graph_obj,
                                         zuul_key, zuul_port)
 
 
-def _main(path, topic_suffix, init_ticket, zuul_user, zuul_key):
+def _main(path, topic_suffix, init_ticket, zuul_user, zuul_key, input_branch):
     topic = None
+    topic_suffix = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
     if not topic_suffix:
@@ -237,8 +321,15 @@ def _main(path, topic_suffix, init_ticket, zuul_user, zuul_key):
     gerrit_ssh_port = structure_obj['gerrit']['ssh_port']
     gerrit_client = gerrit_rest.GerritRestClient(
         gerrit_server, gerrit_user, gerrit_pwd)
+
+    if structure_obj['gerrit']['auth'] == 'basic':
+        gerrit_client.change_to_basic_auth()
+    elif structure_obj['gerrit']['auth'] == 'digest':
+        gerrit_client.change_to_digest_auth()
+
     root_node, integration_node, nodes, graph_obj = create_graph(structure_obj)
     check_graph_availability(graph_obj, root_node, integration_node)
+
     if init_ticket:
         try:
             info = gerrit_client.query_ticket(init_ticket)
@@ -249,6 +340,10 @@ def _main(path, topic_suffix, init_ticket, zuul_user, zuul_key):
             print("An exception %s occurred when query init ticket,"
                   " msg: %s" % (type(e), str(e)))
 
+    env_files, env_commit = read_from_branch(root_node, input_branch,
+                                             gerrit_server)
+    root_node['add_files'] = env_files
+    root_node['temp_commit'] = env_commit
     create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
                            topic, gerrit_client)
     add_structure_string(root_node, integration_node, graph_obj, nodes,
@@ -256,6 +351,31 @@ def _main(path, topic_suffix, init_ticket, zuul_user, zuul_key):
     label_all_tickets(root_node, integration_node, graph_obj, nodes,
                       gerrit_client, zuul_user,
                       gerrit_ssh_server, gerrit_ssh_port, zuul_key)
+
+
+def read_from_branch(root_node, input_branch, gerrit_server):
+    ret_dict = {}
+    commit_id = ''
+    repo_url = gerrit_server + '/' + root_node['repo']
+    folder = file_api.TempFolder('env_tmp_')
+    repo = git.Repo.clone_from(repo_url, folder.get_directory())
+    origin = repo.remotes.origin
+    branch = repo.create_head(input_branch,
+                              repo.remotes.origin.refs[input_branch])
+    branch.set_tracking_branch(origin.refs.master).checkout()
+    commit_id = repo.head.commit.hexsha
+
+    list_dirs = os.walk(folder.get_directory())
+    for root, dirs, files in list_dirs:
+        if '.git' not in root:
+            for f in files:
+                if not f.startswith('.git'):
+                    file_path = os.path.join(root, f)
+                    ret_dict[os.path.relpath(
+                        file_path, folder.get_directory())] =\
+                        open(file_path).read()
+
+    return ret_dict, commit_id
 
 
 if __name__ == '__main__':
