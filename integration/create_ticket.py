@@ -22,7 +22,10 @@ def _parse_args():
     parser.add_argument('path', type=str,
                         help='path to structure file')
 
-    parser.add_argument('--topic-suffix', type=str, dest='topic_suffix',
+    parser.add_argument('gerrit_path', type=str,
+                        help='path to gerrit info file')
+
+    parser.add_argument('--topic-prefix', type=str, dest='topic_prefix',
                         help='topic suffix')
 
     parser.add_argument('--init-ticket', type=str, dest='init_ticket',
@@ -303,28 +306,29 @@ def label_all_tickets(root_node, integration_node, graph_obj,
                                         zuul_key, zuul_port)
 
 
-def _main(path, topic_suffix, init_ticket, zuul_user, zuul_key, input_branch):
+def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
+          input_branch):
     topic = None
-    topic_suffix = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
-    if not topic_suffix:
+    if not topic_prefix:
         topic = 'integration_{}'.format(timestr)
     else:
-        topic = 'integration_{}'.format(topic_suffix)
+        topic = '{}_{}'.format(topic_prefix, timestr)
 
     structure_obj = load_structure(path)
-    gerrit_server = structure_obj['gerrit']['url']
-    gerrit_user = structure_obj['gerrit']['user']
-    gerrit_pwd = structure_obj['gerrit']['pwd']
-    gerrit_ssh_server = structure_obj['gerrit']['ssh_server']
-    gerrit_ssh_port = structure_obj['gerrit']['ssh_port']
+    gerrit_obj = load_structure(gerrit_path)
+    gerrit_server = gerrit_obj['gerrit']['url']
+    gerrit_user = gerrit_obj['gerrit']['user']
+    gerrit_pwd = gerrit_obj['gerrit']['pwd']
+    gerrit_ssh_server = gerrit_obj['gerrit']['ssh_server']
+    gerrit_ssh_port = gerrit_obj['gerrit']['ssh_port']
     gerrit_client = gerrit_rest.GerritRestClient(
         gerrit_server, gerrit_user, gerrit_pwd)
 
-    if structure_obj['gerrit']['auth'] == 'basic':
+    if gerrit_obj['gerrit']['auth'] == 'basic':
         gerrit_client.change_to_basic_auth()
-    elif structure_obj['gerrit']['auth'] == 'digest':
+    elif gerrit_obj['gerrit']['auth'] == 'digest':
         gerrit_client.change_to_digest_auth()
 
     root_node, integration_node, nodes, graph_obj = create_graph(structure_obj)
