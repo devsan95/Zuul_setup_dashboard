@@ -300,10 +300,10 @@ def label_all_tickets(root_node, integration_node, graph_obj,
         if node is not root_node and node is not integration_node:
             gerrit_client.review_ticket(node['rest_id'],
                                         'Initial label', {'Code-Review': 2})
-            gerrit_api.review_patch_set(zuul_user, zuul_server,
-                                        node['ticket_id'],
-                                        ['Integrated=-2'], 'init label',
-                                        zuul_key, zuul_port)
+            # gerrit_api.review_patch_set(zuul_user, zuul_server,
+            #                             node['ticket_id'],
+            #                             ['Integrated=0'], 'init label',
+            #                             zuul_key, zuul_port)
 
 
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,

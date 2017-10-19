@@ -43,10 +43,19 @@ def _if_checklist_all_pass(checklist):
 
 
 def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
-    return api.gerrit_api.does_patch_set_match_condition(
-        ssh_user, ssh_server, ticket,
-        ['label:Verified=+1', 'label:Integrated=+2', 'label:Code-Review=+2'],
-        ssh_key, port=ssh_port)
+    if api.gerrit_api.does_patch_set_match_condition(
+            ssh_user, ssh_server, ticket,
+            ['label:Verified=+1', 'label:Integrated=+2',
+             'label:Code-Review=+2'],
+            ssh_key, port=ssh_port):
+        return True
+    elif api.gerrit_api.does_patch_set_match_condition(
+            ssh_user, ssh_server, ticket,
+            ['label:Verified=+1', 'label:Integrated=0',
+             'label:Code-Review=+2'],
+            ssh_key, port=ssh_port):
+        return True
+    return False
 
 
 def _check_manager_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
