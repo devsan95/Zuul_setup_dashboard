@@ -34,10 +34,14 @@ class GerritRestClient:
             '/edit/' + requests.utils.quote(file_path, safe='')
         ret = requests.put(rest_url, content, auth=auth)
         if not ret.ok:
-            raise Exception(
-                'In add file [{}] to change [{}] failed.\n'
-                'Status code is [{}], content is [{}]'.format(
-                    file_path, rest_id, ret.status_code, ret.content))
+            if ret.status_code == 409 and \
+                 ret.content.startswith('no changes were made'):
+                pass
+            else:
+                raise Exception(
+                    'In add file [{}] to change [{}] failed.\n'
+                    'Status code is [{}], content is [{}]'.format(
+                        file_path, rest_id, ret.status_code, ret.content))
 
     def publish_edit(self, rest_id):
         auth = self.auth(self.user, self.pwd)
