@@ -198,7 +198,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
 
     if 'type' in node_obj and node_obj['type'] == 'ric':
         gerrit_client.add_file_to_change(node_obj['rest_id'], 'ric',
-                                         '{}'.format(root_node['ric']))
+                                         '{}'.format(root_node['ric_content']))
         need_publish = True
 
     if need_publish:
@@ -265,12 +265,13 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic):
         lines.append('  ')
 
     section_showed = False
-    for node in nodes:
-        if 'type' in node and node['type'] == 'ric':
-            section_showed = True
-            lines.append('RIC file is in following repo:')
-            lines.append('  - RICREPO <{}>'.format(node['repo']))
-            break
+    if 'type' in node_obj and node_obj['type'] == 'integration':
+        for name, node in nodes.items():
+            if 'type' in node and node['type'] == 'ric':
+                section_showed = True
+                lines.append('RIC file is in following repo:')
+                lines.append('  - RICREPO <{}>'.format(node['repo']))
+                break
 
     if section_showed:
         lines.append('  ')
@@ -411,7 +412,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                                              gerrit_server)
     root_node['add_files'] = env_files
     root_node['temp_commit'] = env_commit
-    root_node['ric'] = read_ric(ric_path)
+    root_node['ric_content'] = read_ric(ric_path)
 
     create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
                            topic, gerrit_client)
