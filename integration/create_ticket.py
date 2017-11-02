@@ -205,7 +205,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
         gerrit_client.publish_edit(node_obj['rest_id'])
 
     for child in graph_obj.successors(node_obj['name']):
-        create_ticket_by_node(nodes[child], topic, graph_obj, nodes,
+        create_ticket_by_node(nodes[child], topic, graph_obj, nodes, root_node,
                               gerrit_client)
 
 
