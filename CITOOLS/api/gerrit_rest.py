@@ -198,3 +198,20 @@ class GerritRestClient:
                 elif fid == 'b':
                     ret_dict['new'] += '\n'.join(content)
         return ret_dict
+
+    def add_reviewer(self, rest_id, reviewer):
+        review_input = {
+            'reviewer': reviewer
+        }
+
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}/reviewers'.format(
+            self.server_url, rest_id)
+
+        changes = requests.post(url, json=review_input, auth=auth)
+
+        if not changes.ok:
+            raise Exception(
+                'In change [{}], add reviewers via REST api failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, changes.status_code, changes.content))

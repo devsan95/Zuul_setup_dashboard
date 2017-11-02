@@ -40,6 +40,9 @@ def _parse_args():
     parser.add_argument('--input-branch', type=str, dest='input_branch',
                         help='')
 
+    parser.add_argument('--ric-file', type=str, dest='ric_path',
+                        help='')
+
     args = parser.parse_args()
     return vars(args)
 
@@ -140,10 +143,12 @@ def check_graph_cycling(graph_obj):
 
 def create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
                            topic, gerrit_client):
-    create_ticket_by_node(root_node, topic, graph_obj, nodes, gerrit_client)
+    create_ticket_by_node(root_node, topic, graph_obj, nodes, root_node,
+                          gerrit_client)
 
 
-def create_ticket_by_node(node_obj, topic, graph_obj, nodes, gerrit_client):
+def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
+                          gerrit_client):
     if 'change_id' not in node_obj or not node_obj['change_id']:
         for edge in graph_obj.in_edges(node_obj['name']):
             depend = edge[0]
@@ -191,6 +196,11 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, gerrit_client):
                         nodes[repo]['temp_commit']))
                 need_publish = True
 
+    if 'type' in node_obj and node_obj['type'] == 'ric':
+        gerrit_client.add_file_to_change(node_obj['rest_id'], 'ric',
+                                         '{}'.format(root_node['ric']))
+        need_publish = True
+
     if need_publish:
         gerrit_client.publish_edit(node_obj['rest_id'])
 
@@ -227,6 +237,40 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic):
     if 'remark' in node_obj and node_obj['remark']:
         lines.append('Remarks: {}'.format(node_obj['remark']))
         section_showed = True
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
+    ric_title = False
+    if 'type' in node_obj and node_obj['type'] == 'integration':
+        for depend in graph_obj.predecessors(node_obj['name']):
+            if depend in nodes:
+                node = nodes[depend]
+                if 'ric' in node and node['ric']:
+                    ric_list = node['ric']
+                    if len(ric_list) > 0:
+                        if not ric_title:
+                            lines.append('This integration contains '
+                                         'following ric conponent(s):')
+                            ric_title = True
+                        section_showed = True
+                        for ric in ric_list.items():
+                            lines.append('  - RIC <{}> <{}>'.format(
+                                ric, node['repo']))
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
+    for node in nodes:
+        if 'type' in node and node['type'] == 'ric':
+            section_showed = True
+            lines.append('RIC file is in following repo:')
+            lines.append('  - RICREPO <{}>'.format(node['repo']))
+            break
 
     if section_showed:
         lines.append('  ')
@@ -291,7 +335,7 @@ def add_structure_string(root_node, integration_node, graph_obj,
 
 def label_all_tickets(root_node, integration_node, graph_obj,
                       nodes, gerrit_client, zuul_user,
-                      zuul_server, zuul_port, zuul_key):
+                      zuul_server, zuul_port, zuul_key, reviewers):
     gerrit_api.review_patch_set(zuul_user, zuul_server,
                                 root_node['ticket_id'],
                                 ['Integrated=-1'], 'init label',
@@ -304,10 +348,25 @@ def label_all_tickets(root_node, integration_node, graph_obj,
             #                             node['ticket_id'],
             #                             ['Integrated=0'], 'init label',
             #                             zuul_key, zuul_port)
+    if len(reviewers) > 0:
+        for node in nodes.values():
+            if node is not root_node and node is not integration_node:
+                for reviewer in reviewers:
+                    try:
+                        gerrit_client.add_reviewer(node['rest_id'], reviewer)
+                    except Exception as ex:
+                        print(str(ex))
+
+
+def read_ric(ric_path):
+    content = None
+    with open(ric_path) as f:
+        content = f.read()
+    return content
 
 
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
-          input_branch):
+          input_branch, ric_path):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
@@ -325,6 +384,10 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
     gerrit_ssh_port = gerrit_obj['gerrit']['ssh_port']
     gerrit_client = gerrit_rest.GerritRestClient(
         gerrit_server, gerrit_user, gerrit_pwd)
+
+    reviewers = []
+    if 'reviewers' in gerrit_obj and gerrit_obj['reviewers']:
+        reviewers = gerrit_obj['reviewers']
 
     if gerrit_obj['gerrit']['auth'] == 'basic':
         gerrit_client.change_to_basic_auth()
@@ -348,13 +411,15 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                                              gerrit_server)
     root_node['add_files'] = env_files
     root_node['temp_commit'] = env_commit
+    root_node['ric'] = read_ric(ric_path)
+
     create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
                            topic, gerrit_client)
     add_structure_string(root_node, integration_node, graph_obj, nodes,
                          gerrit_client)
     label_all_tickets(root_node, integration_node, graph_obj, nodes,
                       gerrit_client, zuul_user,
-                      gerrit_ssh_server, gerrit_ssh_port, zuul_key)
+                      gerrit_ssh_server, gerrit_ssh_port, zuul_key, reviewers)
 
 
 def read_from_branch(root_node, input_branch, gerrit_server):
