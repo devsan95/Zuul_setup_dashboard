@@ -256,7 +256,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic):
                                          'following ric conponent(s):')
                             ric_title = True
                         section_showed = True
-                        for ric in ric_list.items():
+                        for ric in ric_list:
                             lines.append('  - RIC <{}> <{}>'.format(
                                 ric, node['repo']))
 
