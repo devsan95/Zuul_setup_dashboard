@@ -13,6 +13,10 @@ import re
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='')
+    parser.add_argument('zuul_url', type=str,
+                        help='')
+    parser.add_argument('zuul_ref', type=str,
+                        help='')
     parser.add_argument('ric_path', type=str,
                         help='')
     parser.add_argument('change_id', type=str,
@@ -92,7 +96,8 @@ def update_ric(ric_path, ric_dict, zuul_url, zuul_ref):
     api.file_api.save_file(new_ric, ric_path, False)
 
 
-def _main(ric_path, change_id, rest_url, rest_user, rest_pwd, auth_type):
+def _main(zuul_url, zuul_ref, ric_path, change_id,
+          rest_url, rest_user, rest_pwd, auth_type):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     if auth_type == 'basic':
         rest.change_to_basic_auth()
@@ -127,7 +132,7 @@ def _main(ric_path, change_id, rest_url, rest_user, rest_pwd, auth_type):
     fetch_ric(rest, ric_path, description)
     ric_dict = parse_ric_list(description)
     if len(ric_dict) > 0:
-        update_ric(ric_path, ric_dict)
+        update_ric(ric_path, ric_dict, zuul_url, zuul_ref)
 
 
 if __name__ == '__main__':
