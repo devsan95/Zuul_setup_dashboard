@@ -271,7 +271,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic):
                 section_showed = True
                 lines.append('RIC file is in following repo:')
                 lines.append('  - RICREPO <{}> <{}>'.format(node['repo'],
-                                                            node['change_id']))
+                                                            node['ticket_id']))
                 break
 
     if section_showed:
