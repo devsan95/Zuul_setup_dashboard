@@ -410,7 +410,8 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                   " msg: %s" % (type(e), str(e)))
 
     env_files, env_commit = read_from_branch(root_node, input_branch,
-                                             gerrit_server)
+                                             gerrit_server,
+                                             gerrit_user, gerrit_pwd)
     root_node['add_files'] = env_files
     root_node['temp_commit'] = env_commit
     root_node['ric_content'] = read_ric(ric_path)
@@ -424,10 +425,14 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                       gerrit_ssh_server, gerrit_ssh_port, zuul_key, reviewers)
 
 
-def read_from_branch(root_node, input_branch, gerrit_server):
+def read_from_branch(root_node, input_branch, gerrit_server,
+                     gerrit_user, gerrit_pwd):
     ret_dict = {}
     commit_id = ''
     repo_url = gerrit_server + '/' + root_node['repo']
+    url_slices = repo_url.split('://', 1)
+    url_slices[1] = '{}:{}@{}'.format(gerrit_user, gerrit_pwd, url_slices[1])
+    repo_url = '://'.join(url_slices)
     folder = file_api.TempFolder('env_tmp_')
     repo = git.Repo.clone_from(repo_url, folder.get_directory())
     origin = repo.remotes.origin
