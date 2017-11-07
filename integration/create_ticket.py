@@ -296,7 +296,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic):
         lines.append('  ')
 
     section_showed = False
-    if len(graph_obj.predecessors(node_obj['name'])) > 0:
+    if len(list(graph_obj.predecessors(node_obj['name']))) > 0:
         lines.append('This change depends on following change(s):')
         section_showed = True
         for depend in graph_obj.predecessors(node_obj['name']):
