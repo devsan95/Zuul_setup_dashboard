@@ -211,12 +211,12 @@ class S3Server(object):
         """
         try:
             bucket, key = self.parse_s3_url(path)
-        except:
+        except Exception:
             return False
 
         try:
             self._s3_client.head_object(Bucket=bucket, Key=key)
-        except:
+        except Exception:
             return False
 
         return True

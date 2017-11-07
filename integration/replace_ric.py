@@ -82,7 +82,7 @@ def update_ric(ric_path, ric_dict, zuul_url, zuul_ref):
     for comp, repo in ric_dict.items():
         for i, element in enumerate(ric_lines):
             if comp in element:
-                if ''.startswith('VNE;'):
+                if comp.startswith('VNE;'):
                     slices = element.split(';;')
                     ric_lines[i] = '{};;{};;{};{};'.format(
                         slices[0], comp, '{}/{}'.format(zuul_url, repo),

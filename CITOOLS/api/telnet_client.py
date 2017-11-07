@@ -11,7 +11,7 @@ class TelnetClient(object):
         if start_str:
             try:
                 self.client.read_until(start_str + "\n", 2)
-            except:
+            except Exception:
                 traceback.print_exc()
         print "run cmd %s" % cmd
         self.client.write(cmd + "\n")

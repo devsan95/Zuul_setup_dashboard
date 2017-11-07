@@ -19,7 +19,7 @@ class ErrCheck(object):
             print "check function for %s start" % key
             try:
                 obj['result'] = obj['fun']()
-            except:
+            except Exception:
                 print "check function for %s get exception" % key
                 obj['result'] = False
             if obj['result']:
