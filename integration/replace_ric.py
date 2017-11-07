@@ -80,18 +80,18 @@ def update_ric(ric_path, ric_dict, zuul_url, zuul_ref):
         ric = f.read()
         ric_lines = ric.split('\n')
     for comp, repo in ric_dict.items():
-        for line in ric_lines:
-            if comp in line:
+        for i, element in enumerate(ric_lines):
+            if comp in element:
                 if ''.startswith('VNE;'):
-                    slices = line.split(';;')
-                    line = '{};;{};;{};{};'.format(
+                    slices = element.split(';;')
+                    ric_lines[i] = '{};;{};;{};{};'.format(
                         slices[0], comp, '{}/{}'.format(zuul_url, repo),
                         zuul_ref)
                 else:
-                    slices = line.split(';')
+                    slices = element.split(';')
                     slices[3] = '{}/{}'.format(zuul_url, repo)
                     slices[4] = zuul_ref
-                    line = ';'.join(slices)
+                    ric_lines[i] = ';'.join(slices)
     new_ric = '\n'.join(ric_lines)
     api.file_api.save_file(new_ric, ric_path, False)
 
