@@ -15,6 +15,8 @@ class GerritRestClient:
         self.user = user
         self.pwd = pwd
         self.auth = requests.auth.HTTPDigestAuth
+        self.session = requests.Session()
+        self.session.verify = False
 
     def change_to_digest_auth(self):
         self.auth = requests.auth.HTTPDigestAuth
@@ -32,7 +34,7 @@ class GerritRestClient:
         auth = self.auth(self.user, self.pwd)
         rest_url = self.server_url + '/a/changes/' + rest_id + \
             '/edit/' + requests.utils.quote(file_path, safe='')
-        ret = requests.put(rest_url, content, auth=auth)
+        ret = self.session.put(rest_url, content, auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
                  ret.content.startswith('no changes were made'):
@@ -47,7 +49,7 @@ class GerritRestClient:
         auth = self.auth(self.user, self.pwd)
         rest_url = '{}/a/changes/{}/edit:publish'.format(
             self.server_url, rest_id)
-        ret = requests.post(rest_url, auth=auth)
+        ret = self.session.post(rest_url, auth=auth)
         if not ret.ok:
             raise Exception(
                 'Publish edit to change [{}] failed.\n'
@@ -76,8 +78,9 @@ class GerritRestClient:
             input_data['topic'] = topic
         auth = self.auth(self.user, self.pwd)
         headers = {}
-        changes = requests.post(self.server_url + "/a/changes/",
-                                json=input_data, auth=auth, headers=headers)
+        changes = self.session.post(self.server_url + "/a/changes/",
+                                    json=input_data, auth=auth,
+                                    headers=headers)
         if not changes.ok:
             raise Exception(
                 'In project [{}], Creating change via REST api failed.\n '
@@ -102,7 +105,7 @@ class GerritRestClient:
         url = '{}/a/changes/{}/revisions/current/review'.format(
             self.server_url, rest_id)
 
-        changes = requests.post(url, json=review_input, auth=auth)
+        changes = self.session.post(url, json=review_input, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -117,7 +120,7 @@ class GerritRestClient:
         }
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/'.format(self.server_url)
-        changes = requests.get(url, params=get_param, auth=auth)
+        changes = self.session.get(url, params=get_param, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -132,7 +135,7 @@ class GerritRestClient:
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/{}/revisions/{}/commit'.format(
             self.server_url, rest_id, revision_id)
-        changes = requests.get(url, auth=auth)
+        changes = self.session.get(url, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -149,7 +152,7 @@ class GerritRestClient:
         rest_url = '{}/accounts/{}/password.http'.format(
             self.server_url, account_id)
         content = {"generate": True}
-        ret = requests.put(rest_url, json=content, auth=auth)
+        ret = self.session.put(rest_url, json=content, auth=auth)
         if not ret.ok:
             raise Exception(
                 'generate_http_password account_id [{}] failed.\n'
@@ -160,7 +163,7 @@ class GerritRestClient:
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/{}/revisions/{}/files/'.format(
             self.server_url, rest_id, revision_id)
-        changes = requests.get(url, auth=auth)
+        changes = self.session.get(url, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -177,7 +180,7 @@ class GerritRestClient:
         url = '{}/a/changes/{}/revisions/{}/files/{}/diff'.format(
             self.server_url, rest_id, revision_id,
             requests.utils.quote(file_path, safe=''))
-        changes = requests.get(url, auth=auth)
+        changes = self.session.get(url, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -208,10 +211,24 @@ class GerritRestClient:
         url = '{}/a/changes/{}/reviewers'.format(
             self.server_url, rest_id)
 
-        changes = requests.post(url, json=review_input, auth=auth)
+        changes = self.session.post(url, json=review_input, auth=auth)
 
         if not changes.ok:
             raise Exception(
                 'In change [{}], add reviewers via REST api failed.\n '
                 'Status code is [{}], content is [{}]'.format(
                     rest_id, changes.status_code, changes.content))
+
+    def list_account_emails(self, account='self'):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/accounts/{}/emails'.format(self.server_url, account)
+        emails = self.session.get(url, auth=auth)
+
+        if not emails.ok:
+            raise Exception(
+                'list_account_emails failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    emails.status_code, emails.content))
+
+        result = self.parse_rest_response(emails)
+        return result
