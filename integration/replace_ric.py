@@ -92,6 +92,11 @@ def update_ric(ric_path, ric_dict, zuul_url, zuul_ref):
                     slices[3] = '{}/{}'.format(zuul_url, repo)
                     slices[4] = zuul_ref
                     ric_lines[i] = ';'.join(slices)
+    for i, element in enumerate(ric_lines):
+        if 'ci-scripts' in element:
+            slices = element.split(';')
+            slices[6] = 'master'
+            ric_lines[i] = ';'.join(slices)
     new_ric = '\n'.join(ric_lines)
     api.file_api.save_file(new_ric, ric_path, False)
 
