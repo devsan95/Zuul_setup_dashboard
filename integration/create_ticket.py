@@ -447,9 +447,14 @@ def read_from_branch(root_node, input_branch, gerrit_server,
             for f in files:
                 if not f.startswith('.git'):
                     file_path = os.path.join(root, f)
-                    ret_dict[os.path.relpath(
-                        file_path, folder.get_directory())] =\
-                        open(file_path).read()
+                    if os.path.islink(file_path):
+                        ret_dict[os.path.relpath(
+                            file_path, folder.get_directory())] = \
+                            os.readlink(file_path)
+                    else:
+                        ret_dict[os.path.relpath(
+                            file_path, folder.get_directory())] =\
+                            open(file_path).read()
 
     return ret_dict, commit_id
 
