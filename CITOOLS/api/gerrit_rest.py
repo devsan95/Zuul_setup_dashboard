@@ -45,6 +45,22 @@ class GerritRestClient:
                     'Status code is [{}], content is [{}]'.format(
                         file_path, rest_id, ret.status_code, ret.content))
 
+    def restore_file_to_change(self, rest_id, file_path):
+        auth = self.auth(self.user, self.pwd)
+        rest_url = self.server_url + '/a/changes/' + rest_id + \
+            '/edit'
+        change_input = {"restore_path": file_path}
+        ret = self.session.post(rest_url, json=change_input, auth=auth)
+        if not ret.ok:
+            if ret.status_code == 409 and \
+                 ret.content.startswith('no changes were made'):
+                pass
+            else:
+                raise Exception(
+                    'In restore file [{}] to change [{}] failed.\n'
+                    'Status code is [{}]'.format(
+                        file_path, rest_id, ret.status_code))
+
     def publish_edit(self, rest_id):
         auth = self.auth(self.user, self.pwd)
         rest_url = '{}/a/changes/{}/edit:publish'.format(
@@ -232,3 +248,24 @@ class GerritRestClient:
 
         result = self.parse_rest_response(emails)
         return result
+
+    def rebase(self, rest_id, base=None):
+        rebase_input = {}
+        if base:
+            rebase_input['base'] = base
+
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}/rebase'.format(
+            self.server_url, rest_id)
+
+        changes = self.session.post(url, json=rebase_input, auth=auth)
+
+        if not changes.ok:
+            if changes.status_code == 409 and \
+                    changes.content.startswith('Change is already up to date'):
+                pass
+            else:
+                raise Exception(
+                    'In change [{}], rebase via REST api failed.\n '
+                    'Status code is [{}], content is [{}]'.format(
+                        rest_id, changes.status_code, changes.content))

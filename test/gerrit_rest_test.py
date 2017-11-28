@@ -8,6 +8,18 @@ import traceback
 from api import gerrit_rest
 
 
+def strip_end(text, suffix):
+    if not text.endswith(suffix):
+        return text
+    return text[:len(text)-len(suffix)]
+
+
+def strip_begin(text, prefix):
+    if not text.startswith(prefix):
+        return text
+    return text[len(prefix):]
+
+
 def _parse_args():
     parser = argparse.ArgumentParser(description='Update Submodule')
     parser.add_argument('rest_url', type=str,
@@ -30,6 +42,25 @@ def _main(rest_url, rest_user, rest_pwd, auth_type):
         rest.change_to_digest_auth()
 
     print(rest.list_account_emails())
+
+    rest_id = rest.query_ticket('165265')['id']
+    list = rest.get_file_list(rest_id)
+    file_content = {}
+    for file in list:
+        file = file.split('\n', 2)[0]
+        if file != '/COMMIT_MSG':
+            changeset = rest.get_file_change(file, rest_id)
+            if 'new' in changeset \
+                    and 'old' in changeset \
+                    and changeset['new'] != changeset['old']:
+                file_content[file] = strip_begin(changeset['new'],
+                                                 'Subproject commit ')
+                rest.restore_file_to_change(rest_id, file)
+    rest.publish_edit(rest_id)
+    print(rest.rebase(rest_id))
+    for file, content in file_content.items():
+        rest.add_file_to_change(rest_id, file, content)
+    rest.publish_edit(rest_id)
 
 
 if __name__ == '__main__':
