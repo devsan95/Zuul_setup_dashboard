@@ -13,6 +13,7 @@ import os
 from api import gerrit_rest
 from api import gerrit_api
 from api import file_api
+from api import job_tool
 from slugify import slugify
 
 
@@ -367,6 +368,30 @@ def read_ric(ric_path):
     return content
 
 
+def print_result(root_node, integration_node, graph_obj,
+                 nodes, gerrit_server):
+    root_change = root_node['ticket_id']
+    print('Root change: {}'.format('{}/#/c/{}/'.format(
+        gerrit_server, root_change)))
+    integration_change = integration_node['ticket_id']
+    print('Integration change: {}'.format('{}/#/c/{}/'.format(
+        gerrit_server, integration_change)))
+    component_changes = ''
+    print('Component changes:')
+    for node in nodes.values():
+        if node is not root_node and node is not integration_node:
+            node_change = node['ticket_id']
+            component_changes += ' {}'.format(node_change)
+            print('{}/#/c/{}/'.format(gerrit_server, node_change))
+    result_dict = {
+        'root': root_change,
+        'integration': integration_change,
+        'component': component_changes
+    }
+    path = os.path.join(job_tool.get_workspace(), 'result')
+    job_tool.write_dict_to_properties(result_dict, path)
+
+
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
           input_branch, ric_path):
     topic = None
@@ -423,6 +448,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
     label_all_tickets(root_node, integration_node, graph_obj, nodes,
                       gerrit_client, zuul_user,
                       gerrit_ssh_server, gerrit_ssh_port, zuul_key, reviewers)
+    print_result(root_node, integration_node, graph_obj, nodes, gerrit_server)
 
 
 def read_from_branch(root_node, input_branch, gerrit_server,
