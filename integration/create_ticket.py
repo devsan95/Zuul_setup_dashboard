@@ -338,7 +338,7 @@ def add_structure_string(root_node, integration_node, graph_obj,
 
 def label_all_tickets(root_node, integration_node, graph_obj,
                       nodes, gerrit_client, zuul_user,
-                      zuul_server, zuul_port, zuul_key, reviewers):
+                      zuul_server, zuul_port, zuul_key):
     gerrit_api.review_patch_set(zuul_user, zuul_server,
                                 root_node['ticket_id'],
                                 ['Integrated=-1'], 'init label',
@@ -351,14 +351,13 @@ def label_all_tickets(root_node, integration_node, graph_obj,
             #                             node['ticket_id'],
             #                             ['Integrated=0'], 'init label',
             #                             zuul_key, zuul_port)
-    if len(reviewers) > 0:
-        for node in nodes.values():
-            if node is not root_node and node is not integration_node:
-                for reviewer in reviewers:
-                    try:
-                        gerrit_client.add_reviewer(node['rest_id'], reviewer)
-                    except Exception as ex:
-                        print(str(ex))
+
+        if 'reviewers' in node and node['reviewers']:
+            for reviewer in node['reviewers']:
+                try:
+                    gerrit_client.add_reviewer(node['rest_id'], reviewer)
+                except Exception as ex:
+                    print('Adding reviwer failed, {}'.format(str(ex)))
 
 
 def read_ric(ric_path):
@@ -412,10 +411,6 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
     gerrit_client = gerrit_rest.GerritRestClient(
         gerrit_server, gerrit_user, gerrit_pwd)
 
-    reviewers = []
-    if 'reviewers' in gerrit_obj and gerrit_obj['reviewers']:
-        reviewers = gerrit_obj['reviewers']
-
     if gerrit_obj['gerrit']['auth'] == 'basic':
         gerrit_client.change_to_basic_auth()
     elif gerrit_obj['gerrit']['auth'] == 'digest':
@@ -447,7 +442,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                          gerrit_client)
     label_all_tickets(root_node, integration_node, graph_obj, nodes,
                       gerrit_client, zuul_user,
-                      gerrit_ssh_server, gerrit_ssh_port, zuul_key, reviewers)
+                      gerrit_ssh_server, gerrit_ssh_port, zuul_key)
     print_result(root_node, integration_node, graph_obj, nodes, gerrit_server)
 
 
