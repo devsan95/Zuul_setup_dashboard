@@ -31,7 +31,7 @@ def run_cmd(cmd):
     subprocess.check_call(cmd, shell=True)
 
 
-def write_dict_to_properties(dict_env, output_file):
+def write_dict_to_properties(dict_env, output_file, with_quotes=True):
     """
     Write a dictionary to a env file.
     :param dict_env:  dictionary to write
@@ -45,4 +45,7 @@ def write_dict_to_properties(dict_env, output_file):
 
     with open(output_file, 'w') as out_file:
         for key, value in dict_env.items():
-            out_file.write('%s="%s"\n' % (key, value))
+            if with_quotes:
+                out_file.write('%s="%s"\n' % (key, value))
+            else:
+                out_file.write('{}={}\n'.format(key, value))

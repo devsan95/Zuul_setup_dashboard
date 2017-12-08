@@ -34,16 +34,8 @@ def _parse_args():
     return vars(args)
 
 
-def _main(rest_url, rest_user, rest_pwd, auth_type):
-    rest = gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
-    if auth_type == 'basic':
-        rest.change_to_basic_auth()
-    elif auth_type == 'digest':
-        rest.change_to_digest_auth()
-
-    print(rest.list_account_emails())
-
-    rest_id = rest.query_ticket('165265')['id']
+def rebase_change(rest, change_id):
+    rest_id = rest.query_ticket(change_id)['id']
     list = rest.get_file_list(rest_id)
     file_content = {}
     for file in list:
@@ -61,6 +53,39 @@ def _main(rest_url, rest_user, rest_pwd, auth_type):
     for file, content in file_content.items():
         rest.add_file_to_change(rest_id, file, content)
     rest.publish_edit(rest_id)
+
+
+def merge_change(rest, change_id_dst, change_id_src):
+    rest_id_dst = rest.query_ticket(change_id_dst)['id']
+    rest_id_src = rest.query_ticket(change_id_src)['id']
+    list = rest.get_file_list(rest_id_src)
+    file_content = {}
+    for file in list:
+        file = file.split('\n', 2)[0]
+        if file != '/COMMIT_MSG':
+            changeset = rest.get_file_change(file, rest_id_src)
+            if 'new' in changeset \
+                    and 'old' in changeset \
+                    and changeset['new'] != changeset['old']:
+                file_content[file] = strip_begin(changeset['new'],
+                                                 'Subproject commit ')
+
+    for file, content in file_content.items():
+        rest.add_file_to_change(rest_id_dst, file, content)
+    rest.publish_edit(rest_id_dst)
+
+
+def _main(rest_url, rest_user, rest_pwd, auth_type):
+    rest = gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
+    if auth_type == 'basic':
+        rest.change_to_basic_auth()
+    elif auth_type == 'digest':
+        rest.change_to_digest_auth()
+
+    print(rest.list_account_emails())
+
+    # rebase_change(rest, '177021')
+    # merge_change(rest, '179723', '179166')
 
 
 if __name__ == '__main__':

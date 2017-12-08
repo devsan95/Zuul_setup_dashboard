@@ -383,12 +383,12 @@ def print_result(root_node, integration_node, graph_obj,
             component_changes += ' {}'.format(node_change)
             print('{}/#/c/{}/'.format(gerrit_server, node_change))
     result_dict = {
-        'root': root_change,
+        'RootID': root_change,
         'integration': integration_change,
         'component': component_changes
     }
     path = os.path.join(job_tool.get_workspace(), 'result')
-    job_tool.write_dict_to_properties(result_dict, path)
+    job_tool.write_dict_to_properties(result_dict, path, False)
 
 
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
