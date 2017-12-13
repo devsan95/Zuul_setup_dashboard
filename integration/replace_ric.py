@@ -75,11 +75,24 @@ def parse_ric_list(subject):
     return ret_dict
 
 
-def update_ric(ric_path, ric_dict, zuul_url, zuul_ref):
+def parse_ric_commit_list(subject):
+    ret_dict = {}
+    lines = subject.split('\n')
+    r = re.compile(r'  - RICCOMMIT <(.*)> <(.*)>')
+    for line in lines:
+        m = r.match(line)
+        if m:
+            ret_dict[m.group(1)] = m.group(2)
+    return ret_dict
+
+
+def update_ric(ric_path, ric_dict, ric_commit_dict, zuul_url, zuul_ref):
     with open(ric_path) as f:
         ric = f.read()
         ric_lines = ric.split('\n')
+
     for comp, repo in ric_dict.items():
+        comp = ';{};'.format(comp)
         for i, element in enumerate(ric_lines):
             if comp in element:
                 if comp.startswith('VNE;'):
@@ -92,11 +105,21 @@ def update_ric(ric_path, ric_dict, zuul_url, zuul_ref):
                     slices[3] = '{}/{}'.format(zuul_url, repo)
                     slices[4] = zuul_ref
                     ric_lines[i] = ';'.join(slices)
+
+    for comp, commit in ric_commit_dict.items():
+        comp = ';{};'.format(comp)
+        for i, element in enumerate(ric_lines):
+            if comp in element:
+                slices = element.split(';')
+                slices[4] = commit
+                ric_lines[i] = ';'.join(slices)
+
     for i, element in enumerate(ric_lines):
         if 'ci-scripts' in element:
             slices = element.split(';')
             slices[6] = 'master'
             ric_lines[i] = ';'.join(slices)
+
     new_ric = '\n'.join(ric_lines)
     api.file_api.save_file(new_ric, ric_path, False)
 
@@ -136,8 +159,9 @@ def _main(zuul_url, zuul_ref, ric_path, change_id,
 
     fetch_ric(rest, ric_path, description)
     ric_dict = parse_ric_list(description)
-    if len(ric_dict) > 0:
-        update_ric(ric_path, ric_dict, zuul_url, zuul_ref)
+    ric_commit_dict = parse_ric_commit_list(description)
+    if len(ric_dict) > 0 or len(ric_commit_dict) > 0:
+        update_ric(ric_path, ric_dict, ric_commit_dict, zuul_url, zuul_ref)
 
 
 if __name__ == '__main__':

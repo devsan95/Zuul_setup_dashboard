@@ -44,6 +44,12 @@ def _parse_args():
     parser.add_argument('--ric-file', type=str, dest='ric_path',
                         help='')
 
+    parser.add_argument('--heat-template', type=str, dest='heat_template',
+                        help='')
+
+    parser.add_argument('--version-name', type=str, dest='version_name',
+                        help='')
+
     args = parser.parse_args()
     return vars(args)
 
@@ -143,20 +149,21 @@ def check_graph_cycling(graph_obj):
 
 
 def create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
-                           topic, gerrit_client):
+                           topic, gerrit_client, info_index):
     create_ticket_by_node(root_node, topic, graph_obj, nodes, root_node,
-                          gerrit_client)
+                          gerrit_client, info_index)
 
 
 def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
-                          gerrit_client):
+                          gerrit_client, info_index):
     if 'change_id' not in node_obj or not node_obj['change_id']:
         for edge in graph_obj.in_edges(node_obj['name']):
             depend = edge[0]
             if 'change_id' not in nodes[depend] or \
                     not nodes[depend]['change_id']:
                 return
-        message = make_description_by_node(node_obj, nodes, graph_obj, topic)
+        message = make_description_by_node(node_obj, nodes, graph_obj, topic,
+                                           info_index)
         change_id, ticket_id, rest_id = gerrit_client.create_ticket(
             node_obj['repo'], None, node_obj['branch'], message
         )
@@ -207,12 +214,16 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
 
     for child in graph_obj.successors(node_obj['name']):
         create_ticket_by_node(nodes[child], topic, graph_obj, nodes, root_node,
-                              gerrit_client)
+                              gerrit_client, info_index)
 
 
-def make_description_by_node(node_obj, nodes, graph_obj, topic):
-    lines = ['Project <{}> Integration For <{}>'.format(
-        node_obj['name'], topic)]
+def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
+    lines = ['<{change}> on <{version}> of <{title}> topic <{topic}>'.format(
+        change=node_obj['name'],
+        topic=topic,
+        version=info_index['meta']['version_name'],
+        title=info_index['meta']['title']
+    )]
 
     if 'type' in node_obj:
         if node_obj['type'] == 'root':
@@ -236,7 +247,9 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic):
         for path in node_obj['paths']:
             lines.append('  - <project root>/{}'.format(path))
     if 'remark' in node_obj and node_obj['remark']:
-        lines.append('Remarks: {}'.format(node_obj['remark']))
+        lines.append('Remarks: ')
+        for line in node_obj['remark']:
+            lines.append('  {}'.format(line))
         section_showed = True
 
     if section_showed:
@@ -260,6 +273,11 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic):
                         for ric in ric_list:
                             lines.append('  - RIC <{}> <{}>'.format(
                                 ric, node['repo']))
+
+        if info_index['etc']['heat_template']:
+            lines.append('  - RICCOMMIT <{}> <{}>'.format(
+                'open-stack-heat-templates',
+                info_index['etc']['heat_template']))
 
     if section_showed:
         lines.append('  ')
@@ -392,12 +410,12 @@ def print_result(root_node, integration_node, graph_obj,
 
 
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
-          input_branch, ric_path):
+          input_branch, ric_path, heat_template, version_name):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
     if not topic_prefix:
-        topic = 'integration_{}'.format(timestr)
+        topic = 't_{}'.format(timestr)
     else:
         topic = '{}_{}'.format(topic_prefix, timestr)
 
@@ -416,9 +434,29 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
     elif gerrit_obj['gerrit']['auth'] == 'digest':
         gerrit_client.change_to_digest_auth()
 
+    # handle meta:
+    structure_obj['meta']['topic'] = topic
+    if not version_name:
+        version_name = timestr
+    structure_obj['meta']['version_name'] = version_name
+    meta = structure_obj['meta']
+
+    # create graph
     root_node, integration_node, nodes, graph_obj = create_graph(structure_obj)
     check_graph_availability(graph_obj, root_node, integration_node)
 
+    info_index = {
+        'meta': meta,
+        'root': root_node,
+        'mn': integration_node,
+        'nodes': nodes,
+        'graph': graph_obj,
+        'etc': {
+            'heat_template': heat_template
+        }
+    }
+
+    # If root exists
     if init_ticket:
         try:
             info = gerrit_client.query_ticket(init_ticket)
@@ -437,7 +475,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
     root_node['ric_content'] = read_ric(ric_path)
 
     create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
-                           topic, gerrit_client)
+                           topic, gerrit_client, info_index)
     add_structure_string(root_node, integration_node, graph_obj, nodes,
                          gerrit_client)
     label_all_tickets(root_node, integration_node, graph_obj, nodes,
