@@ -275,6 +275,10 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
                                 ric, node['repo']))
 
         if info_index['etc']['heat_template']:
+            if not ric_title:
+                lines.append('This integration contains '
+                             'following ric conponent(s):')
+
             lines.append('  - RICCOMMIT <{}> <{}>'.format(
                 'open-stack-heat-templates',
                 info_index['etc']['heat_template']))
