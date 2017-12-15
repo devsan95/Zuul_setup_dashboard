@@ -16,6 +16,8 @@ from api import file_api
 from api import job_tool
 from slugify import slugify
 
+import create_jira_ticket
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -240,6 +242,15 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
     lines.append('  ')
 
     section_showed = False
+    if 'jira_key' in info_index['meta'] and info_index['meta']['jira_key']:
+        lines.append('%JR={}'.format(info_index['meta']['jira_key']))
+        section_showed = True
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
     if 'paths' in node_obj and node_obj['paths']:
         lines.append('Please only modify files '
                      'under the following path(s):')
@@ -365,6 +376,7 @@ def label_all_tickets(root_node, integration_node, graph_obj,
                                 root_node['ticket_id'],
                                 ['Integrated=-1'], 'init label',
                                 zuul_key, zuul_port)
+    gerrit_client.review_ticket(root_node['rest_id'], 'reintegrate')
     for node in nodes.values():
         if node is not root_node and node is not integration_node:
             gerrit_client.review_ticket(node['rest_id'],
@@ -459,6 +471,15 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
             'heat_template': heat_template
         }
     }
+
+    # create jira
+    if 'jira' in meta:
+        try:
+            jira_key = create_jira_ticket.run(info_index)
+            meta["jira_key"] = jira_key
+        except Exception as ex:
+            print('Exception occured while create jira ticket, {}'.format(
+                str(ex)))
 
     # If root exists
     if init_ticket:
