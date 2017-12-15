@@ -3,6 +3,8 @@
 
 import requests
 import json
+import ruamel.yaml as yaml
+import copy
 
 
 def run(info_index, jira_url=None, user=None, pwd=None):
@@ -13,7 +15,7 @@ def run(info_index, jira_url=None, user=None, pwd=None):
     if pwd is None:
         pwd = 'a4112fc4'
 
-    meta = info_index['meta']['jira'].deepcopy()
+    meta = copy.deepcopy(info_index['meta']['jira'])
     meta['summary'] = meta['summary'].format(
         title=info_index['meta']['title'],
         version=info_index['meta']['version_name'])
@@ -30,3 +32,9 @@ def run(info_index, jira_url=None, user=None, pwd=None):
     ticket_key = res_data['key']
     print(ticket_key)
     return ticket_key
+
+
+if __name__ == '__main__':
+    structure_obj = yaml.load(open('repo_structure.yaml'),
+                              Loader=yaml.Loader, version='1.1')
+    print structure_obj
