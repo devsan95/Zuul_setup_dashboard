@@ -82,7 +82,11 @@ def parse_ric_commit_list(subject):
     for line in lines:
         m = r.match(line)
         if m:
-            ret_dict[m.group(1)] = m.group(2)
+            key = m.group(1)
+            key = key.strip('"')
+            value = m.group(2)
+            value = value.strip('"')
+            ret_dict[key] = value
     return ret_dict
 
 
@@ -95,9 +99,9 @@ def update_ric(ric_path, ric_dict, ric_commit_dict, zuul_url, zuul_ref):
         comp = ';{};'.format(comp)
         for i, element in enumerate(ric_lines):
             if comp in element:
-                if comp.startswith('VNE;'):
+                if comp.startswith(';VNE;'):
                     slices = element.split(';;')
-                    ric_lines[i] = '{};;{};;{};{};'.format(
+                    ric_lines[i] = '{};{};{};{};'.format(
                         slices[0], comp, '{}/{}'.format(zuul_url, repo),
                         zuul_ref)
                 else:
