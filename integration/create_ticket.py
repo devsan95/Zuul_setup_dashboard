@@ -15,6 +15,7 @@ from api import gerrit_api
 from api import file_api
 from api import job_tool
 from slugify import slugify
+import send_result_email
 
 import create_jira_ticket
 
@@ -374,7 +375,7 @@ def label_all_tickets(root_node, integration_node, graph_obj,
                       zuul_server, zuul_port, zuul_key):
     gerrit_api.review_patch_set(zuul_user, zuul_server,
                                 root_node['ticket_id'],
-                                ['Integrated=-1'], 'init label',
+                                ['Integrated=-1'], 'init_label',
                                 zuul_key, zuul_port)
     gerrit_client.review_ticket(root_node['rest_id'], 'reintegrate')
     for node in nodes.values():
@@ -383,7 +384,7 @@ def label_all_tickets(root_node, integration_node, graph_obj,
                                         'Initial label', {'Code-Review': 2})
             # gerrit_api.review_patch_set(zuul_user, zuul_server,
             #                             node['ticket_id'],
-            #                             ['Integrated=0'], 'init label',
+            #                             ['Integrated=0'], 'init_label',
             #                             zuul_key, zuul_port)
 
         if 'reviewers' in node and node['reviewers']:
@@ -507,6 +508,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                       gerrit_client, zuul_user,
                       gerrit_ssh_server, gerrit_ssh_port, zuul_key)
     print_result(root_node, integration_node, graph_obj, nodes, gerrit_server)
+    send_result_email.run(info_index)
 
 
 def read_from_branch(root_node, input_branch, gerrit_server,

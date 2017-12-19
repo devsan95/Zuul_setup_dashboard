@@ -37,4 +37,5 @@ def run(info_index, jira_url=None, user=None, pwd=None):
 if __name__ == '__main__':
     structure_obj = yaml.load(open('repo_structure.yaml'),
                               Loader=yaml.Loader, version='1.1')
-    print structure_obj
+    structure_obj['meta']['version_name'] = 'test'
+    run(structure_obj)

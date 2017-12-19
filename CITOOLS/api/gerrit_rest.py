@@ -220,7 +220,8 @@ class GerritRestClient:
 
     def add_reviewer(self, rest_id, reviewer):
         review_input = {
-            'reviewer': reviewer
+            'reviewer': reviewer,
+            'confirmed': True
         }
 
         auth = self.auth(self.user, self.pwd)
