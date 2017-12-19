@@ -16,7 +16,8 @@ def generate_html(info_index):
                'scm_changes': [],
                'user_changes': []}
     for name, node in info_index['nodes'].iteritems():
-        if node['type'] == 'root' or node['type'] == 'integration':
+        if 'type' in node and \
+                (node['type'] == 'root' or node['type'] == 'integration'):
             content['scm_changes'].append(node)
         else:
             content['user_changes'].append(node)
