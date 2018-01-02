@@ -64,6 +64,8 @@ def send_email(info_index, content):
 
 def run(info_index):
     content = generate_html(info_index)
+    with open('result.html', 'w') as f:
+        f.write(codecs.encode(content, 'utf8'))
     send_email(info_index, content)
 
 
@@ -71,5 +73,4 @@ if __name__ == '__main__':
     dict1 = None
     with open('info_index.json') as f:
         dict1 = json.load(f)
-    content = generate_html(dict1)
-    send_email(dict1, content)
+    run(dict1)

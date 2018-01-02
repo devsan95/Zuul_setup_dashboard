@@ -212,10 +212,17 @@ class GerritRestClient:
                 if fid == 'ab':
                     ret_dict['old'] += '\n'.join(content)
                     ret_dict['new'] += '\n'.join(content)
+
+                    ret_dict['old'] += '\n'
+                    ret_dict['new'] += '\n'
                 elif fid == 'a':
                     ret_dict['old'] += '\n'.join(content)
+
+                    ret_dict['old'] += '\n'
                 elif fid == 'b':
                     ret_dict['new'] += '\n'.join(content)
+
+                    ret_dict['new'] += '\n'
         return ret_dict
 
     def add_reviewer(self, rest_id, reviewer):
