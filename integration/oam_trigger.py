@@ -135,13 +135,19 @@ def _main(change_ids, retry_times, jenkins_url, job_name, token):
                     continue
                 if result == 'FAILURE':
                     print_flush('Test failed, retry')
+                    print_flush('{}/job/{}/{}/'.format(
+                        jenkins_url, job_name, build_no))
                     min_no = build_no
                     break
                 elif result == 'SUCCESS':
                     print_flush('Test succeed')
+                    print_flush('{}/job/{}/{}/'.format(
+                        jenkins_url, job_name, build_no))
                     sys.exit(0)
                 else:
                     print_flush('Test unknown, retry')
+                    print_flush('{}/job/{}/{}/'.format(
+                        jenkins_url, job_name, build_no))
                     min_no = build_no
                     break
 

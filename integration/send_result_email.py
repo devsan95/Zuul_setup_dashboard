@@ -25,8 +25,8 @@ def generate_html(info_index):
 
 
 def send_email(info_index, content):
-    title = '{} on {}'.format(info_index['meta']['version_name'],
-                              info_index['meta']['title'])
+    title = '{}, {}'.format(info_index['meta']['version_name'],
+                            info_index['meta']['title'])
     to = []
     cc = []
     bcc = []
