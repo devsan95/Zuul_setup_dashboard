@@ -67,10 +67,15 @@ class GerritRestClient:
             self.server_url, rest_id)
         ret = self.session.post(rest_url, auth=auth)
         if not ret.ok:
-            raise Exception(
-                'Publish edit to change [{}] failed.\n'
-                'Status code is [{}], content is [{}]'.format(
-                    rest_id, ret.status_code, ret.content))
+            if ret.status_code == 409 and \
+                    ret.content.startswith(
+                        'identical tree and message'):
+                pass
+            else:
+                raise Exception(
+                    'Publish edit to change [{}] failed.\n'
+                    'Status code is [{}], content is [{}]'.format(
+                        rest_id, ret.status_code, ret.content))
 
     def delete_edit(self, rest_id):
         auth = self.auth(self.user, self.pwd)
@@ -146,6 +151,20 @@ class GerritRestClient:
 
         result = self.parse_rest_response(changes)
         return result[0]
+
+    def get_change(self, rest_id):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}'.format(self.server_url, rest_id)
+        changes = self.session.get(url, auth=auth)
+
+        if not changes.ok:
+            raise Exception(
+                'Get change [{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, changes.status_code, changes.content))
+
+        result = self.parse_rest_response(changes)
+        return result
 
     def get_commit(self, rest_id, revision_id='current'):
         auth = self.auth(self.user, self.pwd)
@@ -225,6 +244,24 @@ class GerritRestClient:
                     ret_dict['new'] += '\n'
         return ret_dict
 
+    def get_file_content(self, file_path, rest_id, revision_id='current'):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}/revisions/{}/files/{}/content'.format(
+            self.server_url, rest_id, revision_id,
+            requests.utils.quote(file_path, safe=''))
+        changes = self.session.get(url, auth=auth,
+                                   headers={'Accept-Encoding': 'deflate',
+                                            'Accept': 'application/json'})
+
+        if not changes.ok:
+            raise Exception(
+                'get_file_change [{}, {},{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    file_path, rest_id, revision_id,
+                    changes.status_code, changes.content))
+
+        return self.parse_rest_response(changes)
+
     def add_reviewer(self, rest_id, reviewer):
         review_input = {
             'reviewer': reviewer,
@@ -269,11 +306,79 @@ class GerritRestClient:
         changes = self.session.post(url, json=rebase_input, auth=auth)
 
         if not changes.ok:
-            if changes.status_code == 409 and \
-                    changes.content.startswith('Change is already up to date'):
+            if changes.status_code == 409 and (
+                    changes.content.startswith(
+                        'Change is already up to date')
+            ):
                 pass
             else:
                 raise Exception(
                     'In change [{}], rebase via REST api failed.\n '
                     'Status code is [{}], content is [{}]'.format(
                         rest_id, changes.status_code, changes.content))
+
+    def set_commit_message(self, rest_id, content=''):
+        auth = self.auth(self.user, self.pwd)
+        info = self.get_change(rest_id)
+        data = {'message':
+                content + '\n\nChange-Id: {}\n'.format(info['change_id'])}
+        rest_url = self.server_url + '/a/changes/' + str(rest_id) + '/message'
+        ret = self.session.put(rest_url, json=data, auth=auth)
+        if not ret.ok:
+            raise Exception(
+                'In set commit message to change [{}] failed.\n'
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, ret.status_code, ret.content))
+
+    def list_branches(self, project_name):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/projects/{}/branches/'.format(
+            self.server_url, requests.utils.quote(project_name, safe=''))
+        ret = self.session.get(url, auth=auth)
+
+        if not ret.ok:
+            raise Exception(
+                'list branches of {} failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    project_name, ret.status_code, ret.content))
+
+        result = self.parse_rest_response(ret)
+        return result
+
+    def create_branch(self, project_name, branch_name, base='HEAD'):
+        auth = self.auth(self.user, self.pwd)
+        data = {'revision': base}
+        rest_url = '{}/a/projects/{}/branches/{}'.format(
+            self.server_url, requests.utils.quote(project_name, safe=''),
+            requests.utils.quote(branch_name, safe=''))
+        ret = self.session.put(rest_url, json=data, auth=auth)
+        if not ret.ok:
+            raise Exception(
+                'In create_branch to project [{}] branch [{}] failed.\n'
+                'Status code is [{}], content is [{}]'.format(
+                    project_name, branch_name,
+                    ret.status_code, ret.content))
+
+    def delete_branch(self, project_name, branch_name):
+        auth = self.auth(self.user, self.pwd)
+        rest_url = '{}/a/projects/{}/branches/{}'.format(
+            self.server_url, requests.utils.quote(project_name, safe=''),
+            requests.utils.quote(branch_name, safe=''))
+        ret = requests.delete(rest_url, auth=auth)
+        if not ret.ok:
+            raise Exception(
+                'delete_branch to project [{}] branch [{}] failed.\n'
+                'Status code is [{}], content is [{}]'.format(
+                    project_name, branch_name,
+                    ret.status_code, ret.content))
+
+    def submit_change(self, rest_id):
+        auth = self.auth(self.user, self.pwd)
+        rest_url = '{}/a/changes/{}/submit'.format(
+            self.server_url, rest_id)
+        ret = self.session.post(rest_url, auth=auth)
+        if not ret.ok:
+            raise Exception(
+                'submit_change to change [{}] failed.\n'
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, ret.status_code, ret.content))

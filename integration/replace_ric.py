@@ -53,8 +53,13 @@ def fetch_ric(rest, ric_path, description):
     data = rest.query_ticket(ric_change)
     rest_id = data['id']
 
-    content = rest.get_file_change('ric', rest_id)
-    ric = content['new']
+    file_list = rest.get_file_list(rest_id)
+
+    for path in file_list:
+        if path.startswith('ric'):
+            content = rest.get_file_change(path, rest_id)
+            ric = content['new']
+            break
 
     if not ric:
         raise Exception('ric is empty')

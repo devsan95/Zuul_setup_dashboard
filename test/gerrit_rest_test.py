@@ -75,6 +75,12 @@ def merge_change(rest, change_id_dst, change_id_src):
     rest.publish_edit(rest_id_dst)
 
 
+def change_commit_msg(rest, change_id, msg):
+    info = rest.query_ticket(change_id)
+    message = msg + '\n' + info['subject']
+    rest.set_commit_message(info['id'], message)
+
+
 def _main(rest_url, rest_user, rest_pwd, auth_type):
     rest = gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     if auth_type == 'basic':
@@ -84,8 +90,10 @@ def _main(rest_url, rest_user, rest_pwd, auth_type):
 
     print(rest.list_account_emails())
 
-    # rebase_change(rest, '177021')
+    # rebase_change(rest, '184710')
     # merge_change(rest, '179723', '179166')
+    # change_commit_msg(rest, 181483, 'hello world')
+    print rest.get_file_content('env-config.d/ENV', '201443')
 
 
 if __name__ == '__main__':

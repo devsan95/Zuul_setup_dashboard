@@ -53,6 +53,9 @@ def _parse_args():
     parser.add_argument('--version-name', type=str, dest='version_name',
                         help='')
 
+    parser.add_argument('--rcp-change', type=str, dest='rcp_change',
+                        help='')
+
     args = parser.parse_args()
     return vars(args)
 
@@ -61,6 +64,12 @@ def load_structure(path):
     structure_obj = yaml.load(open(path),
                               Loader=yaml.Loader, version='1.1')
     return structure_obj
+
+
+def strip_begin(text, prefix):
+    if not text.startswith(prefix):
+        return text
+    return text[len(prefix):]
 
 
 def create_graph(structure_obj):
@@ -173,6 +182,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
         node_obj['change_id'] = change_id
         node_obj['ticket_id'] = ticket_id
         node_obj['rest_id'] = rest_id
+        node_obj['commit_message'] = message
 
     need_publish = False
 
@@ -191,11 +201,14 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
             node_obj['file_path'] = file_paths
 
     # add files for env
+    changes = {}
     if 'add_files' in node_obj and node_obj['add_files']:
-        for filename, content in node_obj['add_files'].items():
-            gerrit_client.add_file_to_change(node_obj['rest_id'],
-                                             filename, content)
-            need_publish = True
+        changes = node_obj['add_files']
+
+    for filename, content in changes.items():
+        gerrit_client.add_file_to_change(node_obj['rest_id'],
+                                         filename, content)
+        need_publish = True
 
     # add files for submodule
     if 'submodules' in node_obj and node_obj['submodules']:
@@ -208,7 +221,8 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
                 need_publish = True
 
     if 'type' in node_obj and node_obj['type'] == 'ric':
-        gerrit_client.add_file_to_change(node_obj['rest_id'], 'ric',
+        gerrit_client.add_file_to_change(node_obj['rest_id'],
+                                         'ric_{}'.format(topic),
                                          '{}'.format(root_node['ric_content']))
         need_publish = True
 
@@ -308,6 +322,23 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
                 lines.append('  - RICREPO <{}> <{}>'.format(node['repo'],
                                                             node['ticket_id']))
                 break
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
+    if 'type' in node_obj and node_obj['type'] == 'integration':
+        submodule_set = set()
+        for name, node in nodes.items():
+            if 'submodules' in node and node['submodules']:
+                for key, value in node['submodules'].items():
+                    submodule_set.add(value)
+        if submodule_set:
+            section_showed = True
+            lines.append('Temporary branches are in following repo:')
+            for sub in submodule_set:
+                lines.append('  - TEMP <{}>'.format(nodes[sub]['repo']))
 
     if section_showed:
         lines.append('  ')
@@ -426,8 +457,20 @@ def print_result(root_node, integration_node, graph_obj,
     job_tool.write_dict_to_properties(result_dict, path, False)
 
 
+def create_file_change_by_rcp_change(rcp_change, file_content, filename):
+    lines = file_content.split('\n')
+    key, value = rcp_change.split('=', 1)
+    for i, line in enumerate(lines):
+        if '=' in line:
+            keyl, valuel = line.split('=', 1)
+            if key.strip() == keyl.strip():
+                lines[i] = keyl + '=' + value
+    ret_dict = {filename: '\n'.join(lines)}
+    return ret_dict
+
+
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
-          input_branch, ric_path, heat_template, version_name):
+          input_branch, ric_path, heat_template, version_name, rcp_change):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
@@ -435,6 +478,8 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
         topic = 't_{}'.format(timestr)
     else:
         topic = '{}_{}'.format(topic_prefix, timestr)
+
+    topic = slugify(topic)
 
     structure_obj = load_structure(path)
     gerrit_obj = load_structure(gerrit_path)
@@ -483,21 +528,45 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                 str(ex)))
 
     # If root exists
-    if init_ticket:
+    if rcp_change:
+        root_node['rcp_change'] = rcp_change
+        root_node['add_files'] = create_file_change_by_rcp_change(
+            rcp_change,
+            read_file_from_branch(
+                root_node, root_node['branch'],
+                gerrit_server, gerrit_user, gerrit_pwd, 'env-config.d/ENV'),
+            'env-config.d/ENV')
+    elif init_ticket:
         try:
-            info = gerrit_client.query_ticket(init_ticket)
-            root_node['change_id'] = info['change_id']
-            root_node['ticket_id'] = info['_number']
-            root_node['rest_id'] = info['id']
+            file_list = gerrit_client.get_file_list(init_ticket)
+            add_files = {}
+            for _file in file_list:
+                _file = _file.split('\n', 2)[0]
+                if _file != '/COMMIT_MSG':
+                    file_content = gerrit_client.get_file_change(
+                        _file, init_ticket)
+                    if 'new' in file_content \
+                            and 'old' in file_content \
+                            and file_content['new'] != file_content['old']:
+                        add_files[_file] = strip_begin(
+                            file_content['new'], 'Subproject commit ')
+            root_node['add_files'] = add_files
         except Exception as e:
             print("An exception %s occurred when query init ticket,"
                   " msg: %s" % (type(e), str(e)))
 
-    env_files, env_commit = read_from_branch(root_node, input_branch,
-                                             gerrit_server,
-                                             gerrit_user, gerrit_pwd)
-    root_node['add_files'] = env_files
-    root_node['temp_commit'] = env_commit
+    else:
+        env_files, env_commit = read_from_branch(root_node, input_branch,
+                                                 gerrit_server,
+                                                 gerrit_user, gerrit_pwd)
+        root_node['add_files'] = env_files
+
+    root_node['temp_commit'] = create_temp_branch(
+        gerrit_client,
+        root_node['repo'],
+        root_node['branch'],
+        'inte_test/{}'.format(topic),
+        root_node['add_files'])
     root_node['ric_content'] = read_ric(ric_path)
 
     create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
@@ -543,6 +612,69 @@ def read_from_branch(root_node, input_branch, gerrit_server,
                             open(file_path).read()
 
     return ret_dict, commit_id
+
+
+def read_file_from_branch(
+        root_node, input_branch, gerrit_server,
+        gerrit_user, gerrit_pwd, file_path):
+    repo_url = gerrit_server + '/' + root_node['repo']
+    url_slices = repo_url.split('://', 1)
+    url_slices[1] = '{}:{}@{}'.format(gerrit_user, gerrit_pwd, url_slices[1])
+    repo_url = '://'.join(url_slices)
+    folder = file_api.TempFolder('env_tmp_')
+    repo = git.Repo.clone_from(repo_url, folder.get_directory())
+    origin = repo.remotes.origin
+    branch = repo.create_head(input_branch,
+                              repo.remotes.origin.refs[input_branch])
+    branch.set_tracking_branch(origin.refs.master).checkout()
+
+    file_ab_path = os.path.join(
+        folder.get_directory(), file_path)
+    if os.path.exists(file_ab_path):
+        return open(file_ab_path).read()
+
+    raise Exception('Cannot read file {}'.format(file_ab_path))
+
+
+def create_temp_branch(rest, project_name,
+                       base_branch, target_branch, file_changes):
+    # delete if exist
+    list_branch = rest.list_branches(project_name)
+    for branch in list_branch:
+        branch['ref'] = strip_begin(branch['ref'], 'refs/heads/')
+
+    for branch in list_branch:
+        if branch['ref'] == target_branch:
+            rest.delete_branch(project_name, target_branch)
+            break
+    # create new branch using base branch
+    base = None
+    for branch in list_branch:
+        if branch['ref'] == base_branch:
+            base = branch['revision']
+            break
+
+    if not base:
+        raise Exception(
+            'Cannot get revision of base_branch [{}]'.format(base_branch))
+
+    rest.create_branch(project_name, target_branch, base)
+    # add files change to branch and merge
+    change_id, ticket_id, rest_id = rest.create_ticket(
+        project_name, None, target_branch, 'for temp submodule')
+
+    for file, content in file_changes.items():
+        rest.add_file_to_change(rest_id, file, content)
+    rest.publish_edit(rest_id)
+
+    rest.review_ticket(rest_id,
+                       'for temp submodule',
+                       {'Code-Review': 2, 'Verified': 1, 'Gatekeeper': 1})
+    rest.submit_change(rest_id)
+
+    # get commit of the change
+    info = rest.get_commit(rest_id)
+    return info['commit']
 
 
 if __name__ == '__main__':
