@@ -30,6 +30,20 @@ class GerritRestClient:
         content = content.split("\n", 1)[1]
         return json.loads(content)
 
+    def generic_get(self, path):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a{}'.format(self.server_url, path)
+        changes = self.session.get(url, auth=auth)
+
+        if not changes.ok:
+            raise Exception(
+                'Get path [{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    path, changes.status_code, changes.content))
+
+        result = self.parse_rest_response(changes)
+        return result
+
     def add_file_to_change(self, rest_id, file_path, content=''):
         auth = self.auth(self.user, self.pwd)
         rest_url = self.server_url + '/a/changes/' + rest_id + \
