@@ -167,9 +167,8 @@ def _main(zuul_url, zuul_ref, output_path, change_id,
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
     comment_dict = parse_comments(change_id, rest, zuul_url, zuul_ref)
-    if len(ric_dict) > 0 or len(ric_commit_dict) > 0:
-        save_json_file(output_path, ric_dict, ric_commit_dict, env_dict,
-                       comment_dict)
+    save_json_file(output_path, ric_dict, ric_commit_dict, env_dict,
+                   comment_dict)
 
 
 if __name__ == '__main__':
