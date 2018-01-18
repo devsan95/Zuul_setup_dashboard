@@ -166,6 +166,22 @@ class GerritRestClient:
         result = self.parse_rest_response(changes)
         return result[0]
 
+    def get_detailed_ticket(self, ticket_id):
+        auth = self.auth(self.user, self.pwd)
+        if "https" in self.server_url:
+            url = '{}a/changes/{}/detail'.format(self.server_url, ticket_id)
+        else:
+            url = '{}/changes/{}/detail'.format(self.server_url, ticket_id)
+
+        print(url)
+        self.change_to_basic_auth()
+        ticket = self.session.get(url, auth=auth)
+        print(ticket)
+        print(ticket.ok)
+        ticket = self.parse_rest_response(ticket)
+
+        return ticket
+
     def get_change(self, rest_id):
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/{}'.format(self.server_url, rest_id)
