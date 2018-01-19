@@ -166,6 +166,19 @@ class GerritRestClient:
         result = self.parse_rest_response(changes)
         return result[0]
 
+    def get_detailed_ticket(self, ticket_id):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}a/changes/{}/detail'.format(self.server_url, ticket_id)
+        print(url)
+        ticket = self.session.get(url, auth=auth)
+        if not ticket.ok:
+            raise Exception(
+                'Get change [{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    ticket_id, ticket.status_code, ticket.content))
+        ticket = self.parse_rest_response(ticket)
+        return ticket
+
     def get_change(self, rest_id):
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/{}'.format(self.server_url, rest_id)
