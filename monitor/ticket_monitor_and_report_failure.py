@@ -103,9 +103,9 @@ def _main(server, user, pwd, change_id):
         time.sleep(5)
 
     all_success = False
+    fail_ticket_list = []
     while not all_success:
         print("ticket list: " + str(ticket_list))
-        fail_ticket_list = []
         for ticket in ticket_list:
             print("ticket is " + str(ticket))
             result = get_ticket_status_via_labels(ticket, rest)
