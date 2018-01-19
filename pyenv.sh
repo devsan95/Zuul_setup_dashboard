@@ -91,7 +91,7 @@ fi
 export http_proxy=http://10.158.100.1:8080
 export https_proxy=http://10.158.100.1:8080
 
-if [ ! -e "$VENV_PATH"/envs/python2/bin/activate ];
+if [ ! -e "$VENV_PATH"/envs/python2/bin/python ];
 then
   cd "$VENV_PATH"
   wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
