@@ -33,7 +33,7 @@ def _parse_args():
                         help='topic suffix')
 
     parser.add_argument('--init-ticket', type=str, dest='init_ticket',
-                        help='initial ticket')
+                        default=None, help='initial ticket')
 
     parser.add_argument('--zuul-user', type=str, dest='zuul_user',
                         help='')
@@ -42,13 +42,13 @@ def _parse_args():
                         help='')
 
     parser.add_argument('--input-branch', type=str, dest='input_branch',
-                        help='')
+                        default=None, help='')
 
     parser.add_argument('--ric-file', type=str, dest='ric_path',
-                        help='')
+                        default=None, help='')
 
     parser.add_argument('--heat-template', type=str, dest='heat_template',
-                        help='')
+                        default=None, help='')
 
     parser.add_argument('--version-name', type=str, dest='version_name',
                         help='')
@@ -187,18 +187,30 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
     need_publish = False
 
     # add files to trigger jobs
+    if 'file_path' not in node_obj or not node_obj['file_path']:
+        node_obj['file_path'] = []
+
+    file_paths = node_obj['file_path']
+
     if 'files' in node_obj and node_obj['files']:
-        if 'file_path' not in node_obj or not node_obj['file_path']:
-            file_paths = []
-            for _file in node_obj['files']:
-                file_path = _file + slugify(topic)
-                file_paths.append(file_path)
-                gerrit_client.add_file_to_change(node_obj['rest_id'],
-                                                 file_path,
-                                                 datetime.utcnow().
-                                                 strftime('%Y%m%d%H%M%S'))
-                need_publish = True
-            node_obj['file_path'] = file_paths
+        for _file in node_obj['files']:
+            file_path = _file + slugify(topic)
+            file_paths.append(file_path)
+            gerrit_client.add_file_to_change(node_obj['rest_id'],
+                                             file_path,
+                                             datetime.utcnow().
+                                             strftime('%Y%m%d%H%M%S'))
+            need_publish = True
+
+    if 'type' in node_obj and node_obj['type'] == 'integration':
+        if 'platform' in info_index['meta'] and info_index['meta']['platform']:
+            file_path = info_index['meta']['platform'] + '/' + slugify(topic)
+            file_paths.append(file_path)
+            gerrit_client.add_file_to_change(node_obj['rest_id'],
+                                             file_path,
+                                             datetime.utcnow().
+                                             strftime('%Y%m%d%H%M%S'))
+            need_publish = True
 
     # add files for env
     changes = {}
@@ -567,7 +579,9 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
         root_node['branch'],
         'inte_test/{}'.format(topic),
         root_node['add_files'])
-    root_node['ric_content'] = read_ric(ric_path)
+
+    if ric_path:
+        root_node['ric_content'] = read_ric(ric_path)
 
     create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
                            topic, gerrit_client, info_index)

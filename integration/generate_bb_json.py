@@ -53,6 +53,10 @@ def parse_ric_list(subject, zuul_url, zuul_ref):
             value = m.group(2).strip('"').strip()
             ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
                              'repo_ver': zuul_ref}
+            if ret_dict[key]['repo_url'].startswith('http:'):
+                ret_dict[key]['repo_url'] = \
+                    ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
+                ret_dict[key]['protocol'] = 'http'
     return ret_dict
 
 
@@ -112,8 +116,13 @@ def parse_comments(change_id, rest, zuul_url, zuul_ref):
                 retd[m1] = {}
                 if m2:
                     retd[m1]['repo_url'] = m2
+                    if retd[m1]['repo_url'].startswith('http:'):
+                        retd[m1]['repo_url'] = \
+                            retd[m1]['repo_url'].replace('http:', 'gitsm:')
+                        retd[m1]['protocol'] = 'http'
                 if m3:
                     retd[m1]['repo_ver'] = m3
+
     print(retd)
     return retd
 
