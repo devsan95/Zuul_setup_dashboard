@@ -51,10 +51,13 @@ def _parse_args():
                         default=None, help='')
 
     parser.add_argument('--version-name', type=str, dest='version_name',
+                        default=None, help='')
+
+    parser.add_argument('--env-change', type=str, dest='env_change',
                         help='')
 
-    parser.add_argument('--rcp-change', type=str, dest='rcp_change',
-                        help='')
+    parser.add_argument('--streams', type=str, dest='streams',
+                        default=None, help='')
 
     args = parser.parse_args()
     return vars(args)
@@ -204,12 +207,14 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
 
     if 'type' in node_obj and node_obj['type'] == 'integration':
         if 'platform' in info_index['meta'] and info_index['meta']['platform']:
-            file_path = info_index['meta']['platform'] + '/' + slugify(topic)
-            file_paths.append(file_path)
-            gerrit_client.add_file_to_change(node_obj['rest_id'],
-                                             file_path,
-                                             datetime.utcnow().
-                                             strftime('%Y%m%d%H%M%S'))
+            for stream in info_index['meta']['streams']:
+                file_path = info_index['meta']['platform'] + '/' + \
+                            stream + '/' + slugify(topic)
+                file_paths.append(file_path)
+                gerrit_client.add_file_to_change(node_obj['rest_id'],
+                                                 file_path,
+                                                 datetime.utcnow().
+                                                 strftime('%Y%m%d%H%M%S'))
             need_publish = True
 
     # add files for env
@@ -482,7 +487,8 @@ def create_file_change_by_rcp_change(rcp_change, file_content, filename):
 
 
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
-          input_branch, ric_path, heat_template, version_name, rcp_change):
+          input_branch, ric_path, heat_template, version_name, env_change,
+          streams):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
@@ -492,6 +498,11 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
         topic = '{}_{}'.format(topic_prefix, timestr)
 
     topic = slugify(topic)
+
+    if not version_name and env_change:
+        env_list = env_change.split('=', 2)
+        if len(env_list) >= 2:
+            version_name = env_list[1]
 
     structure_obj = load_structure(path)
     gerrit_obj = load_structure(gerrit_path)
@@ -530,6 +541,14 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
         }
     }
 
+    stream_list = []
+    if streams:
+        stream_list = streams.split(',')
+    else:
+        stream_list = ['default']
+
+    meta['streams'] = stream_list
+
     # create jira
     if 'jira' in meta:
         try:
@@ -540,10 +559,10 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                 str(ex)))
 
     # If root exists
-    if rcp_change:
-        root_node['rcp_change'] = rcp_change
+    if env_change:
+        root_node['rcp_change'] = env_change
         root_node['add_files'] = create_file_change_by_rcp_change(
-            rcp_change,
+            env_change,
             read_file_from_branch(
                 root_node, root_node['branch'],
                 gerrit_server, gerrit_user, gerrit_pwd, 'env-config.d/ENV'),

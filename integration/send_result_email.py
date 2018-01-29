@@ -2,13 +2,19 @@ import jinja2
 import json
 import codecs
 import smtplib
+import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
 def generate_html(info_index):
     template_content = None
-    with open(info_index['meta']['template']) as f:
+    template_path = info_index['meta']['template']
+    if not os.path.exists(template_path):
+        template_path = 'email_templates/' + template_path
+    if not os.path.exists(template_path):
+        raise Exception('Path {} not exist!'.format(template_path))
+    with open(template_path) as f:
         template_content = f.read()
     template_content = codecs.decode(template_content, 'utf8')
     template = jinja2.Template(template_content)
