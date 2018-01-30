@@ -474,14 +474,16 @@ def print_result(root_node, integration_node, graph_obj,
     job_tool.write_dict_to_properties(result_dict, path, False)
 
 
-def create_file_change_by_rcp_change(rcp_change, file_content, filename):
+def create_file_change_by_env_change(env_change, file_content, filename):
     lines = file_content.split('\n')
-    key, value = rcp_change.split('=', 1)
+    env_change_split = env_change.split()
     for i, line in enumerate(lines):
         if '=' in line:
-            keyl, valuel = line.split('=', 1)
-            if key.strip() == keyl.strip():
-                lines[i] = keyl + '=' + value
+            key2, value2 = line.strip().split('=', 1)
+            for env_line in env_change_split:
+                key, value = env_line.split('=', 1)
+                if key.strip() == key2.strip():
+                    lines[i] = key2 + '=' + value
     ret_dict = {filename: '\n'.join(lines)}
     return ret_dict
 
@@ -500,9 +502,16 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
     topic = slugify(topic)
 
     if not version_name and env_change:
-        env_list = env_change.split('=', 2)
-        if len(env_list) >= 2:
-            version_name = env_list[1]
+        versions = set()
+        env_change_split = env_change.split()
+        for line in env_change_split:
+            line = line.strip()
+            env_list = line.split('=', 2)
+            if len(env_list) >= 2:
+                versions.add(env_list[1])
+
+        if versions:
+            version_name = '/'.join(versions)
 
     structure_obj = load_structure(path)
     gerrit_obj = load_structure(gerrit_path)
@@ -560,8 +569,8 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
 
     # If root exists
     if env_change:
-        root_node['rcp_change'] = env_change
-        root_node['add_files'] = create_file_change_by_rcp_change(
+        root_node['env_change'] = env_change
+        root_node['add_files'] = create_file_change_by_env_change(
             env_change,
             read_file_from_branch(
                 root_node, root_node['branch'],
