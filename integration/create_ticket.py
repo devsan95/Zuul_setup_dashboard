@@ -510,7 +510,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                 versions.add(env_list[1])
 
         if versions:
-            for value in env_list:
+            for value in versions:
                 if len(value) <= 35:
                     if version_name:
                         if len(version_name) + 1 + len(value) <= 60:
