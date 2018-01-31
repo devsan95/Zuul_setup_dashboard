@@ -11,4 +11,3 @@ else
     cp -f layout.yaml /var/fpwork/zuul_prod/etc/layout.yaml
     echo "layout.yaml is different, updated!"
 fi
-sudo docker exec zuul-server bash -c 'kill -SIGHUP `supervisorctl pid zuul-server`'
