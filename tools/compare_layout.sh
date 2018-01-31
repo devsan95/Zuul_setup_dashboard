@@ -8,6 +8,6 @@ if [ "l$line1" == "l$line2" ];then
     echo "same content layout.yaml"
     exit1
 else
-    cp -f layout.yaml /var/fpwork/zuul_prod/etc/layout.yaml
+    cp -f layout.yaml /etc/zuul/layout.yaml
     echo "layout.yaml is different, updated!"
 fi
