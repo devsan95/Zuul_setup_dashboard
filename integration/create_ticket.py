@@ -268,7 +268,6 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
             lines.append('Please do not modify this change.')
     if 'submodules' in node_obj and node_obj['submodules']:
         lines.append('SUBMODULES PLACEHOLDER CHANGE')
-        lines.append('Please do not modify this change.')
 
     lines.append('  ')
     lines.append('  ')
@@ -511,7 +510,16 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                 versions.add(env_list[1])
 
         if versions:
-            version_name = '/'.join(versions)
+            for value in env_list:
+                if len(value) <= 35:
+                    if version_name:
+                        if len(version_name) + 1 + len(value) <= 60:
+                            version_name += '/'
+                            version_name += value
+                        else:
+                            break
+                    else:
+                        version_name = value
 
     structure_obj = load_structure(path)
     gerrit_obj = load_structure(gerrit_path)
