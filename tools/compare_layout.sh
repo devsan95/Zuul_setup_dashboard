@@ -1,9 +1,3 @@
-#!/bin/bash -x
-export HTTP_PROXY=
-export HTTPS_PROXY=
-export http_proxy=
-export https_proxy=
-
 . mn_scripts/pyenv.sh
 
 python mn_scripts/layout/layout_handler.py -i "layout/layout.yaml" -z "conf/zuul_conf/zuul.conf" merge -o "layout.yaml"
