@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 import git
 import os
+import shlex
 from api import gerrit_rest
 from api import gerrit_api
 from api import file_api
@@ -475,14 +476,18 @@ def print_result(root_node, integration_node, graph_obj,
 
 def create_file_change_by_env_change(env_change, file_content, filename):
     lines = file_content.split('\n')
-    env_change_split = env_change.split()
+    env_change_split = shlex.split(env_change)
     for i, line in enumerate(lines):
         if '=' in line:
             key2, value2 = line.strip().split('=', 1)
             for env_line in env_change_split:
-                key, value = env_line.split('=', 1)
-                if key.strip() == key2.strip():
-                    lines[i] = key2 + '=' + value
+                if '=' in env_line:
+                    key, value = env_line.split('=', 1)
+                    if key.strip() == key2.strip():
+                        lines[i] = key2 + '=' + value
+    for env_line in env_change_split:
+        if env_line.startswith('#'):
+            lines.append(env_line)
     ret_dict = {filename: '\n'.join(lines)}
     return ret_dict
 
@@ -502,7 +507,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
 
     if not version_name and env_change:
         versions = set()
-        env_change_split = env_change.split()
+        env_change_split = shlex.split(env_change)
         for line in env_change_split:
             line = line.strip()
             env_list = line.split('=', 2)
