@@ -416,7 +416,11 @@ class GerritRestClient:
             self.server_url, rest_id)
         ret = self.session.post(rest_url, auth=auth)
         if not ret.ok:
-            raise Exception(
-                'abandon_change to change [{}] failed.\n'
-                'Status code is [{}], content is [{}]'.format(
-                    rest_id, ret.status_code, ret.content))
+            if ret.status_code == 409 and \
+                 ret.content.startswith('change is abandoned'):
+                pass
+            else:
+                raise Exception(
+                    'abandon_change to change [{}] failed.\n'
+                    'Status code is [{}], content is [{}]'.format(
+                        rest_id, ret.status_code, ret.content))
