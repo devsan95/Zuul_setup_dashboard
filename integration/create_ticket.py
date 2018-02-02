@@ -426,6 +426,7 @@ def label_all_tickets(root_node, integration_node, graph_obj,
                                 ['Integrated=-1'], 'init_label',
                                 zuul_key, zuul_port)
     gerrit_client.review_ticket(root_node['rest_id'], 'reintegrate')
+    gerrit_client.review_ticket(integration_node['rest_id'], 'reexperiment')
     for node in nodes.values():
         if node is not root_node and node is not integration_node:
             gerrit_client.review_ticket(node['rest_id'],
