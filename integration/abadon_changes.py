@@ -13,12 +13,6 @@ import json
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('zuul_url', type=str,
-                        help='')
-    parser.add_argument('zuul_ref', type=str,
-                        help='')
-    parser.add_argument('output_path', type=str,
-                        help='')
     parser.add_argument('change_id', type=str,
                         help='change id')
     parser.add_argument('rest_url', type=str,
@@ -39,7 +33,7 @@ def strip_begin(text, prefix):
     return text[len(prefix):]
 
 
-def parse_comments(change_id, rest, zuul_url, zuul_ref):
+def parse_comments(change_id, rest):
     json_re = re.compile(r'Tickets-List: ({.*})')
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
     for msg in reversed(comment_list['messages']):
@@ -50,14 +44,14 @@ def parse_comments(change_id, rest, zuul_url, zuul_ref):
     return None
 
 
-def _main(zuul_url, zuul_ref, output_path, change_id,
+def _main(change_id,
           rest_url, rest_user, rest_pwd, auth_type):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     if auth_type == 'basic':
         rest.change_to_basic_auth()
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
-    changes = parse_comments(change_id, rest, zuul_url, zuul_ref)
+    changes = parse_comments(change_id, rest)
     if 'root' in changes and changes['root']:
         print('Abandoning {}'.format(changes['root']))
         rest.abandon_change(changes['root'])
