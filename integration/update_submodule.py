@@ -67,9 +67,9 @@ def check_submodule_list_update(submodule_commit_dict, rest_id, rest_client):
             break
         else:
             info = file_list[submodule]
-            if ('status' in info
-                    and (info['status'] == 'A' or info['status'] == 'M')) \
-                    or 'status' not in info:
+            if ('status' in info and
+                (info['status'] == 'A' or info['status'] == 'M')) or \
+                    'status' not in info:
                 file_content = rest_client.get_file_change(submodule, rest_id)
                 if 'Subproject commit {}'.format(submit)\
                         != file_content['new']:

@@ -439,8 +439,8 @@ def _init_repo(repo_url, branch, clone_as, **kwargs):
 
 def _init_msg_hook(repo_path, **kwargs):
     scp('-p', '-P', kwargs['config']['gerrit']['port'],
-        kwargs['config']['gerrit']['user'] + '@'
-        + kwargs['config']['gerrit']['server'] + ':hooks/commit-msg',
+        kwargs['config']['gerrit']['user'] + '@' +
+        kwargs['config']['gerrit']['server'] + ':hooks/commit-msg',
         repo_path + '/.git/hooks/')
 
 
@@ -476,8 +476,8 @@ def _init_ssh(**kwargs):
 
 def query_gerrit_tickets(type, **kwargs):
     result = ssh('-p', kwargs['config']['gerrit']['port'],
-                 kwargs['config']['gerrit']['user'] + '@'
-                 + kwargs['config']['gerrit']['server'],
+                 kwargs['config']['gerrit']['user'] + '@' +
+                 kwargs['config']['gerrit']['server'],
                  'gerrit query '
                  '--format=JSON '
                  'status:%s ' % type)
@@ -495,8 +495,8 @@ def abandon_tickets(**kwargs):
     tickets = query_gerrit_tickets('open', **kwargs)
     for ticket in tickets:
         result = ssh('-p', kwargs['config']['gerrit']['port'],
-                     kwargs['config']['gerrit']['user'] + '@'
-                     + kwargs['config']['gerrit']['server'],
+                     kwargs['config']['gerrit']['user'] + '@' +
+                     kwargs['config']['gerrit']['server'],
                      'gerrit review --abandon %s,1' % ticket['number'])
         print result
 
@@ -505,8 +505,8 @@ def submit_tickets(**kwargs):
     tickets = query_gerrit_tickets('open', **kwargs)
     for ticket in tickets:
         result = ssh('-p', kwargs['config']['gerrit']['port'],
-                     kwargs['config']['gerrit']['user'] + '@'
-                     + kwargs['config']['gerrit']['server'],
+                     kwargs['config']['gerrit']['user'] + '@' +
+                     kwargs['config']['gerrit']['server'],
                      'gerrit review --submit %s,1' % ticket['number'])
         print result
 
@@ -516,8 +516,8 @@ def set_label_to_tickets(label, value, **kwargs):
     for ticket in tickets:
         print ticket
         result = ssh('-p', kwargs['config']['gerrit']['port'],
-                     kwargs['config']['gerrit']['user'] + '@'
-                     + kwargs['config']['gerrit']['server'],
+                     kwargs['config']['gerrit']['user'] + '@' +
+                     kwargs['config']['gerrit']['server'],
                      'gerrit review --label %s=%d %s,1'
                      % (label, value, ticket['number']))
         print result
@@ -566,7 +566,7 @@ if __name__ == '__main__':
         os.environ['GIT_PYTHON_TRACE'] = 'full'
         params = _parse_args()
         if params['return_code_type'] == 'faulty':
-            params['error_no'] = random.randint(1, params['count']-1)
+            params['error_no'] = random.randint(1, params['count'] - 1)
             print('No %d ticket will return 1' % params['error_no'])
         params['current_no'] = 1
         _main(**params)

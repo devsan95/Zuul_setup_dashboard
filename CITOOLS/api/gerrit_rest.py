@@ -51,7 +51,7 @@ class GerritRestClient:
         ret = self.session.put(rest_url, content, auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
-                 ret.content.startswith('no changes were made'):
+               ret.content.startswith('no changes were made'):
                 pass
             else:
                 raise Exception(
@@ -67,7 +67,7 @@ class GerritRestClient:
         ret = self.session.post(rest_url, json=change_input, auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
-                 ret.content.startswith('no changes were made'):
+               ret.content.startswith('no changes were made'):
                 pass
             else:
                 raise Exception(
@@ -417,7 +417,7 @@ class GerritRestClient:
         ret = self.session.post(rest_url, auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
-                 ret.content.startswith('change is abandoned'):
+               ret.content.startswith('change is abandoned'):
                 pass
             else:
                 raise Exception(

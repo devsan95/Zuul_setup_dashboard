@@ -11,7 +11,7 @@ from api import gerrit_rest
 def strip_end(text, suffix):
     if not text.endswith(suffix):
         return text
-    return text[:len(text)-len(suffix)]
+    return text[:len(text) - len(suffix)]
 
 
 def strip_begin(text, prefix):

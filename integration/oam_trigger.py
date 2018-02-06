@@ -72,7 +72,7 @@ def get_last_job_status(jenkins_url, job_name, qcow2_url, min_no=None):
                 if 'parameters' in action:
                     for param in action['parameters']:
                         if param['name'] == 'QCOW_URL' and\
-                                        param['value'] == qcow2_url:
+                                param['value'] == qcow2_url:
                             return build_no, build_obj['result']
     except Exception as ex:
         print_flush(str(ex))

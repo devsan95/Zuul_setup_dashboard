@@ -78,7 +78,7 @@ if __name__ == '__main__':
     _mail_content = {}
     _time_slice = 60
     if 'time_slice' in os.environ.keys():
-        _time_slice = int(os.environ["time_slice"])*60
+        _time_slice = int(os.environ["time_slice"]) * 60
     _time_flag = {}
     watcher = file_watcher.FileWatcher(
         ['/tmp/supervisord.log', '/ephemeral/log/zuul/server-debug.log',

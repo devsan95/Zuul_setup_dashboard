@@ -121,9 +121,9 @@ def create_graph(structure_obj):
 
 def check_graph_availability(graph_obj, root_node, integration_node):
     return check_necessary_nodes(root_node, integration_node, graph_obj) and\
-           check_graph_root(root_node, graph_obj) and \
-           check_graph_connectivity(root_node, graph_obj) and \
-           check_graph_cycling(graph_obj)
+        check_graph_root(root_node, graph_obj) and \
+        check_graph_connectivity(root_node, graph_obj) and \
+        check_graph_cycling(graph_obj)
 
 
 def check_necessary_nodes(root_node, integration_node, graph_obj):
@@ -210,7 +210,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
         if 'platform' in info_index['meta'] and info_index['meta']['platform']:
             for stream in info_index['meta']['streams']:
                 file_path = info_index['meta']['platform'] + '/' + \
-                            stream + '/' + slugify(topic)
+                    stream + '/' + slugify(topic)
                 file_paths.append(file_path)
                 gerrit_client.add_file_to_change(node_obj['rest_id'],
                                                  file_path,

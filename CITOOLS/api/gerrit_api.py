@@ -79,7 +79,7 @@ def review_patch_set(ssh_user, ssh_server, change_id,
         param_list.append(label)
     if message:
         param_list.append('--message')
-        param_list.append('"'+message+'"')
+        param_list.append('"' + message + '"')
     param_list.append(str(change_id) + ',' + str(get_last_patchset(
         ssh_user, ssh_server, change_id, ssh_key)))
     ssh_msg = ''
