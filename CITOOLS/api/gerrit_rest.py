@@ -165,7 +165,7 @@ class GerritRestClient:
                     query_string, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
-        return result[0]
+        return result
 
     def get_ticket(self, ticket_id):
         auth = self.auth(self.user, self.pwd)
