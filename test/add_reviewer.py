@@ -45,7 +45,7 @@ def run(rest_url, rest_user, rest_pwd, auth_type, changeid, reviewer):
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
 
-    rest_id = rest.query_ticket(changeid)['id']
+    rest_id = rest.get_ticket(changeid)['id']
     rest.add_reviewer(rest_id, reviewer)
 
 

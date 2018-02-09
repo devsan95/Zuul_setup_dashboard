@@ -73,7 +73,7 @@ def get_temp_repo_info_from_commit_message(commit_message):
 
 
 def get_file_from_change(rest, change_id):
-    rest_id = rest.query_ticket(change_id)['id']
+    rest_id = rest.get_ticket(change_id)['id']
     list = rest.get_file_list(rest_id)
     file_content = {}
     for file in list:

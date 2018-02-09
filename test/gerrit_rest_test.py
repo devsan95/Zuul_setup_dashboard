@@ -35,7 +35,7 @@ def _parse_args():
 
 
 def rebase_change(rest, change_id):
-    rest_id = rest.query_ticket(change_id)['id']
+    rest_id = rest.get_ticket(change_id)['id']
     list = rest.get_file_list(rest_id)
     file_content = {}
     for file in list:
@@ -56,8 +56,8 @@ def rebase_change(rest, change_id):
 
 
 def merge_change(rest, change_id_dst, change_id_src):
-    rest_id_dst = rest.query_ticket(change_id_dst)['id']
-    rest_id_src = rest.query_ticket(change_id_src)['id']
+    rest_id_dst = rest.get_ticket(change_id_dst)['id']
+    rest_id_src = rest.get_ticket(change_id_src)['id']
     list = rest.get_file_list(rest_id_src)
     file_content = {}
     for file in list:
@@ -76,7 +76,7 @@ def merge_change(rest, change_id_dst, change_id_src):
 
 
 def change_commit_msg(rest, change_id, msg):
-    info = rest.query_ticket(change_id)
+    info = rest.get_ticket(change_id)
     message = msg + '\n' + info['subject']
     rest.set_commit_message(info['id'], message)
 

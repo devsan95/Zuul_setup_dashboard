@@ -1,14 +1,16 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
 
-import traceback
-import sys
 import argparse
 import json
+import re
+import sys
 import time
+import traceback
+
 import api.gerrit_api
 import api.gerrit_rest
-import re
+import gerrit_int_op
 
 
 def _parse_args():
@@ -31,6 +33,8 @@ def _parse_args():
                         help='')
     parser.add_argument('auth_type', type=str, default='digest',
                         help='')
+    parser.add_argument('--backup-topic', type=str, dest='backup_topic',
+                        default=None, help='')
     args = parser.parse_args()
     return vars(args)
 
@@ -80,7 +84,13 @@ def get_ticket_list_from_comments(info):
 
 
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
-          rest_url, rest_user, rest_pwd, auth_type):
+          rest_url, rest_user, rest_pwd, auth_type, backup_topic):
+    rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
+    gop = gerrit_int_op.IntegrationGerritOperation(rest)
+    if not backup_topic:
+        name, branch, repo, platform = gop.get_info_from_change(change_id)
+        if platform:
+            backup_topic = 'integration_{}_backup'.format(platform)
     targets = None
     while not targets:
         info = api.gerrit_api.get_ticket_info(ssh_user, ssh_server,
@@ -108,6 +118,27 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                                                   ssh_key, item['ticket'])
                 print('Ticket {} pass status: {}'.format(
                     item['ticket'], item['status']))
+                if backup_topic and item['status']:
+                    print('Ticket {} OK, begin to backup to topic {}'.format(
+                        item['ticket'], backup_topic))
+                    name, branch, repo, platform = gop.get_info_from_change(
+                        item['ticket'])
+                    backup_id = gop.get_ticket_from_topic(backup_topic, repo,
+                                                          branch, name)
+                    if not backup_id:
+                        backup_id = gop.create_change_by_topic(
+                            backup_topic, repo, branch, name)
+                    if not backup_id:
+                        print('Can not create or find change for '
+                              '{} {} {}'.format(backup_topic, branch, name))
+                    else:
+                        try:
+                            gop.clear_change(change_id)
+                            gop.copy_change(item['ticket'], backup_id)
+                        except Exception as ex:
+                            print('Can not copy {} to {}'.format(
+                                item['ticket'], backup_id))
+                            print('Because {}'.format(str(ex)))
         sys.stdout.flush()
         if _if_checklist_all_pass(checklist):
             break
@@ -136,15 +167,15 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
                                     ['Verified=+1', 'Integrated=+2'], None,
                                     ssh_key, port=ssh_port)
-    rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
+
     if auth_type == 'basic':
         rest.change_to_basic_auth()
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
 
-    rest_id = rest.query_ticket(targets['manager'])['id']
+    rest_id = rest.get_ticket(targets['manager'])['id']
     rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
-    # rest_id = rest.query_ticket(targets['root'])['id']
+    # rest_id = rest.get_ticket(targets['root'])['id']
     # rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
 
 

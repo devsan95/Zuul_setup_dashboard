@@ -43,7 +43,7 @@ def fetch_submodule_commit(submodule_dict, rest_client):
         current_data = None
         while True:
             try:
-                current_data = rest_client.query_ticket(change_id)
+                current_data = rest_client.get_ticket(change_id)
             except Exception as e:
                 print(str(e))
                 time.sleep(10)
@@ -106,7 +106,7 @@ def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):
 
     while True:
         try:
-            data = rest.query_ticket(change_id)
+            data = rest.get_ticket(change_id)
         except Exception as e:
             print(str(e))
             time.sleep(10)

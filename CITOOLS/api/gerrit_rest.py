@@ -148,11 +148,12 @@ class GerritRestClient:
                 'Status code is [{}], content is [{}]'.format(
                     rest_id, changes.status_code, changes.content))
 
-    def query_ticket(self, ticket_id):
+    def query_ticket(self, query_string, count=None):
         get_param = {
-            'q': 'change:{}'.format(ticket_id),
-            'n': 1
+            'q': query_string,
         }
+        if count:
+            get_param['n'] = count
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/'.format(self.server_url)
         changes = self.session.get(url, params=get_param, auth=auth)
@@ -161,10 +162,24 @@ class GerritRestClient:
             raise Exception(
                 'Query change [{}] failed.\n '
                 'Status code is [{}], content is [{}]'.format(
-                    ticket_id, changes.status_code, changes.content))
+                    query_string, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
         return result[0]
+
+    def get_ticket(self, ticket_id):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}'.format(self.server_url, ticket_id)
+        changes = self.session.get(url, auth=auth)
+
+        if not changes.ok:
+            raise Exception(
+                'Query change [{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    ticket_id, changes.status_code, changes.content))
+
+        result = self.parse_rest_response(changes)
+        return result
 
     def get_detailed_ticket(self, ticket_id):
         auth = self.auth(self.user, self.pwd)

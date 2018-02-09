@@ -50,7 +50,7 @@ def fetch_ric(rest, ric_path, description):
 
     print(ric_repo)
 
-    data = rest.query_ticket(ric_change)
+    data = rest.get_ticket(ric_change)
     rest_id = data['id']
 
     file_list = rest.get_file_list(rest_id)
@@ -146,7 +146,7 @@ def _main(zuul_url, zuul_ref, ric_path, change_id,
 
     while True:
         try:
-            data = rest.query_ticket(change_id)
+            data = rest.get_ticket(change_id)
         except Exception as e:
             print(str(e))
             time.sleep(10)

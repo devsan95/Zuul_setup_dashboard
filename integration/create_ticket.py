@@ -1,24 +1,26 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
 
-import traceback
-import sys
 import argparse
-import ruamel.yaml as yaml
-import networkx as nx
-from datetime import datetime
 import json
-import git
 import os
 import shlex
-from api import gerrit_rest
-from api import gerrit_api
-from api import file_api
-from api import job_tool
+import sys
+import traceback
+from datetime import datetime
+
+import git
+import networkx as nx
+import ruamel.yaml as yaml
 from slugify import slugify
-import send_result_email
 
 import create_jira_ticket
+import gerrit_int_op
+import send_result_email
+from api import file_api
+from api import gerrit_api
+from api import gerrit_rest
+from api import job_tool
 
 
 def _parse_args():
@@ -59,6 +61,9 @@ def _parse_args():
 
     parser.add_argument('--streams', type=str, dest='streams',
                         default=None, help='')
+
+    parser.add_argument('--restore-from-topic', type=int, dest='if_restore',
+                        default=0, help='')
 
     args = parser.parse_args()
     return vars(args)
@@ -188,23 +193,37 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
         node_obj['rest_id'] = rest_id
         node_obj['commit_message'] = message
 
+    # restore
+    copy_from_id = None
+    gop = gerrit_int_op.IntegrationGerritOperation(gerrit_client)
+    if node_obj['type'] != 'root' or node_obj['type'] != 'integration':
+        if info_index['meta']['backup_topic']:
+            copy_from_id = gop.get_ticket_from_topic(
+                info_index['meta']['backup_topic'],
+                node_obj['repo'],
+                node_obj['branch'],
+                node_obj['name'])
+
     need_publish = False
 
-    # add files to trigger jobs
-    if 'file_path' not in node_obj or not node_obj['file_path']:
-        node_obj['file_path'] = []
+    if copy_from_id:
+        gop.copy_change(copy_from_id, ticket_id)
+    else:
+        # add files to trigger jobs
+        if 'file_path' not in node_obj or not node_obj['file_path']:
+            node_obj['file_path'] = []
 
-    file_paths = node_obj['file_path']
+        file_paths = node_obj['file_path']
 
-    if 'files' in node_obj and node_obj['files']:
-        for _file in node_obj['files']:
-            file_path = _file + slugify(topic)
-            file_paths.append(file_path)
-            gerrit_client.add_file_to_change(node_obj['rest_id'],
-                                             file_path,
-                                             datetime.utcnow().
-                                             strftime('%Y%m%d%H%M%S'))
-            need_publish = True
+        if 'files' in node_obj and node_obj['files']:
+            for _file in node_obj['files']:
+                file_path = _file + slugify(topic)
+                file_paths.append(file_path)
+                gerrit_client.add_file_to_change(node_obj['rest_id'],
+                                                 file_path,
+                                                 datetime.utcnow().
+                                                 strftime('%Y%m%d%H%M%S'))
+                need_publish = True
 
     if 'type' in node_obj and node_obj['type'] == 'integration':
         if 'platform' in info_index['meta'] and info_index['meta']['platform']:
@@ -269,6 +288,9 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
             lines.append('Please do not modify this change.')
     if 'submodules' in node_obj and node_obj['submodules']:
         lines.append('SUBMODULES PLACEHOLDER CHANGE')
+    if 'platform' in info_index['meta'] and info_index['meta']['platform']:
+        lines.append('Platform ID: <{}>'.format(
+            info_index['meta']['platform']))
 
     lines.append('  ')
     lines.append('  ')
@@ -495,7 +517,7 @@ def create_file_change_by_env_change(env_change, file_content, filename):
 
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
           input_branch, ric_path, heat_template, version_name, env_change,
-          streams):
+          streams, if_restore):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
@@ -563,6 +585,13 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
             'heat_template': heat_template
         }
     }
+
+    # restore
+    meta['backup_topic'] = None
+    if if_restore:
+        if 'platform' in meta and meta['platform']:
+            backup_topic = 'integration_{}_backup'.format(meta['platform'])
+            meta['backup_topic'] = backup_topic
 
     stream_list = []
     if streams:

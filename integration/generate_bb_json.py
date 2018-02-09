@@ -152,7 +152,7 @@ def _main(zuul_url, zuul_ref, output_path, change_id,
 
     while True:
         try:
-            data = rest.query_ticket(change_id)
+            data = rest.get_ticket(change_id)
         except Exception as e:
             print(str(e))
             time.sleep(10)
