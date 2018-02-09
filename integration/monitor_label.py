@@ -62,6 +62,15 @@ def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
     return False
 
 
+def _check_ticket_checked(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
+    if api.gerrit_api.does_patch_set_match_condition(
+            ssh_user, ssh_server, ticket,
+            ['label:Verified=+1'],
+            ssh_key, port=ssh_port):
+        return True
+    return False
+
+
 def _check_manager_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
     if api.gerrit_api.does_patch_set_match_condition(
             ssh_user, ssh_server, ticket, ['label:Integrated=-2'],
@@ -100,47 +109,58 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
         sys.stdout.flush()
         time.sleep(30)
 
-    checklist = []
+    pass_list = []
     for item in targets['tickets']:
-        checklist.append(
+        pass_list.append(
             {
                 'ticket': item,
-                'status': False
+                'status': False,
+                'verified': False
             }
         )
     print('Starting check if all tickets are done...')
-    while not _if_checklist_all_pass(checklist):
+    while not _if_checklist_all_pass(pass_list):
         print('Starting a new checking cycle...')
-        for item in checklist:
-            if not item['status']:
-                item['status'] = _check_ticket_ok(ssh_server, ssh_port,
-                                                  ssh_user,
-                                                  ssh_key, item['ticket'])
-                print('Ticket {} pass status: {}'.format(
-                    item['ticket'], item['status']))
-                if backup_topic and item['status']:
-                    print('Ticket {} OK, begin to backup to topic {}'.format(
-                        item['ticket'], backup_topic))
-                    name, branch, repo, platform = gop.get_info_from_change(
-                        item['ticket'])
-                    backup_id = gop.get_ticket_from_topic(backup_topic, repo,
-                                                          branch, name)
-                    if not backup_id:
-                        backup_id = gop.create_change_by_topic(
-                            backup_topic, repo, branch, name)
-                    if not backup_id:
-                        print('Can not create or find change for '
-                              '{} {} {}'.format(backup_topic, branch, name))
-                    else:
-                        try:
-                            gop.clear_change(change_id)
-                            gop.copy_change(item['ticket'], backup_id)
-                        except Exception as ex:
-                            print('Can not copy {} to {}'.format(
-                                item['ticket'], backup_id))
-                            print('Because {}'.format(str(ex)))
+        for item in pass_list:
+            # update verified
+            verified_old = item['verified']
+            item['verified'] = _check_ticket_checked(
+                ssh_server, ssh_port, ssh_user, ssh_key, item['ticket'])
+            if verified_old != item['verified']:
+                print('Change {} verified status changed!'.format(
+                    item['ticket']))
+                if item['verified']:
+                    print('Change {} verified became True'.format(
+                        item['ticket']))
+                    if backup_topic and item['status']:
+                        print('Ticket {} OK, begin to backup to topic {}'.format(
+                            item['ticket'], backup_topic))
+                        name, branch, repo, platform = gop.get_info_from_change(
+                            item['ticket'])
+                        backup_id = gop.get_ticket_from_topic(backup_topic, repo,
+                                                              branch, name)
+                        if not backup_id:
+                            backup_id = gop.create_change_by_topic(
+                                backup_topic, repo, branch, name)
+                        if not backup_id:
+                            print('Can not create or find change for '
+                                  '{} {} {}'.format(backup_topic, branch, name))
+                        else:
+                            try:
+                                gop.clear_change(change_id)
+                                gop.copy_change(item['ticket'], backup_id)
+                            except Exception as ex:
+                                print('Can not copy {} to {}'.format(
+                                    item['ticket'], backup_id))
+                                print('Because {}'.format(str(ex)))
+            # update status
+            item['status'] = _check_ticket_ok(ssh_server, ssh_port,
+                                              ssh_user,
+                                              ssh_key, item['ticket'])
+            print('Ticket {} pass status: {}'.format(
+                item['ticket'], item['status']))
         sys.stdout.flush()
-        if _if_checklist_all_pass(checklist):
+        if _if_checklist_all_pass(pass_list):
             break
         time.sleep(30)
 
