@@ -196,28 +196,27 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
     # restore
     copy_from_id = None
     gop = gerrit_int_op.IntegrationGerritOperation(gerrit_client)
-    if 'type' not in node_obj:
-        pass
-    else:
-        if node_obj['type'] != 'root' or node_obj['type'] != 'integration':
-            if info_index['meta']['backup_topic']:
-                copy_from_id = gop.get_ticket_from_topic(
-                    info_index['meta']['backup_topic'],
-                    node_obj['repo'],
-                    node_obj['branch'],
-                    node_obj['name'])
+
+    if 'type' not in node_obj or \
+            (node_obj['type'] != 'root' and node_obj['type'] != 'integration'):
+        if info_index['meta']['backup_topic']:
+            copy_from_id = gop.get_ticket_from_topic(
+                info_index['meta']['backup_topic'],
+                node_obj['repo'],
+                node_obj['branch'],
+                node_obj['name'])
 
     need_publish = False
+
+    if 'file_path' not in node_obj or not node_obj['file_path']:
+        node_obj['file_path'] = []
+
+    file_paths = node_obj['file_path']
 
     if copy_from_id:
         gop.copy_change(copy_from_id, ticket_id)
     else:
         # add files to trigger jobs
-        if 'file_path' not in node_obj or not node_obj['file_path']:
-            node_obj['file_path'] = []
-
-        file_paths = node_obj['file_path']
-
         if 'files' in node_obj and node_obj['files']:
             for _file in node_obj['files']:
                 file_path = _file + slugify(topic)

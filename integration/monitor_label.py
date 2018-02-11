@@ -132,7 +132,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                 if item['verified']:
                     print('Change {} verified became True'.format(
                         item['ticket']))
-                    if backup_topic and item['status']:
+                    if backup_topic and item['verified']:
                         print('Ticket {} OK, begin to backup to topic {}'.format(
                             item['ticket'], backup_topic))
                         name, branch, repo, platform = gop.get_info_from_change(
@@ -147,7 +147,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                                   '{} {} {}'.format(backup_topic, branch, name))
                         else:
                             try:
-                                gop.clear_change(change_id)
+                                gop.clear_change(backup_id)
                                 gop.copy_change(item['ticket'], backup_id)
                             except Exception as ex:
                                 print('Can not copy {} to {}'.format(

@@ -46,7 +46,7 @@ class GerritRestClient:
 
     def add_file_to_change(self, rest_id, file_path, content=''):
         auth = self.auth(self.user, self.pwd)
-        rest_url = self.server_url + '/a/changes/' + rest_id + \
+        rest_url = self.server_url + '/a/changes/' + str(rest_id) + \
             '/edit/' + requests.utils.quote(file_path, safe='')
         ret = self.session.put(rest_url, content, auth=auth)
         if not ret.ok:
@@ -84,6 +84,10 @@ class GerritRestClient:
             if ret.status_code == 409 and \
                     ret.content.startswith(
                         'identical tree and message'):
+                pass
+            elif ret.status_code == 409 and \
+                    ret.content.startswith(
+                        'no edit exists for change'):
                 pass
             else:
                 raise Exception(

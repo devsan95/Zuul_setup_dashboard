@@ -2,7 +2,6 @@
 # -*- coding:utf8 -*-
 
 import re
-from api import str_api
 
 
 class IntegrationGerritOperation(object):
@@ -47,7 +46,8 @@ class IntegrationGerritOperation(object):
         reg = re.compile(r'<(.*?)> on <(.*?)> of <(.*?)> topic <(.*?)>')
         reg2 = re.compile(r'Platform ID: <(.*?)>')
         change = rest.get_ticket(change_id)
-        msgs = change['subject'].split('\n')
+        commit = rest.get_commit(change_id)
+        msgs = commit['message'].split('\n')
         for msg in msgs:
             m = reg.match(msg)
             if m:
@@ -79,9 +79,8 @@ class IntegrationGerritOperation(object):
         for file_path in flist:
             file_path = file_path.split('\n', 2)[0]
             if file_path != '/COMMIT_MSG':
-                content = rest.get_file_content('file', rest_id_src)
-                file_content[file_path] = str_api.strip_begin(
-                    content, 'Subproject commit ')
+                content = rest.get_file_content(file_path, rest_id_src)
+                file_content[file_path] = content
 
         for file_path, content in file_content.items():
             rest.add_file_to_change(rest_id_dst, file_path, content)
