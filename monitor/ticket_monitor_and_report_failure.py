@@ -50,8 +50,9 @@ def get_ticket_status_via_labels(ticket, rest):
     for key in dic["labels"]:
         if "rejected" in dic["labels"][key]:
             return 0
-    if "approved" in dic["labels"]["Gatekeeper"]:
-        return 1
+    if "Gatekeeper" in dic["labels"]:
+        if "approved" in dic["labels"]["Gatekeeper"]:
+            return 1
     return 2
 
 
