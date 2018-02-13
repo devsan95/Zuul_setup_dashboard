@@ -189,7 +189,10 @@ class GerritRestClient:
         auth = self.auth(self.user, self.pwd)
         url = '{}a/changes/{}/detail'.format(self.server_url, ticket_id)
         print(url)
-        ticket = self.session.get(url, auth=auth)
+        try:
+            ticket = self.session.get(url, auth=auth)
+        except Exception as ex:
+            print('Exception occur: %s' % str(ex))
         if not ticket.ok:
             raise Exception(
                 'Get change [{}] failed.\n '
