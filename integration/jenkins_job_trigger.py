@@ -31,7 +31,7 @@ def _parse_args():
     parser.add_argument(
         "--data",
         nargs='*',
-        help="data options , now support "
+        help="data options , we can put token and job parameters here"
         "token/base_pkg/knife_json/integration_tag",
         dest="data")
 
