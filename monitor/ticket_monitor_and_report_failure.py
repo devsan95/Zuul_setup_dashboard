@@ -50,6 +50,7 @@ def get_ticket_status_via_labels(ticket, rest):
     for key in dic["labels"]:
         if "rejected" in dic["labels"][key]:
             return 0
+    # Judge if Gatekeeper exist
     if "Gatekeeper" in dic["labels"]:
         if "approved" in dic["labels"]["Gatekeeper"]:
             return 1
@@ -97,8 +98,11 @@ def _main(server, user, pwd, change_id):
     rest = gerrit_rest.GerritRestClient(server, user, pwd)
 
     while not ticket_list:
-        detail_info = rest.get_detailed_ticket(change_id)
-        ticket_list = get_ticket_id_list_in_commonts(detail_info)
+        try:
+            detail_info = rest.get_detailed_ticket(change_id)
+            ticket_list = get_ticket_id_list_in_commonts(detail_info)
+        except Exception as ex:
+            print("Exception {} occurred while get the root change information".format(ex))
         sys.stdout.flush()
         print("sleep 5 s")
         time.sleep(5)
@@ -107,22 +111,27 @@ def _main(server, user, pwd, change_id):
     fail_ticket_list = []
     while not all_success:
         print("ticket list: " + str(ticket_list))
-        for ticket in ticket_list:
-            print("ticket is " + str(ticket))
-            result = get_ticket_status_via_labels(ticket, rest)
-            if 1 == result:
-                print("Ticket {} success".format(ticket))
-                # Remove success ticket
-                ticket_list.remove(ticket)
-                if ticket in fail_ticket_list:
-                    fail_ticket_list.remove(ticket)
-            elif 0 == result:
-                if ticket not in fail_ticket_list:
-                    fail_ticket_list.append(ticket)
-                    email_list = get_reviewer_email_list(ticket, rest)
-                    send_mail(email_list, ticket)
-            else:
-                print("Ticket {} is running please waiting...".format(ticket))
+        # catch exceptions
+        try:
+            for ticket in ticket_list:
+                print("ticket is " + str(ticket))
+                result = get_ticket_status_via_labels(ticket, rest)
+                if 1 == result:
+                    print("Ticket {} success".format(ticket))
+                    # Remove success ticket
+                    ticket_list.remove(ticket)
+                    if ticket in fail_ticket_list:
+                        fail_ticket_list.remove(ticket)
+                elif 0 == result:
+                    if ticket not in fail_ticket_list:
+                        fail_ticket_list.append(ticket)
+                        email_list = get_reviewer_email_list(ticket, rest)
+                        send_mail(email_list, ticket)
+                else:
+                    print("Ticket {} is running please waiting...".format(ticket))
+        except Exception as ex:
+            print("Exception {} occurred while monitor the changes".format(ex))
+
         if not ticket_list:
             all_success = True
         else:
