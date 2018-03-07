@@ -5,15 +5,43 @@
 # @site    : HangZhou
 
 import fire
+import time
+import sys
 from scm_tools.wft.build_content import BuildContent
 
 
-def check_release_status(package):
+class UnstableExit(SystemError):
+    pass
+
+
+class ErrorExit(SystemError):
+    pass
+
+
+def check_release_status(package, wait_minute=20):
     assert package != "", "package must have value!"
-    build_content = BuildContent.get(package)
-    if build_content.get_state() == "not_released":
-        raise SystemError("failed this job because of not_released")
+    while True:
+        build_content = BuildContent.get(package)
+        status = build_content.get_state()
+        print "package {0} status is {1}".format(package, status)
+        if status == "not_released":
+            print "status is not_released, make this job failed"
+            raise ErrorExit()
+        elif status == "released":
+            print "status is released, make this job success"
+            break
+        elif status == "released_with_restrictions":
+            print "status is released_with_restrictions, make job to unstable "
+            raise UnstableExit()
+        else:
+            print "package {0} status is {1},waitting for released or not released".format(package, status)
+            time.sleep(int(wait_minute) * 60)
 
 
 if __name__ == '__main__':
-    fire.Fire(check_release_status)
+    try:
+        fire.Fire(check_release_status)
+    except ErrorExit:
+        sys.exit(1)
+    except UnstableExit:
+        sys.exit(2)
