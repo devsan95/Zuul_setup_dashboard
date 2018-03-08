@@ -114,7 +114,8 @@ cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
 pip install jenkins-job-builder PyZMQ ruamel.yaml networkx requests
 pip install gitpython arrow sh pyyaml flake8 ptpython pydocstyle python-slugify
-pip install jinja2
+pip install jinja2 fire
+pip install -U git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
 cd "$OLD_PATH"
 

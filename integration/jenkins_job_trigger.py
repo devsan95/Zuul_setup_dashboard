@@ -80,6 +80,7 @@ def get_last_job_status(jenkins_url, job_name, data, min_no=None):
             for action in build_obj['actions']:
                 if 'parameters' in action:
                     data_nomatch = data.keys()
+                    data_nomatch.remove('token')
                     for param in action['parameters']:
                         if param['name'] in data.keys() and \
                                 param['value'] == data[param['name']]:
@@ -97,14 +98,15 @@ def trigger_job(jenkins_url, job_name, data):
                                               job_name,
                                               data)
     res = requests.post(url, data=data)
-    print 'res:{}'.format(res.text)
+    print(res.content)
     return res.ok
 
 
-def _main(params):
+def run(params):
     retry_times = params['retry_times']
     jenkins_url = params['jenkins_url']
     job_name = params['job_name']
+    job_name = job_name.replace('/', '/job/')
     data = params['data']
     min_no = 0
     for i in range(0, retry_times):
@@ -113,8 +115,8 @@ def _main(params):
             last_no, last_result = \
                 get_last_job_status(jenkins_url, job_name, data)
             if last_result == 'SUCCESS':
-                print_flush('Image has been tested and succeed.')
-                sys.exit(0)
+                print_flush('Job has been run and succeed.')
+                return
 
             if last_no:
                 min_no = last_no
@@ -141,7 +143,7 @@ def _main(params):
                     print_flush('Job Build succeed')
                     print_flush('{}/job/{}/{}/'.format(
                         jenkins_url, job_name, build_no))
-                    sys.exit(0)
+                    return
                 else:
                     print_flush('Job Build unknown, retry')
                     print_flush('{}/job/{}/{}/'.format(
@@ -152,13 +154,13 @@ def _main(params):
         except Exception as e:
             print_flush('Exception met: {}'.format(str(e)))
 
-    sys.exit(2)
+    raise Exception('Exception occured!')
 
 
 if __name__ == '__main__':
     try:
         param = _parse_args()
-        _main(param)
+        run(param)
     except Exception as e:
         print_flush("An exception %s occurred, msg: %s" % (type(e), str(e)))
         traceback.print_exc()
