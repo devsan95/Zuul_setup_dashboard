@@ -1,7 +1,10 @@
+import sys
+import traceback
+
 import fire
 
-from api import wft_api
 import jenkins_job_trigger
+from api import wft_api
 
 
 def get_last_baseline(baseline_prefix, access_key):
@@ -90,7 +93,13 @@ def _main(baseline_prefix, access_key, version_file=None,
         print('Writing baseline to {}'.format(version_file))
         with open(version_file, 'w') as f:
             f.write(baseline)
+    print('Version: {}'.format(baseline))
 
 
 if __name__ == '__main__':
-    fire.Fire(_main)
+    try:
+        fire.Fire(_main)
+    except Exception as e:
+        print('Exception: {}'.format(str(e)))
+        traceback.print_exc()
+        sys.exit(2)
