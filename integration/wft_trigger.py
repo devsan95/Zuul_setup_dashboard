@@ -7,6 +7,10 @@ import jenkins_job_trigger
 from api import wft_api
 
 
+class NonFatalException(Exception):
+    pass
+
+
 def get_last_baseline(baseline_prefix, access_key):
     auth = wft_api.WftAuth(access_key)
     build_query = wft_api.WftBuildQuery(auth)
@@ -34,7 +38,7 @@ def _main(baseline_prefix, access_key, version_file=None,
                 comparing_version = f.read()
                 print('Older version is [{}]'.format(comparing_version))
                 if baseline <= comparing_version:
-                    raise Exception('The baseline is not latest, abort')
+                    raise NonFatalException('The baseline is not latest, abort')
         except IOError as ie:
             print('Open file {} failed, for {}'.format(version_file, str(ie)))
     # form parameter
@@ -99,6 +103,8 @@ def _main(baseline_prefix, access_key, version_file=None,
 if __name__ == '__main__':
     try:
         fire.Fire(_main)
+    except NonFatalException as ne:
+        print('Info: {}'.format(str(ne)))
     except Exception as e:
         print('Exception: {}'.format(str(e)))
         traceback.print_exc()
