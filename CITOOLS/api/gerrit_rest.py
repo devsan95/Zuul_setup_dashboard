@@ -1,5 +1,8 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
+# Copyright 2018 Nokia
+# Copyright 2018 Shawn Zhiqi Xie
+# Copyright 2018 HZ 5G SCM Team
 
 """
 A module to do gerrit rest operation.
