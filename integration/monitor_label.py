@@ -112,6 +112,10 @@ def get_ticket_list_from_comments(info):
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
           rest_url, rest_user, rest_pwd, auth_type, backup_topic):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
+    if auth_type == 'basic':
+        rest.change_to_basic_auth()
+    elif auth_type == 'digest':
+        rest.change_to_digest_auth()
     gop = gerrit_int_op.IntegrationGerritOperation(rest)
     if not backup_topic:
         name, branch, repo, platform = gop.get_info_from_change(change_id)
