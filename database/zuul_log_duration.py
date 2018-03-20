@@ -91,27 +91,42 @@ class DbHandler(object):
                 rt = 'begin'
             else:
                 rt = 'end'
-            ri = {'id': row.id, 'type': rt, 'change': row.change_item}
+
+            if not row.pipeline:
+                pipeline = 'unknown'
+            else:
+                pipeline = row.pipeline
+
+            ri = {'id': row.id, 'type': rt, 'change': row.change_item,
+                  'pipeline': pipeline}
+
             if rt == 'begin':
                 rlb.append(ri)
             else:
                 rle.append(ri)
 
             if row.change_item in rd:
-                rd[row.change_item].append(ri)
+                if pipeline not in rd[row.change_item]:
+                    rd[row.change_item][pipeline] = [ri]
+                else:
+                    rd[row.change_item][pipeline].append(ri)
             else:
-                rd[row.change_item] = [ri]
+                rd[row.change_item] = {}
+                rd[row.change_item][pipeline] = [ri]
 
         rd['begin_list'] = rlb
         rd['end_list'] = rle
         return rd
 
-    def get_op_list(self, from_, to, change_item):
+    def get_op_list(self, from_, to, change_item, pipeline):
         rl = []
+        if pipeline == 'unknown':
+            pipeline = ''
         query = self.session.query(LogAction) \
             .filter(LogAction.id <= to,
                     LogAction.id >= from_,
-                    LogAction.change_item == change_item) \
+                    LogAction.change_item == change_item,
+                    LogAction.pipeline == pipeline) \
             .order_by(LogAction.id)
         result = query.all()
         for row in result:
@@ -191,15 +206,18 @@ class DbHandler(object):
 
         if start_time and merge_time:
             duration_ms = \
-                (arrow.get(merge_time) - arrow.get(start_time)).total_seconds()
+                (arrow.get(merge_time) - arrow.get(start_time))\
+                .total_seconds() * 1000
 
         if launch_job_time and merge_time:
             duration_lm = \
-                (arrow.get(launch_job_time) - arrow.get(merge_time)).total_seconds()
+                (arrow.get(launch_job_time) - arrow.get(merge_time))\
+                .total_seconds() * 1000
 
         if launch_job_time and finish_time:
             duration_fl = \
-                (arrow.get(finish_time) - arrow.get(launch_job_time)).total_seconds()
+                (arrow.get(finish_time) - arrow.get(launch_job_time))\
+                .total_seconds() * 1000
 
         obj = LogDuration(
             changeset=changeset,
@@ -230,24 +248,25 @@ def _main(db_str, entry_num=5000, run_num=1):
         rd = db.get_border_dict(last_end, entry_num)
         rl = rd['end_list']
 
-        for key, value in rd.items():
+        for key, value in rd.items():  # change, dict
             if key == 'begin_list':
                 continue
             if key == 'end_list':
                 continue
 
-            fi = value[0]
-            if fi['type'] == 'end':
-                ri = db.get_last_begin_end_no(fi['id'],
-                                              fi['change'], begin=True)
-                if ri:
-                    value.insert(0, ri)
+            for key2, value2 in value.items():  # pipeline, info object list
+                fi = value2[0]
+                if fi['type'] == 'end':
+                    ri = db.get_last_begin_end_no(fi['id'],
+                                                  fi['change'], begin=True)
+                    if ri:
+                        value2.insert(0, ri)
 
         for end_item in rl:
             # find begin item
             end_id = end_item['id']
             begin_id = -1
-            slist = rd[end_item['change']]
+            slist = rd[end_item['change']][end_item['pipeline']]
             for j in range(1, len(slist)):
                 sitem = slist[j]
                 psitem = slist[j - 1]
@@ -259,7 +278,8 @@ def _main(db_str, entry_num=5000, run_num=1):
 
             if begin_id > 0:
                 print('tuple: {}, {}'.format(begin_id, end_id))
-                op_list = db.get_op_list(begin_id, end_id, end_item['change'])
+                op_list = db.get_op_list(
+                    begin_id, end_id, end_item['change'], end_item['pipeline'])
                 db.save_op_list(op_list)
             else:
                 print('id {} is without begin'.format(end_id))
