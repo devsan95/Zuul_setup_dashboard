@@ -277,7 +277,7 @@ class GerritRestClient:
                     changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
-        ret_dict = {'old': '', 'new': ''}
+        ret_dict = {'old': '', 'new': '', 'old_diff': '', 'new_diff': ''}
         for change in result['content']:
             for fid, content in change.items():
                 if fid == 'ab':
@@ -290,10 +290,18 @@ class GerritRestClient:
                     ret_dict['old'] += '\n'.join(content)
 
                     ret_dict['old'] += '\n'
+
+                    ret_dict['old_diff'] += '\n'.join(content)
+
+                    ret_dict['old_diff'] += '\n'
                 elif fid == 'b':
                     ret_dict['new'] += '\n'.join(content)
 
                     ret_dict['new'] += '\n'
+
+                    ret_dict['new_diff'] += '\n'.join(content)
+
+                    ret_dict['new_diff'] += '\n'
         return ret_dict
 
     def get_file_content(self, file_path, rest_id, revision_id='current'):
