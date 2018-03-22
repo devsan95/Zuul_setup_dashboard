@@ -1,7 +1,6 @@
 import sys
 import traceback
 
-import arrow
 import fire
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
@@ -33,7 +32,7 @@ class DbHandler(object):
 
     def get_last_end_no(self):
         query = self.session.query(LogDuration.finish_id) \
-            .order_by(sa.desc(LogDuration.id))
+            .order_by(sa.desc(LogDuration.finish_id))
         result = query.first()
         if not result:
             return -1
@@ -170,9 +169,6 @@ class DbHandler(object):
         end_id = list_[-1]['id']
         changeset = '{},{}'.format(list_[0]['change'], list_[0]['patchset'])
 
-        duration_ms = 0
-        duration_lm = 0
-        duration_fl = 0
         for item in list_:
             # start
             if not start_time:
@@ -204,30 +200,12 @@ class DbHandler(object):
             if item['type'] == 'remove for cannot merge':
                 status_str = 'conflicted'
 
-        if start_time and merge_time:
-            duration_ms = \
-                (arrow.get(merge_time) - arrow.get(start_time))\
-                .total_seconds() * 1000
-
-        if launch_job_time and merge_time:
-            duration_lm = \
-                (arrow.get(launch_job_time) - arrow.get(merge_time))\
-                .total_seconds() * 1000
-
-        if launch_job_time and finish_time:
-            duration_fl = \
-                (arrow.get(finish_time) - arrow.get(launch_job_time))\
-                .total_seconds() * 1000
-
         obj = LogDuration(
             changeset=changeset,
             kind=pipeline,
             start_time=start_time,
-            duration_ms=duration_ms,
             merge_time=merge_time,
-            duration_lm=duration_lm,
             launch_time=launch_job_time,
-            duration_fl=duration_fl,
             finish_time=finish_time,
             begin_id=begin_id,
             finish_id=end_id,

@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.dialects.mysql import DATETIME
+from sqlalchemy.dialects.mysql import DATETIME, TINYINT
 
 ModelBase = declarative_base()
 
@@ -29,14 +29,18 @@ class LogDuration(ModelBase):
     id = sa.Column(sa.Integer, primary_key=True)
     changeset = sa.Column(sa.String(50), index=True)
     kind = sa.Column(sa.String(20), index=True)
+    project = sa.Column(sa.String(255), index=True)
+    squad = sa.Column(sa.String(255), index=True)
     start_time = sa.Column(DATETIME(fsp=3), index=True)
-    duration_ms = sa.Column(sa.Integer)
     merge_time = sa.Column(DATETIME(fsp=3), index=True)
-    duration_lm = sa.Column(sa.Integer)
+    merged_time = sa.Column(DATETIME(fsp=3), index=True)
     launch_time = sa.Column(DATETIME(fsp=3), index=True)
-    duration_fl = sa.Column(sa.Integer)
+    launched_time = sa.Column(DATETIME(fsp=3), index=True)
+    completed_time = sa.Column(DATETIME(fsp=3), index=True)
     finish_time = sa.Column(DATETIME(fsp=3), index=True)
     begin_id = sa.Column(sa.Integer, index=True)
     finish_id = sa.Column(sa.Integer, index=True)
     status = sa.Column(sa.String(255))
     change_item = sa.Column(sa.String(50), index=True)
+    queue_item = sa.Column(sa.String(50), index=True)
+    result = sa.Column(TINYINT, index=True)
