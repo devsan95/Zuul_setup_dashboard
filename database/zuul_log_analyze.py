@@ -689,7 +689,7 @@ def _test():
     print(log_line)
 
 
-def _main(log_path, db_str):
+def main(log_path, db_str):
     try:
         db = DbHandler(db_str)
         db.init_db()
@@ -716,7 +716,7 @@ def _main(log_path, db_str):
 
 if __name__ == '__main__':
     try:
-        fire.Fire(_main)
+        fire.Fire(main)
     except Exception as e:
         print('Exception: {}'.format(str(e)))
         traceback.print_exc()

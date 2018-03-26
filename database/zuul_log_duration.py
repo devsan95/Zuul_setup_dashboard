@@ -261,7 +261,7 @@ class DbHandler(object):
         self.rollback()
 
 
-def _main(db_str, entry_num=5000, run_num=1):
+def main(db_str, entry_num=5000, run_num=1):
     db = DbHandler(db_str)
     try:
         db.init_db()
@@ -352,7 +352,7 @@ def _test(db_str):
 
 if __name__ == '__main__':
     try:
-        fire.Fire(_main)
+        fire.Fire(main)
     except Exception as e:
         print('Exception: {}'.format(str(e)))
         traceback.print_exc()
