@@ -19,6 +19,7 @@ class LogAction(ModelBase):
     queue = sa.Column(sa.Text())
     pipeline = sa.Column(sa.String(50), index=True)
     project = sa.Column(sa.String(255), index=True)
+    job = sa.Column(sa.String(255), index=True)
     change_item = sa.Column(sa.String(50), index=True)
     queue_item = sa.Column(sa.String(50), index=True)
     text = sa.Column(sa.Text())

@@ -10,7 +10,7 @@ from model import LogDuration
 
 
 class DbHandler(object):
-    start_strings = ['adding to queue', 'cancel job']
+    start_strings = ['added to queue', 'cancel job']
     end_strings = ['remove from queue', 'resetting for nnfi',
                    'resetting for not merge']
 
@@ -46,7 +46,7 @@ class DbHandler(object):
             print('Find previous one for {}, {}, and it should be end'
                   .format(id_, change_item))
         query = self.session.query(LogAction)\
-            .filter(sa.or_(LogAction.type == 'adding to queue',
+            .filter(sa.or_(LogAction.type == 'added to queue',
                            LogAction.type == 'remove from queue'),
                     LogAction.id < id_,
                     LogAction.change_item == change_item)\
@@ -57,14 +57,14 @@ class DbHandler(object):
             return None
         else:
             if begin:
-                if result.type != 'adding to queue':
+                if result.type != 'added to queue':
                     print('Previous one is end, abandon')
                     return None
             else:
                 if result.type != 'remove from queue':
                     print('Previous one is begin, abandon')
                     return None
-        if result.type == 'adding to queue':
+        if result.type == 'added to queue':
             rt = 'begin'
         else:
             rt = 'end'
@@ -74,7 +74,7 @@ class DbHandler(object):
 
     def get_border_dict(self, begin, limit):
         query = self.session.query(LogAction) \
-            .filter(sa.or_(LogAction.type == 'adding to queue',
+            .filter(sa.or_(LogAction.type == 'added to queue',
                            LogAction.type == 'remove from queue'),
                     LogAction.id > begin) \
             .order_by(LogAction.id) \
@@ -86,18 +86,18 @@ class DbHandler(object):
         rle = []
 
         for row in query:
-            if row.type == 'adding to queue':
+            if row.type == 'added to queue':
                 rt = 'begin'
             else:
                 rt = 'end'
 
-            if not row.pipeline:
-                pipeline = 'unknown'
+            if not row.queue_item:
+                queue_item = 'unknown'
             else:
-                pipeline = row.pipeline
+                queue_item = row.queue_item
 
             ri = {'id': row.id, 'type': rt, 'change': row.change_item,
-                  'pipeline': pipeline}
+                  'pipeline': queue_item, 'queue_item': row.queue_item}
 
             if rt == 'begin':
                 rlb.append(ri)
@@ -105,27 +105,27 @@ class DbHandler(object):
                 rle.append(ri)
 
             if row.change_item in rd:
-                if pipeline not in rd[row.change_item]:
-                    rd[row.change_item][pipeline] = [ri]
+                if queue_item not in rd[row.change_item]:
+                    rd[row.change_item][queue_item] = [ri]
                 else:
-                    rd[row.change_item][pipeline].append(ri)
+                    rd[row.change_item][queue_item].append(ri)
             else:
                 rd[row.change_item] = {}
-                rd[row.change_item][pipeline] = [ri]
+                rd[row.change_item][queue_item] = [ri]
 
         rd['begin_list'] = rlb
         rd['end_list'] = rle
         return rd
 
-    def get_op_list(self, from_, to, change_item, pipeline):
+    def get_op_list(self, from_, to, change_item, queue_item):
         rl = []
-        if pipeline == 'unknown':
-            pipeline = ''
+        if queue_item == 'unknown':
+            queue_item = ''
         query = self.session.query(LogAction) \
             .filter(LogAction.id <= to,
                     LogAction.id >= from_,
                     LogAction.change_item == change_item,
-                    LogAction.pipeline == pipeline) \
+                    LogAction.queue_item == queue_item) \
             .order_by(LogAction.id)
         result = query.all()
         for row in result:
@@ -160,10 +160,15 @@ class DbHandler(object):
     def save_op_list_(self, list_):
         start_time = None
         merge_time = None
+        merged_time = None
         launch_job_time = None
+        launched_job_time = None
+        complete_job_time = None
         finish_time = None
+        result = None
         status_str = None
         pipeline = list_[0]['pipeline']
+        queue_item = list_[0]['queue_item']
         change_item = list_[0]['change_item']
         begin_id = list_[0]['id']
         end_id = list_[-1]['id']
@@ -177,9 +182,22 @@ class DbHandler(object):
             # merge
             if item['type'] == 'prepare ref':
                 merge_time = item['datetime']
+            # merged
+            if item['type'] in ['merge failed', 'merge complete']:
+                merged_time = item['datetime']
             # launch
             if item['type'] == 'launch job' and not launch_job_time:
                 launch_job_time = item['datetime']
+            # launched
+            if item['type'] == 'job started' and not launched_job_time:
+                launched_job_time = item['datetime']
+            # complete
+            if item['type'] in \
+               ['job started', 'job completed', 'job cancelled']:
+                if item['type'] == 'job started':
+                    complete_job_time = None
+                else:
+                    complete_job_time = item['datetime']
             # finish
             if not finish_time:
                 if item['type'] in self.end_strings:
@@ -199,68 +217,109 @@ class DbHandler(object):
             # no longer merge
             if item['type'] == 'remove for cannot merge':
                 status_str = 'conflicted'
+            # not live
+            if item['type'] == 'item is not live':
+                status_str = 'not live'
+
+            # merge fail
+            if item['type'] == 'finish with merge fail':
+                status_str = 'merge fail'
+            # no job
+            if item['type'] == 'finish with no job':
+                status_str = 'no job'
+            # success
+            if item['type'] == 'success':
+                status_str = 'success'
+                result = 1
+            # fail
+            if item['type'] == 'fail':
+                status_str = 'fail'
 
         obj = LogDuration(
             changeset=changeset,
             kind=pipeline,
             start_time=start_time,
             merge_time=merge_time,
+            merged_time=merged_time,
             launch_time=launch_job_time,
+            launched_time=launched_job_time,
+            completed_time=complete_job_time,
             finish_time=finish_time,
             begin_id=begin_id,
             finish_id=end_id,
             status=status_str,
-            change_item=change_item
+            change_item=change_item,
+            queue_item=queue_item,
+            result=result
         )
         self.session.add(obj)
+
+    def commit(self):
         self.session.commit()
+
+    def rollback(self):
+        self.rollback()
 
 
 def _main(db_str, entry_num=5000, run_num=1):
     db = DbHandler(db_str)
-    db.init_db()
+    try:
+        db.init_db()
 
-    for i in range(0, run_num):
-        last_end = db.get_last_end_no()
+        for i in range(0, run_num):
+            last_end = db.get_last_end_no()
 
-        rd = db.get_border_dict(last_end, entry_num)
-        rl = rd['end_list']
+            rd = db.get_border_dict(last_end, entry_num)
+            rl = rd['end_list']
 
-        for key, value in rd.items():  # change, dict
-            if key == 'begin_list':
-                continue
-            if key == 'end_list':
-                continue
+            if not rl:
+                print('No more id to process, break')
+                break
 
-            for key2, value2 in value.items():  # pipeline, info object list
-                fi = value2[0]
-                if fi['type'] == 'end':
-                    ri = db.get_last_begin_end_no(fi['id'],
-                                                  fi['change'], begin=True)
-                    if ri:
-                        value2.insert(0, ri)
+            for key, value in rd.items():  # change, dict
+                if key == 'begin_list':
+                    continue
+                if key == 'end_list':
+                    continue
 
-        for end_item in rl:
-            # find begin item
-            end_id = end_item['id']
-            begin_id = -1
-            slist = rd[end_item['change']][end_item['pipeline']]
-            for j in range(1, len(slist)):
-                sitem = slist[j]
-                psitem = slist[j - 1]
-                if sitem['id'] == end_item['id']:
-                    if psitem['type'] == 'begin':
-                        begin_id = psitem['id']
-                    break
-                j += 1
+                for key2, value2 in value.items():  # queue_item, info object list
+                    fi = value2[0]
+                    if fi['type'] == 'end':
+                        ri = db.get_last_begin_end_no(fi['id'],
+                                                      fi['change'], begin=True)
+                        if ri:
+                            value2.insert(0, ri)
 
-            if begin_id > 0:
-                print('tuple: {}, {}'.format(begin_id, end_id))
-                op_list = db.get_op_list(
-                    begin_id, end_id, end_item['change'], end_item['pipeline'])
-                db.save_op_list(op_list)
-            else:
-                print('id {} is without begin'.format(end_id))
+            for end_item in rl:
+                # find begin item
+                end_id = end_item['id']
+                begin_id = -1
+                slist = rd[end_item['change']][end_item['queue_item']]
+                for j in range(1, len(slist)):
+                    sitem = slist[j]
+                    psitem = slist[j - 1]
+                    if sitem['id'] == end_item['id']:
+                        if psitem['type'] == 'begin':
+                            begin_id = psitem['id']
+                        break
+                    j += 1
+
+                if begin_id > 0:
+                    print('tuple: {}, {}'.format(begin_id, end_id))
+                    op_list = db.get_op_list(
+                        begin_id, end_id, end_item['change'],
+                        end_item['queue_item'])
+                    db.save_op_list(op_list)
+                else:
+                    print('id {} is without begin'.format(end_id))
+
+        db.commit()
+    except Exception as ex:
+        print('Exception occurs:')
+        print(ex)
+        print('rollback')
+        db.rollback()
+        raise ex
 
 
 def _test(db_str):
@@ -269,7 +328,7 @@ def _test(db_str):
     begin = 0
     limit = 10000
     query = db.session.query(LogAction)\
-        .filter(sa.or_(LogAction.type == 'adding to queue', LogAction.type == 'remove from queue'), LogAction.id > begin)\
+        .filter(sa.or_(LogAction.type == 'added to queue', LogAction.type == 'remove from queue'), LogAction.id > begin)\
         .order_by(LogAction.id)\
         .limit(limit)\
         .all()
@@ -277,7 +336,7 @@ def _test(db_str):
     begin_dict = {}
 
     for row in query:
-        if row.type == 'adding to queue':
+        if row.type == 'added to queue':
             rt = 'begin'
         else:
             rt = 'end'
