@@ -21,6 +21,9 @@ def _parse_args():
                         help='')
     parser.add_argument('retry_times', type=int, default=3,
                         help='')
+
+    parser.add_argument('stream', type=str, default='',
+                        help='')
     args = parser.parse_args()
     return vars(args)
 
@@ -30,11 +33,13 @@ def print_flush(strs):
     sys.stdout.flush()
 
 
-def form_url(change_ids):
+def form_url(change_ids, stream):
     change_ids_url = change_ids.replace(',', '-')
     change_id_slices = change_ids_url.split(' ')
     change_id_slices = sorted(change_id_slices)
     change_ids_url = '_'.join(change_id_slices)
+    if stream:
+        change_ids_url = '{}_{}'.format(change_ids_url, stream)
     s3_url = 'http://s3-china-1.eecloud.nsn-net.net/' \
              '5g-cb/integration/{}/pkg_info'
     url = s3_url.format(change_ids_url)
@@ -87,7 +92,7 @@ def trigger_job(jenkins_url, job_name, qcow2_url, token):
     return res.ok
 
 
-def _main(change_ids, retry_times, jenkins_url, job_name, token):
+def _main(change_ids, retry_times, jenkins_url, job_name, token, stream):
     content = None
     qcow2_url = None
     min_no = None
@@ -97,7 +102,8 @@ def _main(change_ids, retry_times, jenkins_url, job_name, token):
         try:
             if not qcow2_url:
                 if not content:
-                    url = form_url(change_ids)
+                    url = form_url(change_ids, stream)
+                    print(url)
                     request = requests.get(url)
                     if not request.ok:
                         raise Exception('Get s3 file failed!')

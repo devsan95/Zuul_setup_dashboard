@@ -38,18 +38,18 @@ class DbHandler(object):
             return -1
         return result.finish_id
 
-    def get_last_begin_end_no(self, id_, change_item, begin=True):
+    def get_last_begin_end_no(self, id_, queue_item, begin=True):
         if begin:
             print('Find previous one for {}, {}, and it should be begin'
-                  .format(id_, change_item))
+                  .format(id_, queue_item))
         else:
             print('Find previous one for {}, {}, and it should be end'
-                  .format(id_, change_item))
+                  .format(id_, queue_item))
         query = self.session.query(LogAction)\
             .filter(sa.or_(LogAction.type == 'added to queue',
                            LogAction.type == 'remove from queue'),
                     LogAction.id < id_,
-                    LogAction.change_item == change_item)\
+                    LogAction.queue_item == queue_item)\
             .order_by(sa.desc(LogAction.id))
         result = query.first()
         if not result:
@@ -68,7 +68,8 @@ class DbHandler(object):
             rt = 'begin'
         else:
             rt = 'end'
-        ri = {'id': result.id, 'type': rt, 'change': result.change_item}
+        ri = {'id': result.id, 'type': rt, 'change': result.change_item,
+              'queue_item': result.queue_item}
         print('Previous one is {}'.format(ri['id']))
         return ri
 
@@ -286,7 +287,7 @@ def main(db_str, entry_num=5000, run_num=1):
                     fi = value2[0]
                     if fi['type'] == 'end':
                         ri = db.get_last_begin_end_no(fi['id'],
-                                                      fi['change'], begin=True)
+                                                      fi['queue_item'], begin=True)
                         if ri:
                             value2.insert(0, ri)
 
