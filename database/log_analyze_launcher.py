@@ -59,13 +59,13 @@ def _main(log_path, db_str):
 
     print('begin to analyze logs')
     import zuul_log_analyze
-    zuul_log_analyze.main(log_path, db_str)
+    zuul_log_analyze.main(res_path, db_str)
 
     print('begin to calculate duration')
     import zuul_log_duration
     zuul_log_duration.main(db_str, 10000, 100)
 
-    print('[Result] All done, {}'.format(res_path))
+    print('[LOGANA Result] All done, {}'.format(res_path))
 
 
 if __name__ == '__main__':
@@ -76,5 +76,5 @@ if __name__ == '__main__':
         print('Exception: {}'.format(str(e)))
         traceback.print_exc()
         print('=' * 20)
-        print('[Result] Exception, {}'.format(str(e)))
+        print('[LOGANA Result] Exception, {}'.format(str(e)))
         sys.exit(2)

@@ -180,7 +180,14 @@ def rebase_change(rest, change_id, commit_message, branch):
             rest.restore_file_to_change(change_id, path)
         except Exception as e:
             print(str(e))
-    rest.publish_edit(change_id)
+    try:
+        rest.publish_edit(change_id)
+    except Exception as e:
+        print(str(e))
+    try:
+        rest.delete_edit(change_id)
+    except Exception as e:
+        print(str(e))
     print(rest.rebase(change_id))
     # update all submodule: create branch and update revision
     for path, info in submodules.items():
