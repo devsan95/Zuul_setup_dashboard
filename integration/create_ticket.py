@@ -453,12 +453,15 @@ def label_all_tickets(root_node, integration_node, graph_obj,
     gerrit_client.review_ticket(integration_node['rest_id'], 'reexperiment')
     for node in nodes.values():
         if node is not root_node and node is not integration_node:
-            gerrit_client.review_ticket(node['rest_id'],
-                                        'Initial label', {'Code-Review': 2})
-            # gerrit_api.review_patch_set(zuul_user, zuul_server,
-            #                             node['ticket_id'],
-            #                             ['Integrated=0'], 'init_label',
-            #                             zuul_key, zuul_port)
+            if 'auto_code_reveiw' in node and not node['auto_code_reveiw']:
+                pass
+            else:
+                gerrit_client.review_ticket(node['rest_id'],
+                                            'Initial label', {'Code-Review': 2})
+                # gerrit_api.review_patch_set(zuul_user, zuul_server,
+                #                             node['ticket_id'],
+                #                             ['Integrated=0'], 'init_label',
+                #                             zuul_key, zuul_port)
 
         if 'reviewers' in node and node['reviewers']:
             for reviewer in node['reviewers']:
