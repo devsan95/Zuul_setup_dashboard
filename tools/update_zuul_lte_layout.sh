@@ -14,8 +14,8 @@ mkdir -p /tmp/zuul_tmp/${script_pwd}/
 rm -rf /tmp/zuul_tmp/${script_pwd}/*
 OLD_PATH="`pwd`"
 cd ${work_path}
-git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/layout-lte layout
-git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/conf
+git clone https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/layout-lte layout
+git clone https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/conf
 
 . ${SCRIPT_DIR}/pyenv.sh
 python ${SCRIPT_DIR}/layout/layout_handler.py -i "${work_path}/layout/layout.yaml" \
