@@ -315,13 +315,20 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
             lines.append('  - <project root>/{}'.format(path))
     if 'remark' in node_obj and node_obj['remark']:
         lines.append('Remarks: ')
+        lines.append('---')
         for line in node_obj['remark']:
-            lines.append('  {}'.format(line))
+            lines.append('{}'.format(line))
+        lines.append('---')
         section_showed = True
 
     if section_showed:
         lines.append('  ')
         lines.append('  ')
+
+    if 'title_replace' in node_obj and node_obj['title_replace']:
+        new_title = node_obj['title_replace'].format(node=node_obj,
+                                                     meta=info_index['meta'])
+        lines.insert(0, new_title)
 
     section_showed = False
     ric_title = False
@@ -397,6 +404,21 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
                     lines.append('  - SUBMODULE <{}> <{}> <{}>'.format(
                         sub_path, sub_project,
                         nodes[sub_project]['ticket_id']))
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
+    if 'submodule_roots' in node_obj and node_obj['submodule_roots']:
+        sub_list = node_obj['submodule_roots']
+        if len(sub_list) > 0:
+            lines.append('This change is root of following submodule(s):')
+            section_showed = True
+            for line in sub_list:
+                proj, branch, path = line.split(',')
+                lines.append('  - SUBMODULEROOT <{}> <{}> <{}>'.format(
+                    proj, branch, path))
 
     if section_showed:
         lines.append('  ')
