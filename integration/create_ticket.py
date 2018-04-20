@@ -214,7 +214,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
     file_paths = node_obj['file_path']
 
     if copy_from_id:
-        gop.copy_change(copy_from_id, ticket_id)
+        gop.copy_change(copy_from_id, node_obj['ticket_id'])
     else:
         # add files to trigger jobs
         if 'files' in node_obj and node_obj['files']:
@@ -555,6 +555,9 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
 
     topic = slugify(topic)
 
+    structure_obj = load_structure(path)
+    gerrit_obj = load_structure(gerrit_path)
+
     if not version_name and env_change:
         versions = set()
         env_change_split = shlex.split(env_change)
@@ -565,19 +568,26 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                 versions.add(env_list[1])
 
         if versions:
-            for value in versions:
-                if len(value) <= 35:
-                    if version_name:
-                        if len(version_name) + 1 + len(value) <= 60:
-                            version_name += '/'
-                            version_name += value
-                        else:
-                            break
-                    else:
+            if 'meta' in structure_obj and \
+                    'version_keyword' in structure_obj['meta'] and \
+                    structure_obj['meta']['version_keyword']:
+                vk = structure_obj['meta']['version_keyword']
+                for value in versions:
+                    if vk in value:
                         version_name = value
+                        break
+            else:
+                for value in versions:
+                    if len(value) <= 35:
+                        if version_name:
+                            if len(version_name) + 1 + len(value) <= 60:
+                                version_name += '/'
+                                version_name += value
+                            else:
+                                break
+                        else:
+                            version_name = value
 
-    structure_obj = load_structure(path)
-    gerrit_obj = load_structure(gerrit_path)
     gerrit_server = gerrit_obj['gerrit']['url']
     gerrit_user = gerrit_obj['gerrit']['user']
     gerrit_pwd = gerrit_obj['gerrit']['pwd']

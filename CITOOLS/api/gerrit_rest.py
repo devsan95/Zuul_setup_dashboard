@@ -10,6 +10,20 @@ A module to do gerrit rest operation.
 
 import requests
 import json
+import yaml
+
+
+def init_from_yaml(path):
+    with open(path) as f:
+        obj = yaml.load(f)
+        gerrit = obj['gerrit']
+        rest = GerritRestClient(gerrit['url'], gerrit['user'], gerrit['pwd'])
+        if 'auth' in gerrit:
+            if gerrit['auth'] == 'basic':
+                rest.change_to_basic_auth()
+            elif gerrit['auth'] == 'digest':
+                rest.change_to_digest_auth()
+        return rest
 
 
 class GerritRestClient:
