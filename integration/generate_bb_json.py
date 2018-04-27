@@ -1,39 +1,20 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
 
-import traceback
-import sys
-import argparse
-import time
-import api.gerrit_api
-import api.gerrit_rest
-import api.file_api
-import re
 import json
-import submodule_handle
+import os
+import re
+import sys
+import time
+import traceback
+
+import fire
 from slugify import slugify
 
-
-def _parse_args():
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('zuul_url', type=str,
-                        help='')
-    parser.add_argument('zuul_ref', type=str,
-                        help='')
-    parser.add_argument('output_path', type=str,
-                        help='')
-    parser.add_argument('change_id', type=str,
-                        help='change id')
-    parser.add_argument('rest_url', type=str,
-                        help='')
-    parser.add_argument('rest_user', type=str,
-                        help='')
-    parser.add_argument('rest_pwd', type=str,
-                        help='')
-    parser.add_argument('auth_type', type=str, default='digest',
-                        help='')
-    args = parser.parse_args()
-    return vars(args)
+import api.file_api
+import api.gerrit_api
+import api.gerrit_rest
+import submodule_handle
 
 
 def strip_begin(text, prefix):
@@ -42,21 +23,39 @@ def strip_begin(text, prefix):
     return text[len(prefix):]
 
 
-def parse_ric_list(subject, zuul_url, zuul_ref):
+def is_adpated(rest, change_no):
+    fl = rest.get_file_list(change_no)
+    for fn in fl:
+        fn = fn.split('\n', 2)[0]
+        if fn == '/COMMIT_MSG':
+            continue
+        elif fn.endswith('.inte_tmp'):
+            continue
+        return True
+    return False
+
+
+def parse_ric_list(rest, subject, zuul_url, zuul_ref):
     ret_dict = {}
     lines = subject.split('\n')
-    r = re.compile(r'  - RIC <(.*)> <(.*)>')
+    r = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>( <(\d*)>)?')
     for line in lines:
         m = r.match(line)
         if m:
             key = m.group(1).strip('"').strip()
             value = m.group(2).strip('"').strip()
-            ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
-                             'repo_ver': zuul_ref}
-            if ret_dict[key]['repo_url'].startswith('http:'):
-                ret_dict[key]['repo_url'] = \
-                    ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
-                ret_dict[key]['protocol'] = 'http'
+            change_no = m.group(4)
+            need_change = True
+            if change_no:
+                need_change = is_adpated(rest, change_no)
+                print('Change {} is Adapted: {}'.format(change_no, need_change))
+            if need_change:
+                ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
+                                 'repo_ver': zuul_ref}
+                if ret_dict[key]['repo_url'].startswith('http:'):
+                    ret_dict[key]['repo_url'] = \
+                        ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
+                    ret_dict[key]['protocol'] = 'http'
     return ret_dict
 
 
@@ -103,9 +102,9 @@ def parse_comments(change_id, rest, zuul_url, zuul_ref):
             m = r.match(line)
             if m:
                 print(line)
-                m1 = m.group(1).strip('"').strip()
-                m2 = m.group(2).strip('"').strip()
-                m3 = m.group(3).strip('"').strip()
+                m1 = m.group(1).strip().strip('"')
+                m2 = m.group(2).strip().strip('"')
+                m3 = m.group(3).strip().strip('"')
                 if m2 == '-':
                     m2 = None
                 if m3 == '-':
@@ -114,38 +113,53 @@ def parse_comments(change_id, rest, zuul_url, zuul_ref):
                     m2 = '{}/{}'.format(zuul_url, m2)
                     m3 = zuul_ref
                 retd[m1] = {}
-                if m2:
-                    retd[m1]['repo_url'] = m2
-                    if retd[m1]['repo_url'].startswith('http:'):
-                        retd[m1]['repo_url'] = \
-                            retd[m1]['repo_url'].replace('http:', 'gitsm:')
-                        retd[m1]['protocol'] = 'http'
-                if m3:
-                    retd[m1]['repo_ver'] = m3
+                if m2 == 'bb':
+                    retd[m1]['bb_ver'] = m3
+                else:
+                    if m2:
+                        retd[m1]['repo_url'] = m2
+                        if retd[m1]['repo_url'].startswith('http:'):
+                            retd[m1]['repo_url'] = \
+                                retd[m1]['repo_url'].replace('http:', 'gitsm:')
+                            retd[m1]['protocol'] = 'http'
+                    if m3:
+                        retd[m1]['repo_ver'] = m3
 
     print(retd)
     return retd
 
 
-def save_json_file(output_path, ric_dict, ric_commit_dict, env_dict,
-                   comment_dict):
+def parse_comments_base(change_id, rest):
     retd = {}
-    retd.update(ric_dict)
-    retd.update(ric_commit_dict)
-    retd.update(env_dict)
-    retd.update(comment_dict)
+    r = re.compile(r'update_base:(.*),(.*)')
+    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
+    for msg in comment_list['messages']:
+        for line in msg['message'].split('\n'):
+            m = r.match(line)
+            if m:
+                print(line)
+                m1 = m.group(1).strip().strip('"')
+                m2 = m.group(2).strip().strip('"')
+                retd[m1] = m2
+    print(retd)
+    return retd
+
+
+def save_json_file(output_path, dict_list, override=False):
+    retd = {}
+    if override:
+        for dict_ in dict_list:
+            if dict_:
+                retd.update(dict_)
+    else:
+        retd = dict_list
     content = json.dumps(retd)
     print(content)
     api.file_api.save_file(content, output_path, False)
 
 
-def _main(zuul_url, zuul_ref, output_path, change_id,
-          rest_url, rest_user, rest_pwd, auth_type):
-    rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
-    if auth_type == 'basic':
-        rest.change_to_basic_auth()
-    elif auth_type == 'digest':
-        rest.change_to_digest_auth()
+def run(zuul_url, zuul_ref, output_path, change_id, gerrit_info_path):
+    rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
 
     rest_id = ''
     description = ''
@@ -171,20 +185,32 @@ def _main(zuul_url, zuul_ref, output_path, change_id,
         if data and 'message' in data:
             description = data['message']
             break
+    # path
+    knife_path = os.path.join(output_path, 'knife.json')
+    base_path = os.path.join(output_path, 'base.json')
+    reviews_path = os.path.join(output_path, 'reviewers.json')
 
-    ric_dict = parse_ric_list(description, zuul_url, zuul_ref)
+    # knife json
+    ric_dict = parse_ric_list(rest, description, zuul_url, zuul_ref)
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
     comment_dict = parse_comments(change_id, rest, zuul_url, zuul_ref)
-    save_json_file(output_path, ric_dict, ric_commit_dict, env_dict,
-                   comment_dict)
+    save_json_file(knife_path,
+                   [ric_dict, ric_commit_dict, env_dict, comment_dict],
+                   override=True)
+
+    # stream base json
+    stream_json = parse_comments_base(change_id, rest)
+    save_json_file(base_path, stream_json)
+
+    # email list
+    reviews_json = rest.get_reviewer(change_id)
+    save_json_file(reviews_path, reviews_json)
 
 
 if __name__ == '__main__':
     try:
-        param = _parse_args()
-
-        _main(**param)
+        fire.Fire(run)
     except Exception as e:
         print("An exception %s occurred, msg: %s" % (type(e), str(e)))
         traceback.print_exc()

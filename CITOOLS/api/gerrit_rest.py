@@ -354,6 +354,21 @@ class GerritRestClient:
                 'Status code is [{}], content is [{}]'.format(
                     rest_id, changes.status_code, changes.content))
 
+    def get_reviewer(self, rest_id):
+        auth = self.auth(self.user, self.pwd)
+        url = '{}/a/changes/{}/reviewers'.format(
+            self.server_url, rest_id)
+
+        reviewers = self.session.get(url, auth=auth)
+
+        if not reviewers.ok:
+            raise Exception(
+                'In change [{}], get reviewers via REST api failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, reviewers.status_code, reviewers.content))
+
+        return self.parse_rest_response(reviewers)
+
     def list_account_emails(self, account='self'):
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/accounts/{}/emails'.format(self.server_url, account)

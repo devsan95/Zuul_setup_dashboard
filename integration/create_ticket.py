@@ -219,7 +219,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
         # add files to trigger jobs
         if 'files' in node_obj and node_obj['files']:
             for _file in node_obj['files']:
-                file_path = _file + slugify(topic)
+                file_path = _file + slugify(topic) + '.inte_tmp'
                 file_paths.append(file_path)
                 gerrit_client.add_file_to_change(node_obj['rest_id'],
                                                  file_path,
@@ -231,7 +231,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
         if 'platform' in info_index['meta'] and info_index['meta']['platform']:
             for stream in info_index['meta']['streams']:
                 file_path = info_index['meta']['platform'] + '/' + \
-                    stream + '/' + slugify(topic)
+                    stream + '/' + slugify(topic) + '.inte_tmp'
                 file_paths.append(file_path)
                 gerrit_client.add_file_to_change(node_obj['rest_id'],
                                                  file_path,
@@ -345,8 +345,8 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
                             ric_title = True
                         section_showed = True
                         for ric in ric_list:
-                            lines.append('  - RIC <{}> <{}>'.format(
-                                ric, node['repo']))
+                            lines.append('  - RIC <{}> <{}> <{}>'.format(
+                                ric, node['repo'], node['ticket_id']))
 
         if info_index['etc']['heat_template']:
             if not ric_title:
