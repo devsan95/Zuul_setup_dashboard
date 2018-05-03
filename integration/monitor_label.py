@@ -237,6 +237,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
 
             rest_id = rest.get_ticket(targets['manager'])['id']
             rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
+            break
             # rest_id = rest.get_ticket(targets['root'])['id']
             # rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
         except Exception as ex:
