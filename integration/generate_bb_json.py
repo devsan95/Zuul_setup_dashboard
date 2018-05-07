@@ -35,7 +35,8 @@ def is_adpated(rest, change_no):
     return False
 
 
-def parse_ric_list(rest, subject, zuul_url, zuul_ref):
+def parse_ric_list(rest, subject, zuul_url,
+                   zuul_ref, project_branch):
     ret_dict = {}
     lines = subject.split('\n')
     r = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>( <(\d*)>)?')
@@ -52,6 +53,15 @@ def parse_ric_list(rest, subject, zuul_url, zuul_ref):
             if need_change:
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
                                  'repo_ver': zuul_ref}
+                if change_no:
+                    change = rest.get_change(change_no)
+                    project = change['project']
+                    if project in project_branch:
+                        branch = project_branch[project]
+                        ret_dict[key]['repo_ver'] = \
+                            form_zuul_ref(zuul_ref, branch)
+                    else:
+                        print('project {} not in zuul_changes'.format(project))
                 if ret_dict[key]['repo_url'].startswith('http:'):
                     ret_dict[key]['repo_url'] = \
                         ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
@@ -158,8 +168,34 @@ def save_json_file(output_path, dict_list, override=False):
     api.file_api.save_file(content, output_path, False)
 
 
-def run(zuul_url, zuul_ref, output_path, change_id, gerrit_info_path):
+def parse_zuul_changes(zuul_changes):
+    retd = {}
+    plist = zuul_changes.split('^')
+    for p in plist:
+        blist = p.split(':')
+        if len(blist) > 1:
+            retd[blist[0]] = blist[1]
+        else:
+            print('{} cant be parsed'.format(p))
+    return retd
+
+
+def form_zuul_ref(zuul_ref, branch):
+    rets = ''
+    ref_list = zuul_ref.split('/')
+    if len(ref_list) > 3:
+        ref_list[2] = branch
+        rets = '/'.join(ref_list)
+    else:
+        print('{} cant be parsed'.format(zuul_ref))
+        return zuul_ref
+    return rets
+
+
+def run(zuul_url, zuul_ref, output_path, change_id,
+        gerrit_info_path, zuul_changes):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
+    project_branch = parse_zuul_changes(zuul_changes)
 
     rest_id = ''
     description = ''
@@ -191,7 +227,8 @@ def run(zuul_url, zuul_ref, output_path, change_id, gerrit_info_path):
     reviews_path = os.path.join(output_path, 'reviewers.json')
 
     # knife json
-    ric_dict = parse_ric_list(rest, description, zuul_url, zuul_ref)
+    ric_dict = parse_ric_list(rest, description, zuul_url,
+                              zuul_ref, project_branch)
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
     comment_dict = parse_comments(change_id, rest, zuul_url, zuul_ref)
