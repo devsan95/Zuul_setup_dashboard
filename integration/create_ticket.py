@@ -345,8 +345,14 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
                             ric_title = True
                         section_showed = True
                         for ric in ric_list:
-                            lines.append('  - RIC <{}> <{}> <{}>'.format(
-                                ric, node['repo'], node['ticket_id']))
+                            f_type = 'component'
+                            if 'type' in node:
+                                f_type = node['type']
+                            lines.append(
+                                '  - RIC <{}> <{}> <{}> <t:{}>'.format(
+                                    ric, node['repo'],
+                                    node['ticket_id'],
+                                    f_type))
 
         if info_index['etc']['heat_template']:
             if not ric_title:
@@ -425,14 +431,29 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
         lines.append('  ')
 
     section_showed = False
+    if 'ric' in node_obj and node_obj['ric']:
+        lines.append('This change contains following component(s):')
+        section_showed = True
+        for comp in node_obj['ric']:
+            lines.append('  - COMP <{}>'.format(comp))
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
+    section_showed = False
     if len(list(graph_obj.predecessors(node_obj['name']))) > 0:
         lines.append('This change depends on following change(s):')
         section_showed = True
         for depend in graph_obj.predecessors(node_obj['name']):
             if depend in nodes and 'ticket_id' in nodes[depend] and \
                     nodes[depend]['ticket_id']:
-                lines.append('  - Project:<{}> Change:<{}>'.format(
-                    depend, nodes[depend]['ticket_id']))
+                f_type = 'component'
+                if 'type' in nodes[depend]:
+                    f_type = nodes[depend]['type']
+
+                lines.append('  - Project:<{}> Change:<{}> Type:<{}>'.format(
+                    depend, nodes[depend]['ticket_id'], f_type))
 
     if section_showed:
         lines.append('  ')

@@ -38,8 +38,9 @@ def is_adpated(rest, change_no):
 def parse_ric_list(rest, subject, zuul_url,
                    zuul_ref, project_branch):
     ret_dict = {}
+    external_dict = {}
     lines = subject.split('\n')
-    r = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>( <(\d*)>)?')
+    r = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>( <(\d*)>)?( <t:([^<>]*)>)?')
     for line in lines:
         m = r.match(line)
         if m:
@@ -47,26 +48,35 @@ def parse_ric_list(rest, subject, zuul_url,
             value = m.group(2).strip('"').strip()
             change_no = m.group(4)
             need_change = True
-            if change_no:
-                need_change = is_adpated(rest, change_no)
-                print('Change {} is Adapted: {}'.format(change_no, need_change))
-            if need_change:
-                ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
-                                 'repo_ver': zuul_ref}
+            type_ = m.group(6)
+            if type_ == 'external':
+                print('{} is external'.format(change_no))
                 if change_no:
-                    change = rest.get_change(change_no)
-                    project = change['project']
-                    if project in project_branch:
-                        branch = project_branch[project]
-                        ret_dict[key]['repo_ver'] = \
-                            form_zuul_ref(zuul_ref, branch)
+                    if change_no in external_dict:
+                        external_dict[change_no].append(key)
                     else:
-                        print('project {} not in zuul_changes'.format(project))
-                if ret_dict[key]['repo_url'].startswith('http:'):
-                    ret_dict[key]['repo_url'] = \
-                        ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
-                    ret_dict[key]['protocol'] = 'http'
-    return ret_dict
+                        external_dict[change_no] = [key]
+            else:
+                if change_no:
+                    need_change = is_adpated(rest, change_no)
+                    print('Change {} is Adapted: {}'.format(change_no, need_change))
+                if need_change:
+                    ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
+                                     'repo_ver': zuul_ref}
+                    if change_no:
+                        change = rest.get_change(change_no)
+                        project = change['project']
+                        if project in project_branch:
+                            branch = project_branch[project]
+                            ret_dict[key]['repo_ver'] = \
+                                form_zuul_ref(zuul_ref, branch)
+                        else:
+                            print('project {} not in zuul_changes'.format(project))
+                    if ret_dict[key]['repo_url'].startswith('http:'):
+                        ret_dict[key]['repo_url'] = \
+                            ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
+                        ret_dict[key]['protocol'] = 'http'
+    return ret_dict, external_dict
 
 
 def parse_ric_commit_list(subject):
@@ -103,7 +113,7 @@ def get_env_commit(msg, rest):
     return retd
 
 
-def parse_comments(change_id, rest, zuul_url, zuul_ref):
+def parse_comments(change_id, rest):
     retd = {}
     r = re.compile(r'update_bb:(.*),(.*),(.*)')
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
@@ -120,8 +130,9 @@ def parse_comments(change_id, rest, zuul_url, zuul_ref):
                 if m3 == '-':
                     m3 = None
                 if m3 == '~':
-                    m2 = '{}/{}'.format(zuul_url, m2)
-                    m3 = zuul_ref
+                    retd.pop(m1, None)
+                    print('[{}] delete [{}]'.format(line, m1))
+                    continue
                 retd[m1] = {}
                 if m2 == 'bb':
                     retd[m1]['bb_ver'] = m3
@@ -134,6 +145,49 @@ def parse_comments(change_id, rest, zuul_url, zuul_ref):
                             retd[m1]['protocol'] = 'http'
                     if m3:
                         retd[m1]['repo_ver'] = m3
+
+    print(retd)
+    return retd
+
+
+def parse_ex_comments(ex_dict, rest):
+    print('ex dict is:')
+    print(ex_dict)
+    retd = {}
+    for change_id, comp_list in ex_dict.items():
+        r = re.compile(r'update_bb:(.*),(.*),(.*)')
+        comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
+        for msg in comment_list['messages']:
+            for line in msg['message'].split('\n'):
+                m = r.match(line)
+                if m:
+                    print(line)
+                    m1 = m.group(1).strip().strip('"')
+                    m2 = m.group(2).strip().strip('"')
+                    m3 = m.group(3).strip().strip('"')
+                    if m1 not in comp_list:
+                        print('[{}] not in comp list'.format(line))
+                        continue
+                    if m2 == '-':
+                        m2 = None
+                    if m3 == '-':
+                        m3 = None
+                    if m3 == '~':
+                        retd.pop(m1, None)
+                        print('[{}] delete [{}]'.format(line, m1))
+                        continue
+                    retd[m1] = {}
+                    if m2 == 'bb':
+                        retd[m1]['bb_ver'] = m3
+                    else:
+                        if m2:
+                            retd[m1]['repo_url'] = m2
+                            if retd[m1]['repo_url'].startswith('http:'):
+                                retd[m1]['repo_url'] = \
+                                    retd[m1]['repo_url'].replace('http:', 'gitsm:')
+                                retd[m1]['protocol'] = 'http'
+                        if m3:
+                            retd[m1]['repo_ver'] = m3
 
     print(retd)
     return retd
@@ -227,13 +281,15 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     reviews_path = os.path.join(output_path, 'reviewers.json')
 
     # knife json
-    ric_dict = parse_ric_list(rest, description, zuul_url,
-                              zuul_ref, project_branch)
+    ric_dict, ex_dict = parse_ric_list(
+        rest, description, zuul_url, zuul_ref, project_branch)
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
-    comment_dict = parse_comments(change_id, rest, zuul_url, zuul_ref)
+    comment_dict = parse_comments(change_id, rest)
+    ex_comment_dict = parse_ex_comments(ex_dict, rest)
     save_json_file(knife_path,
-                   [ric_dict, ric_commit_dict, env_dict, comment_dict],
+                   [ric_dict, ric_commit_dict,
+                    env_dict, comment_dict, ex_comment_dict],
                    override=True)
 
     # stream base json
