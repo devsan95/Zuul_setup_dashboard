@@ -204,7 +204,7 @@ class GerritRestClient:
 
     def get_detailed_ticket(self, ticket_id):
         auth = self.auth(self.user, self.pwd)
-        url = '{}a/changes/{}/detail'.format(self.server_url, ticket_id)
+        url = '{}/a/changes/{}/detail'.format(self.server_url, ticket_id)
         print(url)
         try:
             ticket = self.session.get(url, auth=auth)
@@ -475,6 +475,21 @@ class GerritRestClient:
     def abandon_change(self, rest_id):
         auth = self.auth(self.user, self.pwd)
         rest_url = '{}/a/changes/{}/abandon'.format(
+            self.server_url, rest_id)
+        ret = self.session.post(rest_url, auth=auth)
+        if not ret.ok:
+            if ret.status_code == 409 and \
+               ret.content.startswith('change is abandoned'):
+                pass
+            else:
+                raise Exception(
+                    'abandon_change to change [{}] failed.\n'
+                    'Status code is [{}], content is [{}]'.format(
+                        rest_id, ret.status_code, ret.content))
+
+    def restore_change(self, rest_id):
+        auth = self.auth(self.user, self.pwd)
+        rest_url = '{}/a/changes/{}/restore'.format(
             self.server_url, rest_id)
         ret = self.session.post(rest_url, auth=auth)
         if not ret.ok:

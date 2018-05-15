@@ -238,8 +238,8 @@ def form_zuul_ref(zuul_ref, branch):
     rets = ''
     ref_list = zuul_ref.split('/')
     if len(ref_list) > 3:
-        ref_list[2] = branch
-        rets = '/'.join(ref_list)
+        ref_hash = ref_list[-1]
+        rets = 'refs/zuul/{}/{}'.format(branch, ref_hash)
     else:
         print('{} cant be parsed'.format(zuul_ref))
         return zuul_ref
