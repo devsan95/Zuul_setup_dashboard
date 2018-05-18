@@ -328,6 +328,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
     if 'title_replace' in node_obj and node_obj['title_replace']:
         new_title = node_obj['title_replace'].format(node=node_obj,
                                                      meta=info_index['meta'])
+        lines.insert(0, '')
         lines.insert(0, new_title)
 
     section_showed = False
