@@ -47,6 +47,9 @@ class GerritRestClient:
         content = content.split("\n", 1)[1]
         return json.loads(content)
 
+    def get_change_address(self, change_no):
+        return '{}/#/c/{}/'.format(self.server_url, change_no)
+
     def generic_get(self, path):
         auth = self.auth(self.user, self.pwd)
         url = '{}/a{}'.format(self.server_url, path)
@@ -205,7 +208,6 @@ class GerritRestClient:
     def get_detailed_ticket(self, ticket_id):
         auth = self.auth(self.user, self.pwd)
         url = '{}/a/changes/{}/detail'.format(self.server_url, ticket_id)
-        print(url)
         try:
             ticket = self.session.get(url, auth=auth)
         except Exception as ex:
