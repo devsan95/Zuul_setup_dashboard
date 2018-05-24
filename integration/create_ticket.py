@@ -252,12 +252,18 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
     # add files for submodule
     if 'submodules' in node_obj and node_obj['submodules']:
         for path, repo in node_obj['submodules'].items():
-            if repo in nodes and 'temp_commit' in nodes[repo] and \
-                    nodes[repo]['temp_commit']:
-                gerrit_client.add_file_to_change(
-                    node_obj['rest_id'], path, '{}'.format(
-                        nodes[repo]['temp_commit']))
-                need_publish = True
+            # if repo in nodes and 'temp_commit' in nodes[repo] and \
+            #         nodes[repo]['temp_commit']:
+            #     gerrit_client.add_file_to_change(
+            #         node_obj['rest_id'], path, '{}'.format(
+            #             nodes[repo]['temp_commit']))
+            #     need_publish = True
+            p_node = nodes.get(repo)
+            if p_node:
+                if p_node.get('submodule_list') is None:
+                    p_node['submodule_list'] = []
+                s_list = p_node.get('submodule_list')
+                s_list.append([path, node_obj['ticket_id']])
 
     if 'type' in node_obj and node_obj['type'] == 'ric':
         gerrit_client.add_file_to_change(node_obj['rest_id'],
@@ -478,12 +484,19 @@ def add_structure_string(root_node, integration_node, graph_obj,
                       'manager': integration_node['ticket_id'],
                       'tickets': []}
     for node in nodes.values():
-        if node is not root_node and node is not integration_node:
+        if node is not root_node and node is not integration_node and \
+                node.get('type') != 'auto_submodule':
             structure_dict['tickets'].append(node['ticket_id'])
 
     json_result = json.dumps(structure_dict)
     result = 'Tickets-List: {}'.format(json_result)
     gerrit_client.review_ticket(root_node['rest_id'], result)
+    # submodule string
+    list_s = root_node.get('submodule_list')
+    if list_s:
+        json_sub_result = json.dumps(list_s)
+        sub_result = 'Submodules-List: {}'.format(json_sub_result)
+        gerrit_client.review_ticket(root_node['rest_id'], sub_result)
 
 
 def label_all_tickets(root_node, integration_node, graph_obj,
@@ -703,12 +716,12 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                                                  gerrit_user, gerrit_pwd)
         root_node['add_files'] = env_files
 
-    root_node['temp_commit'] = create_temp_branch(
-        gerrit_client,
-        root_node['repo'],
-        root_node['branch'],
-        'inte_test/{}'.format(topic),
-        root_node['add_files'])
+    # root_node['temp_commit'] = create_temp_branch(
+    #     gerrit_client,
+    #     root_node['repo'],
+    #     root_node['branch'],
+    #     'inte_test/{}'.format(topic),
+    #     root_node['add_files'])
 
     if ric_path:
         root_node['ric_content'] = read_ric(ric_path)

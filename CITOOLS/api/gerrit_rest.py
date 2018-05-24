@@ -81,7 +81,7 @@ class GerritRestClient:
 
     def restore_file_to_change(self, rest_id, file_path):
         auth = self.auth(self.user, self.pwd)
-        rest_url = self.server_url + '/a/changes/' + rest_id + \
+        rest_url = self.server_url + '/a/changes/' + str(rest_id) + \
             '/edit'
         change_input = {"restore_path": file_path}
         ret = self.session.post(rest_url, json=change_input, auth=auth)
@@ -92,8 +92,8 @@ class GerritRestClient:
             else:
                 raise Exception(
                     'In restore file [{}] to change [{}] failed.\n'
-                    'Status code is [{}]'.format(
-                        file_path, rest_id, ret.status_code))
+                    'Status code is [{}], Content is [{}]'.format(
+                        file_path, rest_id, ret.status_code, ret.content))
 
     def publish_edit(self, rest_id):
         auth = self.auth(self.user, self.pwd)
@@ -500,6 +500,6 @@ class GerritRestClient:
                 pass
             else:
                 raise Exception(
-                    'abandon_change to change [{}] failed.\n'
+                    'restore_change to change [{}] failed.\n'
                     'Status code is [{}], content is [{}]'.format(
                         rest_id, ret.status_code, ret.content))
