@@ -101,7 +101,11 @@ def run(change_id, gerrit_info_path, repo_path):
     print('change commit id is {}'.format(commit_id))
 
     submodule_list = get_submodule_list_from_comments(info)
-    print('submodule list is {}'.format(submodule_list))
+    if submodule_list:
+        print('submodule list is {}'.format(submodule_list))
+    else:
+        print('No submodule list, exit')
+        return
 
     for item in submodule_list:
         if len(item) < 2:
