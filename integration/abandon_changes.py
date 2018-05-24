@@ -54,14 +54,23 @@ def _main(change_id,
     changes = parse_comments(change_id, rest)
     if 'root' in changes and changes['root']:
         print('Abandoning {}'.format(changes['root']))
-        rest.abandon_change(changes['root'])
+        try:
+            rest.abandon_change(changes['root'])
+        except Exception as e:
+            print(e)
     if 'manager' in changes and changes['manager']:
         print('Abandoning {}'.format(changes['manager']))
-        rest.abandon_change(changes['manager'])
+        try:
+            rest.abandon_change(changes['manager'])
+        except Exception as e:
+            print(e)
     if 'tickets' in changes and changes['tickets']:
         for change_id in changes['tickets']:
             print('Abandoning {}'.format(change_id))
-            rest.abandon_change(change_id)
+            try:
+                rest.abandon_change(change_id)
+            except Exception as e:
+                print(e)
 
 
 if __name__ == '__main__':
