@@ -1,14 +1,16 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
 
-import traceback
-import sys
 import argparse
+import json
+import re
+import sys
+import traceback
+
+import api.file_api
 import api.gerrit_api
 import api.gerrit_rest
-import api.file_api
-import re
-import json
+from update_submodule_by_change import get_submodule_list_from_comments
 
 
 def _parse_args():
@@ -34,14 +36,41 @@ def strip_begin(text, prefix):
 
 
 def parse_comments(change_id, rest):
+    change_list = None
+    submodule_list = None
+    change_set = set()
     json_re = re.compile(r'Tickets-List: ({.*})')
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
     for msg in reversed(comment_list['messages']):
         msg = msg['message']
         result_list = json_re.findall(msg)
         if len(result_list) > 0:
-            return json.loads(result_list[0])
-    return None
+            change_list = json.loads(result_list[0])
+
+    submodule_list = get_submodule_list_from_comments(comment_list)
+
+    root_change = change_list.get('root')
+    if root_change:
+        change_set.add(root_change)
+
+    manager_change = change_list.get('manager')
+    if manager_change:
+        change_set.add(manager_change)
+
+    com_changes = change_list.get('tickets')
+    if com_changes:
+        for co_change_id in com_changes:
+            change_set.add(co_change_id)
+
+    if submodule_list:
+        if isinstance(submodule_list, list):
+            for submodule_ in submodule_list:
+                if len(submodule_) > 1:
+                    change_set.add(submodule_[1])
+
+    print(change_set)
+
+    return change_set
 
 
 def _main(change_id,
@@ -52,25 +81,13 @@ def _main(change_id,
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
     changes = parse_comments(change_id, rest)
-    if 'root' in changes and changes['root']:
-        print('Abandoning {}'.format(changes['root']))
+
+    for change_id in changes:
+        print('Abandoning {}'.format(change_id))
         try:
-            rest.abandon_change(changes['root'])
+            rest.abandon_change(change_id)
         except Exception as e:
             print(e)
-    if 'manager' in changes and changes['manager']:
-        print('Abandoning {}'.format(changes['manager']))
-        try:
-            rest.abandon_change(changes['manager'])
-        except Exception as e:
-            print(e)
-    if 'tickets' in changes and changes['tickets']:
-        for change_id in changes['tickets']:
-            print('Abandoning {}'.format(change_id))
-            try:
-                rest.abandon_change(change_id)
-            except Exception as e:
-                print(e)
 
 
 if __name__ == '__main__':
