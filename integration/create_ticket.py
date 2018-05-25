@@ -610,7 +610,7 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
                     structure_obj['meta']['version_keyword']:
                 vk = structure_obj['meta']['version_keyword']
                 for value in versions:
-                    if vk in value:
+                    if vk in value and len(value) < 35:
                         version_name = value
                         break
             else:

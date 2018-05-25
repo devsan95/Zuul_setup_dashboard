@@ -90,8 +90,7 @@ def run(gerrit_info, change):
     name, branch, repo, platform = igo.get_info_from_change(change)
     if platform:
         backup_topic = 'integration_{}_backup'.format(platform)
-    change_no = igo.create_change_by_topic(backup_topic, repo, branch, name)
-    print change_no
+    print(name, branch, repo, platform)
     change_no2 = igo.get_ticket_from_topic(backup_topic, repo, branch, name)
     print change_no2
 
