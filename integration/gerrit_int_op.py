@@ -16,12 +16,11 @@ class IntegrationGerritOperation(object):
             repo, branch, topic))
         if changes:
             for change in changes:
-                msgs = change['subject'].split('\n')
-                for msg in msgs:
-                    m = reg.match(msg)
-                    if m:
-                        if name == m.group(1):
-                            return change['_number']
+                msgs = ' '.join(change['subject'].split('\n'))
+                m = reg.search(msgs)
+                if m:
+                    if name == m.group(1):
+                        return change['_number']
         return change_id
 
     def create_change_by_topic(self, topic, repo, branch, name):
@@ -47,16 +46,13 @@ class IntegrationGerritOperation(object):
         reg2 = re.compile(r'Platform ID: <(.*?)>')
         change = rest.get_ticket(change_id)
         commit = rest.get_commit(change_id)
-        msgs = commit['message'].split('\n')
-        for msg in msgs:
-            m = reg.match(msg)
-            if m:
-                name = m.group(1)
-            m2 = reg2.match(msg)
-            if m2:
-                platform = m2.group(1)
-            if name and platform:
-                break
+        msgs = ' '.join(commit['message'].split('\n'))
+        m = reg.search(msgs)
+        if m:
+            name = m.group(1)
+        m2 = reg2.search(msgs)
+        if m2:
+            platform = m2.group(1)
         branch = change['branch']
         repo = change['project']
         return name, branch, repo, platform
@@ -85,3 +81,21 @@ class IntegrationGerritOperation(object):
         for file_path, content in file_content.items():
             rest.add_file_to_change(rest_id_dst, file_path, content)
         rest.publish_edit(rest_id_dst)
+
+
+def run(gerrit_info, change):
+    from api import gerrit_rest
+    rest = gerrit_rest.init_from_yaml(gerrit_info)
+    igo = IntegrationGerritOperation(rest)
+    name, branch, repo, platform = igo.get_info_from_change(change)
+    if platform:
+        backup_topic = 'integration_{}_backup'.format(platform)
+    change_no = igo.create_change_by_topic(backup_topic, repo, branch, name)
+    print change_no
+    change_no2 = igo.get_ticket_from_topic(backup_topic, repo, branch, name)
+    print change_no2
+
+
+if __name__ == '__main__':
+    import fire
+    fire.Fire(run)

@@ -6,6 +6,7 @@ import json
 import os
 import shlex
 import sys
+import textwrap
 import traceback
 from datetime import datetime
 
@@ -280,12 +281,13 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
 
 
 def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
-    lines = ['<{change}> on <{version}> of <{title}> topic <{topic}>'.format(
+    title_line = '<{change}> on <{version}> of <{title}> topic <{topic}>'.format(
         change=node_obj['name'],
         topic=topic,
         version=info_index['meta']['version_name'],
         title=info_index['meta']['title']
-    )]
+    )
+    lines = textwrap.wrap(title_line, 80)
 
     if 'type' in node_obj:
         if node_obj['type'] == 'root':
@@ -323,7 +325,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
         lines.append('Remarks: ')
         lines.append('---')
         for line in node_obj['remark']:
-            lines.append('{}'.format(line))
+            lines.append('{}'.format(textwrap.fill(line, 80)))
         lines.append('---')
         section_showed = True
 
