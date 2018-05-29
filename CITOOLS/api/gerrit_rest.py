@@ -8,8 +8,10 @@
 A module to do gerrit rest operation.
 """
 
-import requests
 import json
+from urlparse import urljoin
+
+import requests
 import yaml
 
 
@@ -29,6 +31,8 @@ def init_from_yaml(path):
 class GerritRestClient:
     def __init__(self, url, user, pwd):
         self.server_url = url
+        if not self.server_url.endswith('/'):
+            self.server_url = self.server_url + '/'
         self.user = user
         self.pwd = pwd
         self.auth = requests.auth.HTTPDigestAuth
@@ -41,6 +45,23 @@ class GerritRestClient:
     def change_to_basic_auth(self):
         self.auth = requests.auth.HTTPBasicAuth
 
+    def get_auth(self):
+        if self.user:
+            return self.auth(self.user, self.pwd)
+        else:
+            return None
+
+    def get_rest_url(self, path_):
+        if path_.startswith('/'):
+            path_ = path_[1:]
+        if self.user:
+            url_ = urljoin(self.server_url, 'a/')
+            url__ = urljoin(url_, path_)
+            return url__
+        else:
+            url_ = urljoin(self.server_url, path_)
+            return url_
+
     @staticmethod
     def parse_rest_response(response):
         content = response.content
@@ -48,26 +69,28 @@ class GerritRestClient:
         return json.loads(content)
 
     def get_change_address(self, change_no):
-        return '{}/#/c/{}/'.format(self.server_url, change_no)
+        url = urljoin(self.server_url, '#/c/{}/'.format(change_no))
+        return url
 
-    def generic_get(self, path):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a{}'.format(self.server_url, path)
+    def generic_get(self, urlpath):
+        auth = self.get_auth()
+        url = self.get_rest_url(urlpath)
         changes = self.session.get(url, auth=auth)
 
         if not changes.ok:
             raise Exception(
                 'Get path [{}] failed.\n '
                 'Status code is [{}], content is [{}]'.format(
-                    path, changes.status_code, changes.content))
+                    urlpath, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
         return result
 
     def add_file_to_change(self, rest_id, file_path, content=''):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = self.server_url + '/a/changes/' + str(rest_id) + \
-            '/edit/' + requests.utils.quote(file_path, safe='')
+        auth = self.get_auth()
+        _url = 'changes/{}/edit/{}'.format(
+            rest_id, requests.utils.quote(file_path, safe=''))
+        rest_url = self.get_rest_url(_url)
         ret = self.session.put(rest_url, content, auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
@@ -80,9 +103,9 @@ class GerritRestClient:
                         file_path, rest_id, ret.status_code, ret.content))
 
     def restore_file_to_change(self, rest_id, file_path):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = self.server_url + '/a/changes/' + str(rest_id) + \
-            '/edit'
+        auth = self.get_auth()
+        _url = 'changes/{}/edit'.format(rest_id)
+        rest_url = self.get_rest_url(_url)
         change_input = {"restore_path": file_path}
         ret = self.session.post(rest_url, json=change_input, auth=auth)
         if not ret.ok:
@@ -96,10 +119,9 @@ class GerritRestClient:
                         file_path, rest_id, ret.status_code, ret.content))
 
     def publish_edit(self, rest_id):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = '{}/a/changes/{}/edit:publish'.format(
-            self.server_url, rest_id)
-        ret = self.session.post(rest_url, auth=auth)
+        auth = self.get_auth()
+        rest_url = 'changes/{}/edit:publish'.format(rest_id)
+        ret = self.session.post(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
                     ret.content.startswith(
@@ -116,10 +138,9 @@ class GerritRestClient:
                         rest_id, ret.status_code, ret.content))
 
     def delete_edit(self, rest_id):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = '{}/a/changes/{}/edit'.format(
-            self.server_url, rest_id)
-        ret = requests.delete(rest_url, auth=auth)
+        auth = self.get_auth()
+        rest_url = 'changes/{}/edit'.format(rest_id)
+        ret = requests.delete(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             raise Exception(
                 'Delete edit to change [{}] failed.\n'
@@ -135,9 +156,9 @@ class GerritRestClient:
         }
         if topic:
             input_data['topic'] = topic
-        auth = self.auth(self.user, self.pwd)
+        auth = self.get_auth()
         headers = {}
-        changes = self.session.post(self.server_url + "/a/changes/",
+        changes = self.session.post(self.get_rest_url('changes/'),
                                     json=input_data, auth=auth,
                                     headers=headers)
         if not changes.ok:
@@ -160,11 +181,10 @@ class GerritRestClient:
         if labels:
             review_input['labels'] = labels
 
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/revisions/current/review'.format(
-            self.server_url, rest_id)
+        auth = self.get_auth()
+        url = 'changes/{}/revisions/current/review'.format(rest_id)
 
-        changes = self.session.post(url, json=review_input, auth=auth)
+        changes = self.session.post(self.get_rest_url(url), json=review_input, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -178,9 +198,10 @@ class GerritRestClient:
         }
         if count:
             get_param['n'] = count
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/'.format(self.server_url)
-        changes = self.session.get(url, params=get_param, auth=auth)
+        auth = self.get_auth()
+        url = 'changes/'
+        changes = self.session.get(self.get_rest_url(url),
+                                   params=get_param, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -192,9 +213,9 @@ class GerritRestClient:
         return result
 
     def get_ticket(self, ticket_id):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}'.format(self.server_url, ticket_id)
-        changes = self.session.get(url, auth=auth)
+        auth = self.get_auth()
+        url = 'changes/{}'.format(ticket_id)
+        changes = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -206,10 +227,10 @@ class GerritRestClient:
         return result
 
     def get_detailed_ticket(self, ticket_id):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/detail'.format(self.server_url, ticket_id)
+        auth = self.get_auth()
+        url = 'changes/{}/detail'.format(ticket_id)
         try:
-            ticket = self.session.get(url, auth=auth)
+            ticket = self.session.get(self.get_rest_url(url), auth=auth)
         except Exception as ex:
             print('Exception occur: %s' % str(ex))
         if not ticket.ok:
@@ -221,9 +242,9 @@ class GerritRestClient:
         return ticket
 
     def get_change(self, rest_id):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}'.format(self.server_url, rest_id)
-        changes = self.session.get(url, auth=auth)
+        auth = self.get_auth()
+        url = 'changes/{}'.format(rest_id)
+        changes = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -235,10 +256,10 @@ class GerritRestClient:
         return result
 
     def get_commit(self, rest_id, revision_id='current'):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/revisions/{}/commit'.format(
-            self.server_url, rest_id, revision_id)
-        changes = self.session.get(url, auth=auth)
+        auth = self.get_auth()
+        url = 'changes/{}/revisions/{}/commit'.format(
+            rest_id, revision_id)
+        changes = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -251,11 +272,10 @@ class GerritRestClient:
         return result
 
     def generate_http_password(self, account_id):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = '{}/accounts/{}/password.http'.format(
-            self.server_url, account_id)
+        auth = self.get_auth()
+        rest_url = 'accounts/{}/password.http'.format(account_id)
         content = {"generate": True}
-        ret = self.session.put(rest_url, json=content, auth=auth)
+        ret = self.session.put(self.get_rest_url(rest_url), json=content, auth=auth)
         if not ret.ok:
             raise Exception(
                 'generate_http_password account_id [{}] failed.\n'
@@ -263,10 +283,10 @@ class GerritRestClient:
                     account_id, ret.status_code, ret.content))
 
     def get_file_list(self, rest_id, revision_id='current'):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/revisions/{}/files/'.format(
-            self.server_url, rest_id, revision_id)
-        changes = self.session.get(url, auth=auth)
+        auth = self.get_auth()
+        url = 'changes/{}/revisions/{}/files/'.format(
+            rest_id, revision_id)
+        changes = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -279,11 +299,11 @@ class GerritRestClient:
         return result
 
     def get_file_change(self, file_path, rest_id, revision_id='current'):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/revisions/{}/files/{}/diff'.format(
-            self.server_url, rest_id, revision_id,
+        auth = self.get_auth()
+        url = 'changes/{}/revisions/{}/files/{}/diff'.format(
+            rest_id, revision_id,
             requests.utils.quote(file_path, safe=''))
-        changes = self.session.get(url, auth=auth)
+        changes = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -321,11 +341,11 @@ class GerritRestClient:
         return ret_dict
 
     def get_file_content(self, file_path, rest_id, revision_id='current'):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/revisions/{}/files/{}/content'.format(
-            self.server_url, rest_id, revision_id,
+        auth = self.get_auth()
+        url = 'changes/{}/revisions/{}/files/{}/content'.format(
+            rest_id, revision_id,
             requests.utils.quote(file_path, safe=''))
-        changes = self.session.get(url, auth=auth,
+        changes = self.session.get(self.get_rest_url(url), auth=auth,
                                    headers={'Accept-Encoding': 'deflate',
                                             'Accept': 'application/json'})
 
@@ -344,11 +364,11 @@ class GerritRestClient:
             'confirmed': True
         }
 
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/reviewers'.format(
-            self.server_url, rest_id)
+        auth = self.get_auth()
+        url = 'changes/{}/reviewers'.format(rest_id)
 
-        changes = self.session.post(url, json=review_input, auth=auth)
+        changes = self.session.post(self.get_rest_url(url),
+                                    json=review_input, auth=auth)
 
         if not changes.ok:
             raise Exception(
@@ -357,11 +377,10 @@ class GerritRestClient:
                     rest_id, changes.status_code, changes.content))
 
     def get_reviewer(self, rest_id):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/reviewers'.format(
-            self.server_url, rest_id)
+        auth = self.get_auth()
+        url = 'changes/{}/reviewers'.format(rest_id)
 
-        reviewers = self.session.get(url, auth=auth)
+        reviewers = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not reviewers.ok:
             raise Exception(
@@ -372,9 +391,9 @@ class GerritRestClient:
         return self.parse_rest_response(reviewers)
 
     def list_account_emails(self, account='self'):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/accounts/{}/emails'.format(self.server_url, account)
-        emails = self.session.get(url, auth=auth)
+        auth = self.get_auth()
+        url = 'accounts/{}/emails'.format(account)
+        emails = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not emails.ok:
             raise Exception(
@@ -390,11 +409,10 @@ class GerritRestClient:
         if base:
             rebase_input['base'] = base
 
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/changes/{}/rebase'.format(
-            self.server_url, rest_id)
+        auth = self.get_auth()
+        url = 'changes/{}/rebase'.format(rest_id)
 
-        changes = self.session.post(url, json=rebase_input, auth=auth)
+        changes = self.session.post(self.get_rest_url(url), json=rebase_input, auth=auth)
 
         if not changes.ok:
             if changes.status_code == 409 and (
@@ -409,12 +427,12 @@ class GerritRestClient:
                         rest_id, changes.status_code, changes.content))
 
     def set_commit_message(self, rest_id, content=''):
-        auth = self.auth(self.user, self.pwd)
+        auth = self.get_auth()
         info = self.get_change(rest_id)
         data = {'message':
                 content + '\n\nChange-Id: {}\n'.format(info['change_id'])}
-        rest_url = self.server_url + '/a/changes/' + str(rest_id) + '/message'
-        ret = self.session.put(rest_url, json=data, auth=auth)
+        rest_url = 'changes/' + str(rest_id) + '/message'
+        ret = self.session.put(self.get_rest_url(rest_url), json=data, auth=auth)
         if not ret.ok:
             raise Exception(
                 'In set commit message to change [{}] failed.\n'
@@ -422,10 +440,10 @@ class GerritRestClient:
                     rest_id, ret.status_code, ret.content))
 
     def list_branches(self, project_name):
-        auth = self.auth(self.user, self.pwd)
-        url = '{}/a/projects/{}/branches/'.format(
-            self.server_url, requests.utils.quote(project_name, safe=''))
-        ret = self.session.get(url, auth=auth)
+        auth = self.get_auth()
+        url = 'projects/{}/branches/'.format(
+            requests.utils.quote(project_name, safe=''))
+        ret = self.session.get(self.get_rest_url(url), auth=auth)
 
         if not ret.ok:
             raise Exception(
@@ -437,12 +455,12 @@ class GerritRestClient:
         return result
 
     def create_branch(self, project_name, branch_name, base='HEAD'):
-        auth = self.auth(self.user, self.pwd)
+        auth = self.get_auth()
         data = {'revision': base}
-        rest_url = '{}/a/projects/{}/branches/{}'.format(
-            self.server_url, requests.utils.quote(project_name, safe=''),
+        rest_url = 'projects/{}/branches/{}'.format(
+            requests.utils.quote(project_name, safe=''),
             requests.utils.quote(branch_name, safe=''))
-        ret = self.session.put(rest_url, json=data, auth=auth)
+        ret = self.session.put(self.get_rest_url(rest_url), json=data, auth=auth)
         if not ret.ok:
             raise Exception(
                 'In create_branch to project [{}] branch [{}] failed.\n'
@@ -451,11 +469,11 @@ class GerritRestClient:
                     ret.status_code, ret.content))
 
     def delete_branch(self, project_name, branch_name):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = '{}/a/projects/{}/branches/{}'.format(
-            self.server_url, requests.utils.quote(project_name, safe=''),
+        auth = self.get_auth()
+        rest_url = 'projects/{}/branches/{}'.format(
+            requests.utils.quote(project_name, safe=''),
             requests.utils.quote(branch_name, safe=''))
-        ret = requests.delete(rest_url, auth=auth)
+        ret = requests.delete(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             raise Exception(
                 'delete_branch to project [{}] branch [{}] failed.\n'
@@ -464,10 +482,9 @@ class GerritRestClient:
                     ret.status_code, ret.content))
 
     def submit_change(self, rest_id):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = '{}/a/changes/{}/submit'.format(
-            self.server_url, rest_id)
-        ret = self.session.post(rest_url, auth=auth)
+        auth = self.get_auth()
+        rest_url = 'changes/{}/submit'.format(rest_id)
+        ret = self.session.post(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             raise Exception(
                 'submit_change to change [{}] failed.\n'
@@ -475,10 +492,9 @@ class GerritRestClient:
                     rest_id, ret.status_code, ret.content))
 
     def abandon_change(self, rest_id):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = '{}/a/changes/{}/abandon'.format(
-            self.server_url, rest_id)
-        ret = self.session.post(rest_url, auth=auth)
+        auth = self.get_auth()
+        rest_url = 'changes/{}/abandon'.format(rest_id)
+        ret = self.session.post(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
                ret.content.startswith('change is abandoned'):
@@ -490,10 +506,9 @@ class GerritRestClient:
                         rest_id, ret.status_code, ret.content))
 
     def restore_change(self, rest_id):
-        auth = self.auth(self.user, self.pwd)
-        rest_url = '{}/a/changes/{}/restore'.format(
-            self.server_url, rest_id)
-        ret = self.session.post(rest_url, auth=auth)
+        auth = self.get_auth()
+        rest_url = 'changes/{}/restore'.format(rest_id)
+        ret = self.session.post(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
                ret.content.startswith('change is abandoned'):

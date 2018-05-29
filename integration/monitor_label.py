@@ -8,9 +8,13 @@ import sys
 import time
 import traceback
 
+import urllib3
+
 import api.gerrit_api
 import api.gerrit_rest
 import gerrit_int_op
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class FatalException(Exception):

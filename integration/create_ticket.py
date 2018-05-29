@@ -13,6 +13,7 @@ from datetime import datetime
 import git
 import networkx as nx
 import ruamel.yaml as yaml
+import urllib3
 from slugify import slugify
 
 import create_jira_ticket
@@ -22,6 +23,8 @@ from api import file_api
 from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def _parse_args():
