@@ -228,7 +228,7 @@ def check_layout_d_consistency(snippet_list):
         list_no_matching = set()
         reg_matching = set()
         reg_no_matching = set()
-        reg_wildly_matching = set()
+        reg_wildly_matching = []
 
         print('Job list is', snippet['job_list'])
         print('Project job list is', snippet['project_list'])
@@ -258,11 +258,12 @@ def check_layout_d_consistency(snippet_list):
                 if snippet is not snippet_e:
                         for item in snippet_e['project_list']:
                             if reg.match(item):
-                                reg_wildly_matching.add(rege)
-                                is_matched = True
-                                break
-                if is_matched:
-                    break
+                                reg_wildly_matching.append(
+                                    [rege, item, snippet_e.get('path')])
+                                # is_matched = True
+                                # break
+                # if is_matched:
+                #    break
 
         if reg_no_matching:
             ex_str = 'Some strings in jobs does not present in projects: \n'
@@ -271,9 +272,11 @@ def check_layout_d_consistency(snippet_list):
             raise Exception(ex_str)
 
         if reg_wildly_matching:
-            ex_str = 'Some strings in jobs may effect other projects: \n'
+            ex_str = 'Some strings in "jobs" section in [{}] ' \
+                     'may affect other projects: \n'.format(snippet.get('path'))
             for item in reg_wildly_matching:
-                ex_str += '{} '.format(item)
+                ex_str += '[{}] matches [{}] in [{}] \n'.format(
+                    item[0], item[1], item[2])
             raise Exception(ex_str)
 
 
