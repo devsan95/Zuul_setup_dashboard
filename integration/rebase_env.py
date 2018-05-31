@@ -2,6 +2,7 @@
 # -*- coding:utf8 -*-
 import json
 import re
+import shlex
 from pprint import pprint
 
 import fire
@@ -37,24 +38,53 @@ def get_change_list_from_comments(info):
     return None
 
 
+def create_file_change_by_env_change(env_change, file_content, filename):
+    lines = file_content.split('\n')
+    env_change_split = shlex.split(env_change)
+    for i, line in enumerate(lines):
+        if '=' in line:
+            key2, value2 = line.strip().split('=', 1)
+            for env_line in env_change_split:
+                if '=' in env_line:
+                    key, value = env_line.split('=', 1)
+                    if key.strip() == key2.strip():
+                        lines[i] = key2 + '=' + value
+    for env_line in env_change_split:
+        if env_line.startswith('#'):
+            lines.append(env_line)
+    ret_dict = {filename: '\n'.join(lines)}
+    return ret_dict
+
+
+def clear_change(rest, change_id):
+    flist = rest.get_file_list(change_id)
+    for file_path in flist:
+        file_path = file_path.split('\n', 2)[0]
+        if file_path != '/COMMIT_MSG':
+            rest.restore_file_to_change(change_id, file_path)
+    rest.publish_edit(change_id)
+
+
 def run(gerrit_info_path, change_no,
         ssh_gerrit_server=None, ssh_gerrit_port=None,
         ssh_gerrit_user=None, ssh_gerrit_key=None,
-        auto_rebase=False):
+        auto_rebase=False, auto_recheck=True, auto_reexperiment=True,
+        env_change=None):
+    if env_change is not None:
+        env_change = env_change.strip()
     # use rest gerrit user info to do the operation, and the ssh gerrit
     # user to do the labeling (to sync with zuul)
     # if no ssh gerrit info is provided then use rest user to do labeling
     print('Gathering infomation...')
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     use_ssh = False
-    change_info = rest.get_detailed_ticket(change_no)
 
     if ssh_gerrit_key and ssh_gerrit_port \
             and ssh_gerrit_server and ssh_gerrit_user:
         use_ssh = True
         print('SSH used')
     # 1 try rebase env change (if fail then pass)
-    if auto_rebase:
+    if auto_rebase and not env_change:
         print('rebase the change {}'.format(change_no))
         try:
             rest.rebase(change_no)
@@ -62,6 +92,42 @@ def run(gerrit_info_path, change_no,
             print('Change cannot be rebased, reason:')
             print(str(e))
 
+    # 1.5 try modify env file
+    if env_change:
+        print('Update env for change {}'.format(change_no))
+        # delete edit
+        print('delete edit for change {}'.format(change_no))
+        try:
+            rest.delete_edit(change_no)
+        except Exception as e:
+            print('delete edit failed, reason:')
+            print(str(e))
+        # clear change
+        print('clear change {}'.format(change_no))
+        try:
+            clear_change(rest, change_no)
+        except Exception as e:
+            print('clear change failed, reason:')
+            print(str(e))
+        # rebase change
+        print('rebase the change {}'.format(change_no))
+        try:
+            rest.rebase(change_no)
+        except Exception as e:
+            print('Change cannot be rebased, reason:')
+            print(str(e))
+        # add new env
+        print('add new env for change {}'.format(change_no))
+        old_env = rest.get_file_content('env-config.d/ENV', change_no)
+        change_map = create_file_change_by_env_change(
+            env_change,
+            old_env,
+            'env-config.d/ENV')
+        for key, value in change_map.items():
+            rest.add_file_to_change(change_no, key, value)
+        rest.publish_edit(change_no)
+
+    change_info = rest.get_detailed_ticket(change_no)
     # 2 detect integration label. if label is ok then quit.
     print('Check if change {} need reintegration'.format(change_no))
     print(rest.get_change_address(change_no))
@@ -109,31 +175,33 @@ def run(gerrit_info_path, change_no,
     print('Changes are:')
     pprint(change_list)
 
-    # 5 recheck all changes
-    print('recheck all changes')
-    if 'tickets' in change_list and change_list['tickets']:
-        comp_list = change_list['tickets']
-        sorted(comp_list)
-        for op_change_no in comp_list:
-            op_change_info = rest.get_detailed_ticket(op_change_no)
-            # judge if it is before check, in check or after check
-            op_check = check_user_label_from_detail(
-                op_change_info, username, 'verified')
-            if op_check == -1 or op_check == 1:
-                # check is over
-                print('Change {} is done with check, '
-                      'just recheck it'.format(op_change_no))
-                rest.review_ticket(op_change_no, 'recheck')
-            else:
-                # check is running or not starting
-                # abandon to abort check
-                print('Change {} is not done with check, '
-                      'dequeue and recheck'.format(op_change_no))
-                rest.review_ticket(op_change_no, 'abandon to reset check')
-                rest.abandon_change(op_change_no)
-                rest.restore_change(op_change_no)
-                rest.review_ticket(op_change_no, 'recheck')
-            print(rest.get_change_address(op_change_no))
+    if auto_recheck:
+        # 5 recheck all changes
+        print('recheck all changes')
+        if 'tickets' in change_list and change_list['tickets']:
+            comp_list = change_list['tickets']
+            sorted(comp_list)
+            for op_change_no in comp_list:
+                op_change_info = rest.get_detailed_ticket(op_change_no)
+                # judge if it is before check, in check or after check
+                op_check = check_user_label_from_detail(
+                    op_change_info, username, 'verified')
+                if op_check == -1 or op_check == 1:
+                    # check is over
+                    print('Change {} is done with check, '
+                          'just recheck it'.format(op_change_no))
+                    rest.review_ticket(op_change_no, 'recheck')
+                else:
+                    # check is running or not starting
+                    # abandon to abort check
+                    print('Change {} is not done with check, '
+                          'dequeue and recheck'.format(op_change_no))
+                    rest.review_ticket(op_change_no, 'abandon to reset check')
+                    rest.abandon_change(op_change_no)
+                    rest.restore_change(op_change_no)
+                    rest.review_ticket(op_change_no, 'recheck')
+                print(rest.get_change_address(op_change_no))
+
     # 6 reintegrate integration change
     if 'manager' in change_list and change_list['manager']:
         inte_change_no = change_list['manager']
@@ -144,8 +212,10 @@ def run(gerrit_info_path, change_no,
                            'abandon to abort experiment and integrate')
         rest.abandon_change(inte_change_no)
         rest.restore_change(inte_change_no)
-        # reexperiment
-        rest.review_ticket(inte_change_no, 'reexperiment')
+        if auto_reexperiment:
+            # reexperiment
+            print('reexperiment manager')
+            rest.review_ticket(inte_change_no, 'reexperiment')
 
 
 if __name__ == '__main__':
