@@ -178,7 +178,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                             else:
                                 try:
                                     gop.clear_change(backup_id)
-                                    gop.copy_change(item['ticket'], backup_id)
+                                    gop.copy_change(item['ticket'], backup_id, True)
                                 except Exception as ex:
                                     print('Can not copy {} to {}'.format(
                                         item['ticket'], backup_id))

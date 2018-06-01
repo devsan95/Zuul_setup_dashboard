@@ -66,11 +66,27 @@ class IntegrationGerritOperation(object):
                 rest.restore_file_to_change(change_id, file_path)
         rest.publish_edit(change_id)
 
-    def copy_change(self, from_id, to_id):
+    def copy_change(self, from_id, to_id, need_rebase=False):
         rest = self._rest
         rest_id_dst = to_id
         rest_id_src = from_id
         flist = rest.get_file_list(rest_id_src)
+        # try to rebase
+        if need_rebase:
+            try:
+                print('try to rebase')
+                revision = rest.get_commit(rest_id_src)
+                parents = revision.get('parents')
+                parent = None
+                if parents:
+                    parent = parents[0].get('commit')
+                if parent:
+                    rest.rebase(rest_id_dst, parent)
+                    rest.publish_edit()
+                print('rebase done')
+            except Exception as e:
+                print('rebase failed')
+                print(e)
         file_content = {}
         for file_path in flist:
             file_path = file_path.split('\n', 2)[0]
