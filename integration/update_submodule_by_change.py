@@ -20,7 +20,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def get_submodule_list_from_comments(info):
     json_re = re.compile(r'Submodules-List: (.*)')
-    for msg in info['messages']:
+    for msg in reversed(info['messages']):
         result_list = json_re.findall(msg['message'])
         if len(result_list) > 0:
             return json.loads(result_list[-1])
@@ -74,11 +74,37 @@ def update_submodule(rest, changeid, submodule_path, commit_id):
         print('delete edit of {} failed'.format(changeid))
         print(e)
     print('update submodule, add file and publish...')
+    update_commitmsg(rest, changeid)
     rest.add_file_to_change(changeid, submodule_path, commit_id)
     rest.publish_edit(changeid)
+    print('try to delete edit...')
+    try:
+        rest.delete_edit(changeid)
+    except Exception as e:
+        print(e)
     print('update submodule, score code-review+2...')
     rest.review_ticket(changeid, 'review', {'Code-Review': 2})
     print('update submodule, Done')
+
+
+def update_commitmsg(rest, changeid):
+    commit = retry.retry_func(
+        retry.cfn(rest.get_commit, changeid),
+        max_retry=10, interval=3
+    )
+
+    msg = commit['message']
+    check_msg = 'Intentional changes in externals dir'
+    if check_msg not in msg:
+        print('No check msg, adding...')
+        msgs = msg.split('\n')
+        change_id_no = len(msgs) - 2
+        for i in range(0, len(msgs)):
+            if msgs[i].startswith('Change-Id:'):
+                change_id_no = i
+        msgs.insert(change_id_no, check_msg)
+        new_msg = '\n'.join(msgs)
+        rest.change_commit_msg_to_edit(changeid, new_msg)
 
 
 def run(change_id, gerrit_info_path, repo_path):

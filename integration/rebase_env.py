@@ -31,7 +31,7 @@ def check_user_label_from_detail(detail_json, username, label):
 
 def get_change_list_from_comments(info):
     json_re = re.compile(r'Tickets-List: ({.*})')
-    for msg in info['messages']:
+    for msg in reversed(info['messages']):
         result_list = json_re.findall(msg['message'])
         if len(result_list) > 0:
             return json.loads(result_list[-1])

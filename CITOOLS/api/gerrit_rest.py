@@ -94,7 +94,7 @@ class GerritRestClient:
         ret = self.session.put(rest_url, content, auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
-               ret.content.startswith('no changes were made'):
+                    ret.content.startswith('no changes were made'):
                 pass
             else:
                 raise Exception(
@@ -110,7 +110,7 @@ class GerritRestClient:
         ret = self.session.post(rest_url, json=change_input, auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
-               ret.content.startswith('no changes were made'):
+                    ret.content.startswith('no changes were made'):
                 pass
             else:
                 raise Exception(
@@ -429,8 +429,10 @@ class GerritRestClient:
     def set_commit_message(self, rest_id, content=''):
         auth = self.get_auth()
         info = self.get_change(rest_id)
-        data = {'message':
-                content + '\n\nChange-Id: {}\n'.format(info['change_id'])}
+        data = {
+            'message':
+                content + '\n\nChange-Id: {}\n'.format(info['change_id'])
+        }
         rest_url = 'changes/' + str(rest_id) + '/message'
         ret = self.session.put(self.get_rest_url(rest_url), json=data, auth=auth)
         if not ret.ok:
@@ -497,7 +499,7 @@ class GerritRestClient:
         ret = self.session.post(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
-               ret.content.startswith('change is abandoned'):
+                    ret.content.startswith('change is abandoned'):
                 pass
             else:
                 raise Exception(
@@ -511,10 +513,26 @@ class GerritRestClient:
         ret = self.session.post(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             if ret.status_code == 409 and \
-               ret.content.startswith('change is abandoned'):
+                    ret.content.startswith('change is abandoned'):
                 pass
             else:
                 raise Exception(
                     'restore_change to change [{}] failed.\n'
+                    'Status code is [{}], content is [{}]'.format(
+                        rest_id, ret.status_code, ret.content))
+
+    def change_commit_msg_to_edit(self, rest_id, commit_msg):
+        auth = self.get_auth()
+        _url = 'changes/{}/edit:message'.format(rest_id)
+        rest_url = self.get_rest_url(_url)
+        content = {'message': commit_msg}
+        ret = self.session.put(rest_url, json=content, auth=auth)
+        if not ret.ok:
+            if ret.status_code == 409 and \
+                    ret.content.startswith('no changes were made'):
+                pass
+            else:
+                raise Exception(
+                    'In change_commit_msg_to_edit to change [{}] failed.\n'
                     'Status code is [{}], content is [{}]'.format(
                         rest_id, ret.status_code, ret.content))

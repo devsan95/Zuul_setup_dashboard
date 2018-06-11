@@ -7,7 +7,7 @@ import time
 from functools import partial as fn
 
 
-class partialmethod(fn):
+class classpartialmethod(fn):
     def __get__(self, instance, owner):
         if instance is None:
             return self
@@ -15,7 +15,7 @@ class partialmethod(fn):
                   *(self.args or ()), **(self.keywords or {}))
 
 
-cfn = partialmethod
+cfn = classpartialmethod
 
 
 # Define Exception class for retry
