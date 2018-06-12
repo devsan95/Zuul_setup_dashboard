@@ -212,10 +212,14 @@ class GerritRestClient:
         result = self.parse_rest_response(changes)
         return result
 
-    def get_ticket(self, ticket_id):
+    def get_ticket(self, ticket_id, fields=None):
         auth = self.get_auth()
+        get_param = {}
+        if fields:
+            get_param['o'] = fields
         url = 'changes/{}'.format(ticket_id)
-        changes = self.session.get(self.get_rest_url(url), auth=auth)
+        changes = self.session.get(self.get_rest_url(url), auth=auth,
+                                   params=get_param)
 
         if not changes.ok:
             raise Exception(
