@@ -49,7 +49,7 @@ class IntegrationChange(object):
                     return 'approved'
         return None
 
-    def review(self, comment, label_dict):
+    def review(self, comment, label_dict=None):
         self.rest.review_ticket(self.change_no, comment, label_dict)
 
 

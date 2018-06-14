@@ -21,7 +21,7 @@ def run(gerrit_info_path, root_change_no):
         print('Change {} v {} cr {} gk {}'.format(change_no, lv, lcr, lgk))
         if lv == 'approved' and lcr == 'approved' and lgk != 'approved':
             print('Change {} need regate'.format(change_no))
-            change.review('regate')
+            change.review('regate', None)
 
 
 if __name__ == '__main__':
