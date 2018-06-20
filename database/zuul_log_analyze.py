@@ -649,6 +649,10 @@ class DbHandler(object):
             text = '\n'.join(ll.infos)
         else:
             text = ll.infos[0]
+        if not ll.change:
+            ll.change = '0'
+        if not ll.patchset:
+            ll.patchset = '0'
         obj = LogAction(
             datetime=udt.datetime,
             level=ll.level,
