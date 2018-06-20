@@ -671,7 +671,7 @@ class DbHandler(object):
         self.session.commit()
 
     def rollback(self):
-        self.rollback()
+        self.session.rollback()
 
 
 def _test():
