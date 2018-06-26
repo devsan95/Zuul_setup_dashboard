@@ -9,7 +9,7 @@ if [ -z "$$SCRIPT_DIR" ] ; then
   exit 1  # fail
 fi
 
-${SCRIPT_DIR}/tools/update_zuul_code_config.sh
+. ${SCRIPT_DIR}/tools/update_zuul_code_config.sh
 
 
 . ${SCRIPT_DIR}/pyenv.sh
