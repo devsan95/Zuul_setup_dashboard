@@ -1,4 +1,6 @@
 #! /bin/bash
+#for job http://jenkins-prod.zuulqa.dynamic.nsn-net.net/view/zuul_tools/job/TimeOut-moniter/
+
 set -x
 cd /var/fpwork/zuul_prod/log
 

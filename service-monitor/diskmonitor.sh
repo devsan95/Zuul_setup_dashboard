@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#for http://jenkins-prod.zuulqa.dynamic.nsn-net.net/view/zuul_tools/job/skytrack-disk-moniter/
 set -x
 lessspace = 2097152
 
