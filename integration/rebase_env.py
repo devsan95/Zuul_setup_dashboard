@@ -8,9 +8,11 @@ from pprint import pprint
 import fire
 import urllib3
 from requests.structures import CaseInsensitiveDict
+from functools import partial
 
-from api import gerrit_api
-from api import gerrit_rest
+from api import gerrit_api, retry
+from api import gerrit_rest, jira_api
+from mod.integration_change import RootChange
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -63,6 +65,41 @@ def clear_change(rest, change_id):
         if file_path != '/COMMIT_MSG':
             rest.restore_file_to_change(change_id, file_path)
     rest.publish_edit(change_id)
+
+
+def get_commit_msg(change_no, rest):
+    origin_msg = retry.retry_func(
+        retry.cfn(rest.get_commit, change_no),
+        max_retry=10, interval=3
+    )['message']
+    return origin_msg
+
+
+def change_message_by_env_change(change_no, env_change, rest):
+    try:
+        origin_msg = get_commit_msg(change_no, rest)
+        msg = " ".join(origin_msg.split("\n"))
+        reg = re.compile(r'<(.*?)> on <(.*?)> of <(.*?)> topic')
+        to_be_replaced = reg.search(msg).groups()[1]
+        pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
+        reg = re.compile(r"({})".format(pattern.encode("utf-8")))
+        to_replace = reg.search(env_change).groups()[0]
+        if to_be_replaced == to_replace:
+            return to_be_replaced, to_replace
+        print(u"replace |{}| with |{}|...".format(to_be_replaced, to_replace))
+
+        try:
+            rest.delete_edit(change_no)
+        except Exception as e:
+            print('delete edit failed, reason:')
+            print(str(e))
+
+        new_msg = origin_msg.replace(to_be_replaced, to_replace)
+        rest.change_commit_msg_to_edit(change_no, new_msg)
+        rest.publish_edit(change_no)
+        return to_be_replaced, to_replace
+    except Exception as e:
+        print(e)
 
 
 def run(gerrit_info_path, change_no,
@@ -123,6 +160,24 @@ def run(gerrit_info_path, change_no,
             env_change,
             old_env,
             'env-config.d/ENV')
+
+        # replace commit message
+        op = RootChange(rest, change_no)
+        commits = op.get_all_changes_by_comments()
+        change_message = partial(change_message_by_env_change, env_change=env_change, rest=rest)
+        map(change_message, commits)
+        old_str, new_str = change_message(change_no)
+        # replace jira title.
+        try:
+            origin_msg = get_commit_msg(change_no, rest)
+            msg = " ".join(origin_msg.split("\n"))
+            reg = re.compile(r'%JR=(\w+-\d+)')
+            jira_ticket = reg.search(msg).groups()[0]
+            jira_op = jira_api.JIRAPI("autobuild_c_ou", "a4112fc4")
+            jira_op.replace_issue_title(jira_ticket, old_str, new_str)
+        except Exception as e:
+            print(e)
+
         for key, value in change_map.items():
             rest.add_file_to_change(change_no, key, value)
         rest.publish_edit(change_no)
