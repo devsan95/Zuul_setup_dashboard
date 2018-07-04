@@ -4,6 +4,7 @@
 from random import randint
 import argparse
 import sys
+import time
 import traceback
 
 
@@ -41,7 +42,7 @@ def _main(**kwargs):
     # sleep
     sleep_seconds = sleep_time()
     print("sleep {} s".format(sleep_seconds))
-    sys.sleep(sleep_time())
+    time.sleep(sleep_seconds)
 
     # only gate pipeline job will fail
     if pipeline == "gate":
