@@ -51,7 +51,7 @@ def _main(**kwargs):
     job_name = kwargs["job"]
 
     # sleep
-    sleep_seconds = sleep_time()
+    sleep_seconds = sleep_time(pipeline)
     print("sleep {} s".format(sleep_seconds))
     time.sleep(sleep_seconds)
 
