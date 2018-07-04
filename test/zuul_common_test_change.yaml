@@ -1,0 +1,44 @@
+repos:
+  MN/5G/NB/gnb:
+    branches:
+      master:
+        folders:
+          - uplane/L2-PS
+          - externals/
+          - common/cmake_modules/
+          - common/log_and_trace/
+          - itf/l2/
+          - uplane/
+          - externals/
+          - common/
+          - uplane/
+          - itf/l2/
+          - hooks/
+          - meta-gnb/
+          - buildscript/
+      rel/5G18A_B3:
+        folders:
+          - uplane/L2-PS
+          - externals/
+          - common/cmake_modules/
+          - common/log_and_trace/
+          - itf/l2/
+          - uplane/
+          - externals/
+          - common/
+          - uplane/
+          - itf/l2/
+          - hooks/
+          - meta-gnb/
+          - buildscript/
+  MN/5G/COMMON/meta-5g:
+    branches:
+      master:
+        folders:
+          - classes/
+          - conf/
+          - lib/
+          - recipes-components/
+          - recipes-interfaces/
+          - recipes-tools/
+          - scripts/

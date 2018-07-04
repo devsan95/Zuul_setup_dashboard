@@ -540,3 +540,27 @@ class GerritRestClient:
                     'In change_commit_msg_to_edit to change [{}] failed.\n'
                     'Status code is [{}], content is [{}]'.format(
                         rest_id, ret.status_code, ret.content))
+
+    def create_account(self, name, email, http_password,
+                       ssh_key=None, groups=None):
+        auth = self.get_auth()
+        _url = 'accounts/{}'.format(name)
+        rest_url = self.get_rest_url(_url)
+        content = {'name': name,
+                   'email': email,
+                   'http_password': http_password}
+        if ssh_key:
+            content['ssh_key'] = ssh_key
+        if groups:
+            content['groups'] = groups
+
+        changes = self.session.put(rest_url, auth=auth, json=content)
+
+        if not changes.ok:
+            raise Exception(
+                'create_account [{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    rest_url, changes.status_code, changes.content))
+
+        result = self.parse_rest_response(changes)
+        return result
