@@ -9,9 +9,9 @@ import traceback
 
 
 success_rate_dict = {
-   "A": 80,
-   "TakeAShower": 20,
-   "SleepyDog": 90
+    "A": 80,
+    "TakeAShower": 20,
+    "SleepyDog": 90
 }
 
 
@@ -21,7 +21,7 @@ def _parse_args():
 
     parser.add_argument('--pipeline', type=str, dest='pipeline',
                         help='The pipeline that job belong to')
-    parser.add_argument('--job', type=str, dest='job',
+    parser.add_argument('--job', type=int, dest='job',
                         help='job name')
 
     args = parser.parse_args()
@@ -30,7 +30,8 @@ def _parse_args():
 
 def is_failed(job_name):
     if job_name in success_rate_dict:
-        print("Job {} success is {}".format(job_name, success_rate_dict[job_name][0]))
+        print("Job {} success is {}".format(job_name,
+                                            success_rate_dict[job_name][0]))
         return randint(0, 100) > success_rate_dict[job_name][0]
     else:
         return False
