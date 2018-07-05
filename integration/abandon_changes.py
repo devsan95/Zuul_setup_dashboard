@@ -10,6 +10,8 @@ import traceback
 import api.file_api
 import api.gerrit_api
 import api.gerrit_rest
+from api.jira_api import JIRAPI
+from api import retry
 from update_submodule_by_change import get_submodule_list_from_comments
 
 
@@ -73,15 +75,26 @@ def parse_comments(change_id, rest):
     return change_set
 
 
-def _main(change_id,
-          rest_url, rest_user, rest_pwd, auth_type):
+def abandon_jira(change_no, rest):
+    origin_msg = retry.retry_func(
+        retry.cfn(rest.get_commit, change_no),
+        max_retry=10, interval=3
+    )['message']
+    msg = " ".join(origin_msg.split("\n"))
+    reg = re.compile(r'%JR=(\w+-\d+)')
+    jira_ticket = reg.search(msg).groups()[0]
+    jira_op = JIRAPI("autobuild_c_ou", "a4112fc4")
+    jira_op.close_issue(jira_ticket)
+
+
+def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     if auth_type == 'basic':
         rest.change_to_basic_auth()
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
     changes = parse_comments(change_id, rest)
-
+    abandon_jira(change_id, rest)
     for change_id in changes:
         print('Abandoning {}'.format(change_id))
         try:
