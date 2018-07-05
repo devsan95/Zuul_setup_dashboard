@@ -42,3 +42,8 @@ repos:
           - recipes-interfaces/
           - recipes-tools/
           - scripts/
+  MN/5G/darcy_test:
+    branches:
+      master:
+        folders:
+          - test/
