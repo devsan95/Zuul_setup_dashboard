@@ -21,7 +21,7 @@ def _parse_args():
 
     parser.add_argument('--pipeline', type=str, dest='pipeline',
                         help='The pipeline that job belong to')
-    parser.add_argument('--job', type=int, dest='job',
+    parser.add_argument('--job', type=str, dest='job',
                         help='job name')
 
     args = parser.parse_args()
