@@ -39,11 +39,19 @@ class JIRAPI(object):
 
     def close_issue(self, issue_name):
         transitions = self.jira.transitions(issue_name)
-        transition_id = [t['id'] for t in transitions if t['name'] == u'Close Issue'][0]
-        self.jira.transition_issue(issue_name, transition_id)
+        status_with_ids = [(t["name"], t["id"]) for t in transitions]
+        transition_id = [one[1] for one in status_with_ids if one[0] == u'Close Issue']
+        if transition_id:
+            transition_id = transition_id[0]
+            self.jira.transition_issue(issue_name, transition_id)
+        else:
+            # current status has no close issue options,open it first.
+            transition_id = [one[1] for one in status_with_ids if one[0] == u'Open Issue'][0]
+            self.jira.transition_issue(issue_name, transition_id)
+            self.close_issue(issue_name)
 
 
 if __name__ == '__main__':
-    jira_op = JIRAPI("autobuild_c_ou", "*****")
-    jira_op.replace_issue_title("SCMHGH-5999", "RCP2.0_5GRAC_18.666", "RCP2.0_5GRAC_18.777")
-    jira_op.close_issue("SCMHGH-5999")
+    jira_op = JIRAPI("autobuild_c_ou", "a4112fc4")
+    # jira_op.replace_issue_title("SCMHGH-6054", "RCP2.0_5GRAC_18.666", "RCP2.0_5GRAC_18.777")
+    jira_op.close_issue("SCMHGH-6054")
