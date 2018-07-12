@@ -49,7 +49,7 @@ def random_path(folders):
 
 
 def create_change(rest, conf, current_no, total_no, topic,
-                  file_numbers, depends_on):
+                  file_numbers, module_numbers, depends_on):
     repo = random.choice(conf['valid_repos'])
     repo_node = conf['repos'][repo]
     branch = random.choice(repo_node['valid_branches'])
@@ -69,8 +69,10 @@ def create_change(rest, conf, current_no, total_no, topic,
     conf['created_change_id'].append(change_id)
 
     need_publish = False
+    modules = [random.choice(folders) for _ in range(module_numbers)]
+    print('Selected modules are {}'.format(modules))
     for i in range(0, file_numbers):
-        path = random_path(folders)
+        path = random_path(modules)
         rest.add_file_to_change(change_no, path, path)
         need_publish = True
 
@@ -85,7 +87,7 @@ def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
 
 
 def run(gerrit_conf, change_conf, change_numbers,
-        change_interval=0, file_numbers=0, depends_on=False,
+        change_interval=0, file_numbers=0, module_numbers=1, depends_on=False,
         repos=None, branches=None, code_review=False):
     rest = gerrit_rest.init_from_yaml(gerrit_conf)
     with open(change_conf) as f:
@@ -105,7 +107,7 @@ def run(gerrit_conf, change_conf, change_numbers,
     for i in range(0, change_numbers):
         change_no, change_id = create_change(
             rest, conf, i + 1,
-            change_numbers, topic, file_numbers, depends_on)
+            change_numbers, topic, file_numbers, module_numbers, depends_on)
         try:
             print('Change created, {}'.format(rest.get_change_address(change_no)))
             if code_review:

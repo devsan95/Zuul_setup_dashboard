@@ -9,7 +9,7 @@ import traceback
 
 
 success_rate_dict = {
-    "A": 80,
+    "CI/CHECKOUT/FAST_CHECKOUT": 80,
     "TakeAShower": 20,
     "SleepyDog": 90
 }
