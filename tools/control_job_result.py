@@ -44,7 +44,7 @@ def sleep_time(pipeline):
         else:
             return randint(120, 540)
     else:
-        return randint(10, 60)
+        return randint(10, 20)
 
 
 def _main(**kwargs):
