@@ -31,8 +31,8 @@ def _parse_args():
 def is_failed(job_name):
     if job_name in success_rate_dict:
         print("Job {} success is {}".format(job_name,
-                                            success_rate_dict[job_name][0]))
-        return randint(0, 100) > success_rate_dict[job_name][0]
+                                            success_rate_dict[job_name]))
+        return randint(0, 100) > success_rate_dict[job_name]
     else:
         return False
 
