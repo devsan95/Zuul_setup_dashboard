@@ -105,10 +105,12 @@ def run(gerrit_conf, change_conf, change_numbers,
     print('Current topic is {}'.format(topic))
 
     for i in range(0, change_numbers):
-        change_no, change_id = create_change(
-            rest, conf, i + 1,
-            change_numbers, topic, file_numbers, module_numbers, depends_on)
         try:
+            change_no, change_id = create_change(
+                rest, conf, i + 1,
+                change_numbers, topic, file_numbers,
+                module_numbers, depends_on)
+
             print('Change created, {}'.format(rest.get_change_address(change_no)))
             if code_review:
                 rest.review_ticket(change_no, 'auto code review',
