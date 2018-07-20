@@ -17,16 +17,11 @@ from update_submodule_by_change import get_submodule_list_from_comments
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('change_id', type=str,
-                        help='change id')
-    parser.add_argument('rest_url', type=str,
-                        help='')
-    parser.add_argument('rest_user', type=str,
-                        help='')
-    parser.add_argument('rest_pwd', type=str,
-                        help='')
-    parser.add_argument('auth_type', type=str, default='digest',
-                        help='')
+    parser.add_argument('change_id', type=str, help='change id')
+    parser.add_argument('rest_url', type=str, help='')
+    parser.add_argument('rest_user', type=str, help='')
+    parser.add_argument('rest_pwd', type=str, help='')
+    parser.add_argument('auth_type', type=str, default='digest', help='')
     args = parser.parse_args()
     return vars(args)
 
@@ -77,9 +72,8 @@ def parse_comments(change_id, rest):
 
 def abandon_jira(change_no, rest):
     origin_msg = retry.retry_func(
-        retry.cfn(rest.get_commit, change_no),
-        max_retry=10, interval=3
-    )['message']
+        retry.cfn(rest.get_commit, change_no), max_retry=10,
+        interval=3)['message']
     msg = " ".join(origin_msg.split("\n"))
     reg = re.compile(r'%JR=(\w+-\d+)')
     jira_ticket = reg.search(msg).groups()[0]

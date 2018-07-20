@@ -44,7 +44,8 @@ def _parse_args():
 
 def get_topic_from_commit_message(commit_message):
     reg = re.compile('topic <(.*?)>')
-    result = reg.search(commit_message)
+    msg = commit_message.replace('\n', ' ')
+    result = reg.search(msg)
     if not result:
         raise Exception("Cannot find topic")
     return result.group(1)
