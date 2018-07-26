@@ -58,9 +58,12 @@ def create_change(rest, conf, current_no, total_no, topic,
     message = '{} ({}/{})'.format(topic, current_no, total_no)
     dependency = conf.get('created_change_id')
     if depends_on and dependency:
-        message = '{}\nDependency\n{}'.format(
+        # message = '{}\nDependency\n{}'.format(
+        #     message,
+        #     '\n'.join(['Depends-on: {}'.format(x) for x in dependency]))
+        message = '{}\nDependency\nDepends-on: {}'.format(
             message,
-            '\n'.join(['Depends-on: {}'.format(x) for x in dependency]))
+            dependency[-1])
     change_id, change_no, rest_id = rest.create_ticket(repo, '', branch,
                                                        message)
 
