@@ -1,5 +1,5 @@
 #! /usr/bin/env python2.7
-# -*- coding:utf8 -*-
+# -*- coding:utf-8 -*-
 
 """A collection of functions relating to s3 operations."""
 

@@ -1,5 +1,5 @@
 #! /usr/bin/env python2.7
-# -*- coding:utf8 -*-
+# -*- coding:utf-8 -*-
 
 """
 monitor the exception from logs of zuul-server ,zuul-merge
