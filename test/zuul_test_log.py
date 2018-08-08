@@ -146,11 +146,13 @@ class ParseResult(object):
         parse_ssh_end
     ]
 
-    def __init__(self):
+    def __init__(self, threshold=0):
         self.result = {}
         self.temp_result = {}
         self.meet_begin = False
         self.main_thread = None
+        self.cycle_stack = 0
+        self.cycle_threshold = threshold
 
     def parse(self, log_line):
         if not log_line.infos:
@@ -177,6 +179,11 @@ class ParseResult(object):
             elif pr.type == 'end':
                 self.save_result_to_temp(pr)
                 self.meet_begin = False
+                if self.cycle_threshold > 0 and pr.cost:
+                    if self.cycle_stack + pr.cost > self.cycle_threshold:
+                        raise Exception('{} exceed thread {}'.format(
+                            self.cycle_stack + pr.cost, self.cycle_threshold))
+                    self.cycle_stack += pr.cost
                 self.save_result()
                 print('End meet')
         else:
@@ -212,6 +219,7 @@ class ParseResult(object):
                 if block.cost is None:
                     block.cost = block.end_time - block.begin_time
                     block.cost = block.cost.total_seconds() * 1000
+                    pr.cost = block.cost
                 storage['blocks'].append(block)
         elif pr.type == 'block':
             block = TimeBlock()
@@ -250,23 +258,26 @@ def _test():
     print(log_line)
 
 
-def main(log_path):
+def main(log_path, threshold=0):
     try:
-        parse_result = ParseResult()
+        parse_result = ParseResult(threshold)
         log_line = LogLine()
-        with open(log_path) as f:
-            lines = f.readlines()
-            for line in lines:
-                m = reg_log.match(line)
-                if m:
-                    # Parse Old
-                    parse_result.parse(log_line)
-                    # Set New
-                    log_line.set(m)
-                else:
-                    log_line.append(line)
+        try:
+            with open(log_path) as f:
+                lines = f.readlines()
+                for line in lines:
+                    m = reg_log.match(line)
+                    if m:
+                        # Parse Old
+                        parse_result.parse(log_line)
+                        # Set New
+                        log_line.set(m)
+                    else:
+                        log_line.append(line)
+        except Exception as e:
+            print('Exception:\n{}'.format(e))
         result = parse_result.result
-        write_path = log_path + '.result'
+        write_path = log_path + '.result.log'
         with open(write_path, 'w') as f:
             for thread in result:
                 print('------------------------------\nThread: {}'.format(thread))
@@ -274,8 +285,12 @@ def main(log_path):
                 for name in result[thread]:
                     print(name)
                     f.write('{}:\n'.format(name))
+                    list_f = [float(x.cost) for x in result[thread][name]]
                     list_r = [str(int(x.cost)) for x in result[thread][name]]
+                    sum_f = sum(list_f)
+                    average_f = sum_f / len(list_f)
                     print(','.join(list_r))
+                    print('Sum is {} ms, average is {} ms'.format(sum_f, average_f))
                     f.write(','.join(list_r))
                     f.write('\n')
     except Exception as ex:
