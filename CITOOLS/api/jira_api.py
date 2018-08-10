@@ -50,6 +50,26 @@ class JIRAPI(object):
             self.jira.transition_issue(issue_name, transition_id)
             self.close_issue(issue_name)
 
+    def transition_issue(self, issue_name, transition):
+        transitions = self.jira.transitions(issue_name)
+        status_with_ids = [(t["name"], t["id"]) for t in transitions]
+        transition_id = \
+            [one[1] for one in status_with_ids if one[0] == transition]
+        if transition_id:
+            transition_id = transition_id[0]
+            self.jira.transition_issue(issue_name, transition_id)
+        else:
+            raise Exception('No transition')
+
+    def create_issue(self, fields):
+        return self.jira.create_issue(fields=fields)
+
+    def search_issue(self, jql):
+        return self.jira.search_issues(jql)
+
+    def api(self):
+        return self.jira
+
 
 if __name__ == '__main__':
     jira_op = JIRAPI("autobuild_c_ou", "a4112fc4")

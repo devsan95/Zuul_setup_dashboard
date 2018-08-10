@@ -1,0 +1,25 @@
+meta:
+  user: zhxie
+  pwd: aaa
+  period: week
+  url: "https://jiradc.int.net.nokia.com"
+  timezone: "Asia/Shanghai"
+  close_status:
+    - Done
+tickets:
+  - priority:
+      name: Major
+    description: "Testing for {period_time}"
+    labels:
+      - "Test"
+    summary: "Testing for {period_time}"
+    project:
+      key: HZSCMWORK
+    components:
+      - name: "Project: Zuul"
+    issuetype:
+      name: Task
+    assignee:
+      name: zhxie
+
+
