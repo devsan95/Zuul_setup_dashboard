@@ -1,6 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
 
+import copy
 import json
 import os
 import re
@@ -9,12 +10,15 @@ import time
 import traceback
 
 import fire
+import urllib3
 from slugify import slugify
 
 import api.file_api
 import api.gerrit_api
 import api.gerrit_rest
 import submodule_handle
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def strip_begin(text, prefix):
@@ -115,36 +119,10 @@ def get_env_commit(msg, rest):
 
 def parse_comments(change_id, rest):
     retd = {}
-    r = re.compile(r'update_bb:(.*),(.*),(.*)')
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
     for msg in comment_list['messages']:
         for line in msg['message'].split('\n'):
-            m = r.match(line)
-            if m:
-                print(line)
-                m1 = m.group(1).strip().strip('"')
-                m2 = m.group(2).strip().strip('"')
-                m3 = m.group(3).strip().strip('"')
-                if m2 == '-':
-                    m2 = None
-                if m3 == '-':
-                    m3 = None
-                if m3 == '~':
-                    retd.pop(m1, None)
-                    print('[{}] delete [{}]'.format(line, m1))
-                    continue
-                retd[m1] = {}
-                if m2 == 'bb':
-                    retd[m1]['bb_ver'] = m3
-                else:
-                    if m2:
-                        retd[m1]['repo_url'] = m2
-                        if retd[m1]['repo_url'].startswith('http:'):
-                            retd[m1]['repo_url'] = \
-                                retd[m1]['repo_url'].replace('http:', 'gitsm:')
-                            retd[m1]['protocol'] = 'http'
-                    if m3:
-                        retd[m1]['repo_ver'] = m3
+            parse_update_bb(line, retd)
 
     print(retd)
     return retd
@@ -155,42 +133,63 @@ def parse_ex_comments(ex_dict, rest):
     print(ex_dict)
     retd = {}
     for change_id, comp_list in ex_dict.items():
-        r = re.compile(r'update_bb:(.*),(.*),(.*)')
         comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
         for msg in comment_list['messages']:
             for line in msg['message'].split('\n'):
-                m = r.match(line)
-                if m:
-                    print(line)
-                    m1 = m.group(1).strip().strip('"')
-                    m2 = m.group(2).strip().strip('"')
-                    m3 = m.group(3).strip().strip('"')
-                    if m1 not in comp_list:
-                        print('[{}] not in comp list'.format(line))
-                        continue
-                    if m2 == '-':
-                        m2 = None
-                    if m3 == '-':
-                        m3 = None
-                    if m3 == '~':
-                        retd.pop(m1, None)
-                        print('[{}] delete [{}]'.format(line, m1))
-                        continue
-                    retd[m1] = {}
-                    if m2 == 'bb':
-                        retd[m1]['bb_ver'] = m3
-                    else:
-                        if m2:
-                            retd[m1]['repo_url'] = m2
-                            if retd[m1]['repo_url'].startswith('http:'):
-                                retd[m1]['repo_url'] = \
-                                    retd[m1]['repo_url'].replace('http:', 'gitsm:')
-                                retd[m1]['protocol'] = 'http'
-                        if m3:
-                            retd[m1]['repo_ver'] = m3
+                parse_update_bb(line, retd, comp_list)
 
     print(retd)
     return retd
+
+
+def parse_update_bb(line, result, component_list=None):
+    line_ = line.split('update_bb:')
+    if len(line_) > 1:
+        values = line_[1]
+        value_list = values.split(',')
+        value_list = [x.strip().strip('"') for x in value_list]
+        print(line)
+        value_len = len(value_list)
+        if value_len < 3:
+            print('parameters of update_bb is not enough.')
+            return
+        m = value_list
+        component = m[0]
+        url = m[1]
+        commit = m[2]
+        if value_len >= 4:
+            targets = [x.strip().strip('"') for x in m[3].split(';')]
+        else:
+            targets = ['all']
+        if component_list:
+            if component not in component_list:
+                print('[{}] not in comp list'.format(line))
+                return
+        if url == '-':
+            url = None
+        if commit == '-':
+            commit = None
+        for target in targets:
+            if target not in result:
+                result[target] = {}
+            result[target][component] = {}
+            rp = result[target][component]
+            if commit == '~':
+                rp.pop(component, None)
+                print('[{}] delete [{}] from [{}]'.format(
+                    line, component, target))
+                return
+            if url == 'bb':
+                rp['bb_ver'] = commit
+            else:
+                if url:
+                    rp['repo_url'] = url
+                    if rp['repo_url'].startswith('http:'):
+                        rp['repo_url'] = \
+                            rp['repo_url'].replace('http:', 'gitsm:')
+                        rp['protocol'] = 'http'
+                if commit:
+                    rp['repo_ver'] = commit
 
 
 def parse_comments_base(change_id, rest):
@@ -217,7 +216,7 @@ def save_json_file(output_path, dict_list, override=False):
                 retd.update(dict_)
     else:
         retd = dict_list
-    content = json.dumps(retd)
+    content = json.dumps(retd, indent=2)
     print(content)
     api.file_api.save_file(content, output_path, False)
 
@@ -244,6 +243,20 @@ def form_zuul_ref(zuul_ref, branch):
         print('{} cant be parsed'.format(zuul_ref))
         return zuul_ref
     return rets
+
+
+def combine_knife_json(json_list):
+    result = {'all': {}}
+    for obj in json_list:
+        if 'all' in obj:
+            result['all'].update(obj['all'])
+    for obj in json_list:
+        for target in obj:
+            if target != 'all':
+                if target not in result:
+                    result[target] = copy.deepcopy(result['all'])
+                result[target].update(obj[target])
+    return result
 
 
 def run(zuul_url, zuul_ref, output_path, change_id,
@@ -288,8 +301,13 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     comment_dict = parse_comments(change_id, rest)
     ex_comment_dict = parse_ex_comments(ex_dict, rest)
     save_json_file(knife_path,
-                   [ric_dict, ric_commit_dict,
-                    env_dict, comment_dict, ex_comment_dict],
+                   [combine_knife_json([
+                       {'all': ric_dict},
+                       {'all': ric_commit_dict},
+                       {'all': env_dict},
+                       comment_dict,
+                       ex_comment_dict
+                   ])],
                    override=True)
 
     # stream base json
