@@ -79,9 +79,12 @@ def generate_jql(ticket, meta, due, search_new=False):
     else:
         jqls.append('"Created" < "{}"'.format(due.strftime('%Y-%m-%d')))
         done_jqls = []
+        # for status in meta['close_status']:
+        #     done_jqls.append('status = "{}"'.format(status))
+        # jqls.append('({})'.format(' OR '.join(done_jqls)))
         for status in meta['close_status']:
-            done_jqls.append('status = "{}"'.format(status))
-        jqls.append('({})'.format(' OR '.join(done_jqls)))
+            done_jqls.append('status != "{}"'.format(status))
+        jqls.append(' AND '.join(done_jqls))
     jql = ' AND '.join(jqls)
     print('JQL is {}'.format(jql))
     return jql
