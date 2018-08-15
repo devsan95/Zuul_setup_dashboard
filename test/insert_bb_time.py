@@ -69,14 +69,14 @@ class DbHandler(object):
         self.session.rollback()
 
 
-def run(gerrit_yaml_path, db_str, init=0, count=50):
+def run(gerrit_yaml_path, db_str, init=0, count=50, after='2018-8-1'):
     rest = gerrit_rest.init_from_yaml(gerrit_yaml_path)
     start = init
     while True:
         try:
             log.info('new cycle skip {}'.format(start))
             result = rest.query_ticket(
-                'project:MN/5G/COMMON/meta-5g status:merged after:2018-8-6',
+                'project:MN/5G/COMMON/meta-5g status:merged after:{}'.format(after),
                 count=count,
                 start=start)
             db = DbHandler(db_str)
