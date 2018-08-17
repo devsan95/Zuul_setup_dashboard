@@ -46,6 +46,7 @@ class CCI_No_Zuul(ModelBase):
     id = sa.Column(sa.Integer, primary_key=True)
 
     commit = sa.Column(VARCHAR(50), server_default='')
+    bb_name = sa.Column(VARCHAR(1000), server_default='')
     start_time = sa.Column(DATETIME, server_default='')
     end_time = sa.Column(DATETIME, server_default='')
     stage = sa.Column(VARCHAR(25), server_default='')
@@ -60,25 +61,30 @@ class DbHandler(object):
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
 
-    def update_commit(self, commit, start_time, end_time):
+    def update_commit(self, commit, bb_name, start_time, end_time):
         # search if bb  exists
-        if self.if_commit_exist(commit):
+        if self.if_commit_exist(commit, bb_name):
             # if exists, pass
-            log.debug('{} exists, skip'.format(commit))
+            log.debug('{}, {} exists, skip'.format(commit, bb_name))
         else:
             # else add
-            self._insert_commit_date(commit, start_time, end_time)
-            log.debug('Insert {}'.format(commit))
+            self._insert_commit_date(commit, bb_name, start_time, end_time)
+            log.debug('Insert {} {}'.format(commit, bb_name))
 
-    def query_commit(self, commit):
-        return self.session.query(CCI_No_Zuul).filter(CCI_No_Zuul.commit == commit).all()
+    def query_commit(self, commit, bb_name):
+        return self.session.query(CCI_No_Zuul).filter(
+            CCI_No_Zuul.commit == commit,
+            CCI_No_Zuul.bb_name == bb_name).all()
 
-    def if_commit_exist(self, commit):
-        return self.session.query(sa.exists().where(CCI_No_Zuul.commit == commit)).scalar()
+    def if_commit_exist(self, commit, bb_name):
+        return self.session.query(sa.exists().where(sa.and_(
+            CCI_No_Zuul.commit == commit,
+            CCI_No_Zuul.bb_name == bb_name))).scalar()
 
-    def _insert_commit_date(self, commit, start_time, end_time):
+    def _insert_commit_date(self, commit, bb_name, start_time, end_time):
         entry = CCI_No_Zuul()
         entry.commit = commit
+        entry.bb_name = bb_name
         entry.start_time = arrow.get(start_time).datetime
         entry.end_time = arrow.get(end_time).datetime
         entry.stage = 'check'
@@ -170,21 +176,22 @@ def run(gerrit_yaml_path, db_str, gitlab_yaml_path, init=0, count=5, after='2018
                             if module in filepath:
                                 try:
                                     log.debug('Process {}'.format(filepath))
+                                    bb_name = filepath.split('/')[-1]
                                     file_content = \
                                         rest.get_file_content(filepath, change_no)
                                     site, project, commit = process_mr(file_content)
-                                    if db.if_commit_exist(commit):
+                                    if db.if_commit_exist(commit, bb_name):
                                         log.debug('{} exists, skip query gitlab'.format(commit))
                                     else:
                                         created, merged = \
                                             get_mr_time_by_commit(glapi, site, project, commit)
-                                        db.update_commit(commit, created, merged)
+                                        db.update_commit(commit, bb_name, created, merged)
                                     log.debug('---')
                                 except Exception as e:
                                     if skip_error:
                                         log.debug(e)
                                         traceback.print_exc()
-                                        error_list.append((change_no, filepath, site, project, commit, str(e)))
+                                        error_list.append((change_no, filepath, site, project, commit, bb_name, str(e)))
                                     else:
                                         raise e
 
