@@ -13,6 +13,7 @@ from functools import partial
 from api import gerrit_api, retry
 from api import gerrit_rest, jira_api
 from mod.integration_change import RootChange
+from difflib import SequenceMatcher
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -40,9 +41,8 @@ def get_change_list_from_comments(info):
     return None
 
 
-def create_file_change_by_env_change(env_change, file_content, filename):
+def create_file_change_by_env_change(env_change_split, file_content, filename):
     lines = file_content.split('\n')
-    env_change_split = shlex.split(env_change)
     for i, line in enumerate(lines):
         if '=' in line:
             key2, value2 = line.strip().split('=', 1)
@@ -75,7 +75,21 @@ def get_commit_msg(change_no, rest):
     return origin_msg
 
 
-def change_message_by_env_change(change_no, env_change, rest):
+def find_new_version_by_distance(old_version, env_change_list):
+    ratio = 0
+    ret_version = None
+    for line in env_change_list:
+        values = line.split('=')
+        if len(values) > 1:
+            new_version = values[1]
+            new_ratio = SequenceMatcher(None, old_version, new_version).ratio()
+            if new_ratio > ratio:
+                ratio = new_ratio
+                ret_version = new_version
+    return ret_version
+
+
+def change_message_by_env_change(change_no, env_change_list, rest):
     try:
         origin_msg = get_commit_msg(change_no, rest)
         msg = " ".join(origin_msg.split("\n"))
@@ -83,7 +97,14 @@ def change_message_by_env_change(change_no, env_change, rest):
         to_be_replaced = reg.search(msg).groups()[1]
         pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))
-        to_replace = reg.search(env_change).groups()[0]
+        result = reg.search('\n'.join(env_change_list))
+        if result:
+            to_replace = result.groups()[0]
+        else:
+            to_replace = find_new_version_by_distance(
+                to_be_replaced, env_change_list)
+            if not to_replace:
+                raise Exception('Cannot find new version')
         if to_be_replaced == to_replace:
             return to_be_replaced, to_replace
         print(u"replace |{}| with |{}|...".format(to_be_replaced, to_replace))
@@ -107,8 +128,12 @@ def run(gerrit_info_path, change_no,
         ssh_gerrit_user=None, ssh_gerrit_key=None,
         auto_rebase=False, auto_recheck=True, auto_reexperiment=True,
         env_change=None):
+    env_change_list = []
     if env_change is not None:
         env_change = env_change.strip()
+        env_change_list = shlex.split(env_change)
+        for line in env_change_list:
+            print(line)
     # use rest gerrit user info to do the operation, and the ssh gerrit
     # user to do the labeling (to sync with zuul)
     # if no ssh gerrit info is provided then use rest user to do labeling
@@ -157,14 +182,14 @@ def run(gerrit_info_path, change_no,
         print('add new env for change {}'.format(change_no))
         old_env = rest.get_file_content('env-config.d/ENV', change_no)
         change_map = create_file_change_by_env_change(
-            env_change,
+            env_change_list,
             old_env,
             'env-config.d/ENV')
 
         # replace commit message
         op = RootChange(rest, change_no)
         commits = op.get_all_changes_by_comments()
-        change_message = partial(change_message_by_env_change, env_change=env_change, rest=rest)
+        change_message = partial(change_message_by_env_change, env_change_list=env_change_list, rest=rest)
         map(change_message, commits)
         old_str, new_str = change_message(change_no)
         # replace jira title.
