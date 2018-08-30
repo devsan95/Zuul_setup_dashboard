@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import arrow
 import fire
+import ruamel.yaml as yamllib
 from slugify import slugify
 
 import yaml_validator
@@ -14,6 +15,7 @@ def save_file_to_gerrit(rest, file_content, project, branch, path):
         project, None, branch, message)
     rest.add_file_to_change(rest_id, path, file_content)
     rest.publish_edit(rest_id)
+    print(rest.get_change_address(ticket_id))
     rest.review_ticket(rest_id, 'merge', {'Code-Review': 2})
 
 
@@ -29,18 +31,22 @@ def save_to_gerrit(
     name += '.yaml'
     name = slugify(name)
     file_path = 'feature_archive/{}'.format(name)
+    print('Archive into gerrit, path {}'.format(file_path))
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
-    yaml_obj = yaml.loads(
-        yaml, Loader=yaml.Loader, version='1.1')
+    yaml_obj = yamllib.loads(
+        yaml, Loader=yamllib.Loader, version='1.1')
     if schema_path:
+        print('Verify schema')
         with open(schema_path) as f:
             json_schema = yaml_validator.json.load(f)
             yaml_validator.validate(yaml_obj, json_schema)
     if dependent:
+        print('Verify dependent')
         graph_obj = yaml_validator.create_graph(yaml_obj)[3]
         yaml_validator.check_graph_cycling(graph_obj)
-    formatted_yaml = yaml.dump(yaml_obj, Dumper=yaml.RoundTripDumper)
+    formatted_yaml = yamllib.dump(yaml_obj, Dumper=yamllib.RoundTripDumper)
     save_file_to_gerrit(rest, formatted_yaml, project, branch, file_path)
+    print('Begin to save file to {}'.format(output_path))
     if output_path:
         with open(output_path, 'w') as f:
             f.write(formatted_yaml)

@@ -22,7 +22,10 @@ ignore =
     # E501: line too long (82 > 79 characters)
     E501,
     # H501: Do not use self.__dict__ for string formatting
-    H501
+    H501,
+    N802,
+    N806,
+    N801
 exclude =
     # No need to traverse our git directory
     .git,
