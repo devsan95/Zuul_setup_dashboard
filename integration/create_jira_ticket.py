@@ -18,7 +18,7 @@ def run(info_index, jira_url=None, user=None, pwd=None):
     meta = copy.deepcopy(info_index['meta']['jira'])
     meta['summary'] = meta['summary'].format(
         title=info_index['meta']['title'],
-        version=info_index['meta']['version_name'])
+        version=info_index['meta'].get('version_name'))
 
     field = {'fields': meta}
 

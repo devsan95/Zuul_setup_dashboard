@@ -554,6 +554,14 @@ class IntegrationChangesCreation(object):
 
         self.meta['streams'] = stream_list
 
+        # handle version name
+        if not version_name:
+            if jira_key:
+                self.meta['version_name'] = jira_key
+            else:
+                version_name = timestr
+                self.meta['version_name'] = version_name
+
         # handle jira
         if jira_key:
             self.meta['jira_key'] = jira_key
@@ -565,16 +573,7 @@ class IntegrationChangesCreation(object):
                 except Exception as ex:
                     print('Exception occured while create jira ticket, {}'.format(str(ex)))
 
-        # handle version_name
-        if not version_name:
-            jira_key = self.meta.get('jira_key')
-            if jira_key:
-                self.meta['version_name'] = jira_key
-            else:
-                version_name = timestr
-                self.meta['version_name'] = version_name
-
-        print('[JOBTAG] Version name is {}'.format(self.meta['version_name']))
+        print('[JOBTAG] Version name is {}. Jira key is {}'.format(self.meta['version_name'], self.meta.get('jira_key')))
 
         self.create_ticket_by_node(root_node)
         self.add_structure_string()
