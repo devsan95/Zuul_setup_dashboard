@@ -88,7 +88,10 @@ def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
     changes = parse_comments(change_id, rest)
-    abandon_jira(change_id, rest)
+    try:
+        abandon_jira(change_id, rest)
+    except Exception as e:
+        print('Abandon jira failed, because {}'.format(e))
     for change_id in changes:
         print('Abandoning {}'.format(change_id))
         try:
