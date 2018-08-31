@@ -28,8 +28,8 @@ def save_to_gerrit(
     name = adt.isoformat()
     if identity:
         name = name + '_' + identity
-    name += '.yaml'
     name = slugify(name)
+    name += '.yaml'
     file_path = 'feature_archive/{}'.format(name)
     print('Archive into gerrit, path {}'.format(file_path))
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)

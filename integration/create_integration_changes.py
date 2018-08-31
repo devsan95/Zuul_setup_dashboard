@@ -574,6 +574,8 @@ class IntegrationChangesCreation(object):
                 version_name = timestr
                 self.meta['version_name'] = version_name
 
+        print('[JOBTAG] Version name is {}'.format(self.meta['version_name']))
+
         self.create_ticket_by_node(root_node)
         self.add_structure_string()
         self.label_all_tickets()
