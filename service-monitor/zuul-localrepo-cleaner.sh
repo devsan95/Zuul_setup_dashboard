@@ -28,18 +28,20 @@ do
 	echo $i
 	if [ $i -gt 10 ];then
 	    if [ "$repo" -eq "MN/5G/NB/gnb" ];then
-		    cd /var/fpwork/zuul_prod/$repo
-		    cd ..
-		    mv gnb gnb-$(date -d "today" +"%Y%m%d_%H%M%S")
+                    docker exec zuul-server bash -c "cd /ephemeral/zuul/git/$repo;git prune&&git gc"
+		    #cd /var/fpwork/zuul_prod/$repo
+		    #cd ..
+		    #mv gnb gnb-$(date -d "today" +"%Y%m%d_%H%M%S")
 		    curl http://5g-cimaster-1.eecloud.dynamic.nsn-net.net:15080/job/CI/job/MAINTENANCE/job/WORKSPACE_CLEANUP/build?token=thereisnodana
-			exit 1
+		    exit 1
 		else
-		    cd /var/fpwork/zuul_prod/$repo
-			cd ..
-			re=`echo ${repo##*/}`
-			mv $re $re-$(date -d "today" +"%Y%m%d_%H%M%S")
-			exit 1
-		fi
+                    docker exec zuul-server bash -c "cd /ephemeral/zuul/git/$repo;git prune&&git gc"
+		    #cd /var/fpwork/zuul_prod/$repo
+		    #cd ..
+		    #re=`echo ${repo##*/}`
+		    #mv $re $re-$(date -d "today" +"%Y%m%d_%H%M%S")
+		    exit 1
+	    fi
 	fi
 done < merge-repopath1.txt
 }
