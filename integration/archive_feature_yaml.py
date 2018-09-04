@@ -33,8 +33,11 @@ def save_to_gerrit(
     file_path = 'feature_archive/{}'.format(name)
     print('Archive into gerrit, path {}'.format(file_path))
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
-    yaml_obj = yamllib.load(
-        yaml, Loader=yamllib.Loader, version='1.1')
+    if isinstance(yaml, dict):
+        yaml_obj = yaml
+    else:
+        yaml_obj = yamllib.load(
+            yaml, Loader=yamllib.Loader, version='1.1')
     if schema_path:
         print('Verify schema')
         with open(schema_path) as f:
