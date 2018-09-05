@@ -36,6 +36,7 @@ def save_to_gerrit(
     if isinstance(yaml, dict):
         yaml_obj = yaml
     else:
+        yaml = yaml.strip('"')
         yaml_obj = yamllib.load(
             yaml, Loader=yamllib.Loader, version='1.1')
     if schema_path:
