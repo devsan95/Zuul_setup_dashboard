@@ -1,7 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
 import arrow
-import fire
+import click
 import ruamel.yaml as yamllib
 from slugify import slugify
 
@@ -10,7 +10,7 @@ from api import gerrit_rest
 
 
 def save_file_to_gerrit(rest, file_content, project, branch, path):
-    message = "Archive feature yaml {}".find(path)
+    message = "Archive feature yaml {}".format(path)
     change_id, ticket_id, rest_id = rest.create_ticket(
         project, None, branch, message)
     rest.add_file_to_change(rest_id, path, file_content)
@@ -19,6 +19,15 @@ def save_file_to_gerrit(rest, file_content, project, branch, path):
     rest.review_ticket(rest_id, 'merge', {'Code-Review': 2})
 
 
+@click.command()
+@click.option('--gerrit-info-path', type=unicode)
+@click.option('--yaml', type=unicode)
+@click.option('--identity', type=unicode)
+@click.option('--project', type=unicode)
+@click.option('--branch', type=unicode)
+@click.option('--schema-path', default=None, type=unicode)
+@click.option('--dependent', default=True, type=bool)
+@click.option('--output-path', default=None, type=unicode)
 def save_to_gerrit(
         gerrit_info_path, yaml, identity,
         project, branch,
@@ -36,7 +45,6 @@ def save_to_gerrit(
     if isinstance(yaml, dict):
         yaml_obj = yaml
     else:
-        yaml = yaml.strip('"')
         yaml_obj = yamllib.load(
             yaml, Loader=yamllib.Loader, version='1.1')
     if schema_path:
@@ -57,4 +65,4 @@ def save_to_gerrit(
 
 
 if __name__ == '__main__':
-    fire.Fire(save_to_gerrit)
+    save_to_gerrit()

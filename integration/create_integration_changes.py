@@ -9,7 +9,7 @@ import textwrap
 import traceback
 from datetime import datetime
 
-import fire
+import click
 import networkx as nx
 import ruamel.yaml as yaml
 import urllib3
@@ -582,9 +582,36 @@ class IntegrationChangesCreation(object):
         send_result_email.run(self.info_index)
 
 
+@click.group()
+@click.option('--yaml-path', type=unicode)
+@click.option('--gerrit-path', type=unicode)
+@click.option('--zuul-user', type=unicode)
+@click.option('--zuul-key', type=unicode)
+@click.pass_context
+def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
+    ctx.obj['obj'] = IntegrationChangesCreation(
+        yaml_path, gerrit_path, zuul_user, zuul_key)
+    pass
+
+
+@cli.command()
+@click.option('--version-name', default=None, type=unicode)
+@click.option('--topic-prefix', default=None, type=unicode)
+@click.option('--streams', default=None, type=unicode)
+@click.option('--jira-key', default=None, type=unicode)
+@click.option('--if-restore', default=False, type=bool)
+@click.pass_context
+def create_changes(
+        ctx, version_name=None,
+        topic_prefix=None, streams=None,
+        jira_key=None, if_restore=False):
+    icc = ctx.obj['obj']
+    icc.run(version_name, topic_prefix, streams, jira_key, if_restore)
+
+
 if __name__ == '__main__':
     try:
-        fire.Fire(IntegrationChangesCreation)
+        cli(obj={})
     except Exception as e:
         print("An exception %s occurred, msg: %s" % (type(e), str(e)))
         traceback.print_exc()
