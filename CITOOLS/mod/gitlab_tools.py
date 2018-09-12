@@ -1,0 +1,63 @@
+'''
+this is a scripts to create/update manager changes
+it is based on a topic name
+topic change will attached a change with real modfication
+after topic finished, topic change also be merged
+topic_change -> pci_change_mgr(repo)
+real_chagne -> meta-5g-poc(repo)
+functions:
+    renew() -> update or create change for <issue_name>
+    release() -> merge topoic change for <issue_name>
+'''
+
+import sys
+from api import config
+from api import gitlab_api
+
+
+CONF = config.ConfigTool()
+CONF.load('repo')
+
+
+class Gitlab_Tools:
+
+    def __init__(self, url='', token='', path='', repo='gitlabe1'):
+        if not url or not token:
+            self.gitlab_client = gitlab_api.init_from_yaml(path, repo)
+        else:
+            self.gitlab_client = gitlab_api.GitlabClient(url, token)
+
+    def chk_mandatory_params(self, params, mandatory_params):
+        for m_param in mandatory_params:
+            if m_param not in mandatory_params:
+                print('Error: Mandatory params %s is not set',
+                      m_param)
+                sys.exit(1)
+
+    def create_mr(self, params):
+        mandatory_params = ['branch', 'project']
+        self.chk_mandatory_params(params, mandatory_params)
+        branch = params['branch']
+        ref = 'master'
+        project = params['project']
+        title = 'Create MergeRequest From {}'.format(branch)
+        if 'ref' in params:
+            ref = params['ref']
+        if 'title' in params:
+            title = params['title']
+        targe_branch = ref
+        if 'target_branch' in params:
+            targe_branch = params['target_branch']
+        self.gitlab_client.set_project(project)
+        self.gitlab_client.create_branch(branch, ref=ref)
+        mr = self.gitlab_client.create_mr(branch, title, targe_branch)
+        print('MergeRequest Created: %s', mr)
+
+    def merge_mr(self, params):
+        mandatory_params = ['title', 'project']
+        self.chk_mandatory_params(params, mandatory_params)
+        project = params['project']
+        title = params['title']
+        srch_dict = {'title': title}
+        self.gitlab_client.set_project(project)
+        self.gitlab_client.merge_mr(srch_dict)
