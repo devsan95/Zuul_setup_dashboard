@@ -124,6 +124,8 @@ def create_graph(structure_obj):
     # make manager node depends on all other nodes
     for node in node_list:
         if node is not integration_node:
+            if 'attached' in node and not node['attached']:
+                continue
             graph_obj.add_edge(node['name'], integration_node['name'])
     return root_node, integration_node, nodes, graph_obj
 
@@ -471,6 +473,15 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
         lines.append('  ')
         lines.append('  ')
 
+    section_showed = False
+    if 'attached' in node_obj and not node_obj['attached']:
+        lines.append('This change is an isolated change in this integration.')
+        section_showed = True
+
+    if section_showed:
+        lines.append('  ')
+        lines.append('  ')
+
     for depend in graph_obj.predecessors(node_obj['name']):
         if depend in nodes and 'change_id' in nodes[depend] and \
                 nodes[depend]['change_id']:
@@ -531,6 +542,10 @@ def label_all_tickets(root_node, integration_node, graph_obj,
                     gerrit_client.add_reviewer(node['rest_id'], reviewer)
                 except Exception as ex:
                     print('Adding reviwer failed, {}'.format(str(ex)))
+        comment_list = node.get('comments')
+        if comment_list:
+            for comment_str in comment_list:
+                gerrit_client.review_ticket(node['rest_id'], comment_str)
 
 
 def read_ric(ric_path):

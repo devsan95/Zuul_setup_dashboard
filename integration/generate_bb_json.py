@@ -18,6 +18,8 @@ import api.gerrit_api
 import api.gerrit_rest
 import submodule_handle
 
+import ruamel.yaml as yaml
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -53,14 +55,14 @@ def parse_ric_list(rest, subject, zuul_url,
             change_no = m.group(4)
             need_change = True
             type_ = m.group(6)
-            if type_ == 'external':
-                print('{} is external'.format(change_no))
+            if type_ != 'integration':
+                print('{} is {}'.format(change_no, type_))
                 if change_no:
                     if change_no in external_dict:
                         external_dict[change_no].append(key)
                     else:
                         external_dict[change_no] = [key]
-            else:
+            if type_ != 'external':
                 if change_no:
                     need_change = is_adpated(rest, change_no)
                     print('Change {} is Adapted: {}'.format(change_no, need_change))
@@ -121,9 +123,19 @@ def parse_comments(change_id, rest):
     retd = {}
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
     for msg in comment_list['messages']:
-        for line in msg['message'].split('\n'):
-            parse_update_bb(line, retd)
-
+        msg_str = msg['message']
+        if 'update_knife_json:' in msg_str:
+            update_yaml = msg_str[msg_str.find('update_knife_json:'):]
+            try:
+                parse_update_yaml(update_yaml, retd, rest, change_id)
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                continue
+        else:
+            for line in msg['message'].split('\n'):
+                parse_update_bb(line, retd)
+    print('Comments of integration parse result:')
     print(retd)
     return retd
 
@@ -135,11 +147,67 @@ def parse_ex_comments(ex_dict, rest):
     for change_id, comp_list in ex_dict.items():
         comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
         for msg in comment_list['messages']:
-            for line in msg['message'].split('\n'):
-                parse_update_bb(line, retd, comp_list)
+            msg_str = msg['message']
+            if 'update_knife_json:' in msg_str:
+                update_yaml = msg_str[msg_str.find('update_knife_json:'):]
+                try:
+                    parse_update_yaml(update_yaml, retd, rest, change_id, comp_list)
+                except Exception as e:
+                    print(e)
+                    traceback.print_exc()
+                    continue
+            else:
+                for line in msg['message'].split('\n'):
+                    parse_update_bb(line, retd, comp_list)
 
+    print('Other change parse result:')
     print(retd)
     return retd
+
+
+def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_list=None):
+    yaml_obj = yaml.load(yaml_str, Loader=yaml.Loader)
+    action_list = yaml_obj['update_knife_json']
+    for action in action_list:
+        atype = action['type']
+        streams = action.get('streams')
+        if not streams:
+            streams = ['all']
+        for stream in streams:
+            if stream not in result:
+                result[stream] = {}
+        if atype == 'update-component':
+            for stream in streams:
+                components = action['components']
+                for component, param in components.items():
+                    result[stream][component] = param
+        elif atype == 'remove-component':
+            for stream in streams:
+                for component in action['components']:
+                    rp = result[stream][component]
+                    rp.pop(component, None)
+                    print('delete [{}] from [{}]'.format(
+                        component, stream))
+        elif atype == 'component-from-property':
+            if not rest or not change_no:
+                raise Exception('No gerrit rest or change no')
+            diff = rest.get_file_change(action['file_name'], change_no).get('new_diff')
+            key_value = {}
+            for line in diff.split('\n'):
+                line_snip = line.split('=', 2)
+                if len(line_snip) > 1:
+                    key_value[line_snip[0].strip()] = line_snip[1].strip()
+            for key, param in action['keys'].items():
+                if key in key_value:
+                    value = key_value[key]
+                    component = param['target_name']
+                    cparam = {}
+                    for k, v in param['target_params'].items():
+                        cparam[k] = v.format(key=key, value=value)
+                    for stream in streams:
+                        result[stream][component] = cparam
+        else:
+            raise Exception('Unsupported type {}'.format(atype))
 
 
 def parse_update_bb(line, result, component_list=None):
@@ -204,6 +272,7 @@ def parse_comments_base(change_id, rest):
                 m1 = m.group(1).strip().strip('"')
                 m2 = m.group(2).strip().strip('"')
                 retd[m1] = m2
+    print('Comments of base parse result:')
     print(retd)
     return retd
 
@@ -217,6 +286,7 @@ def save_json_file(output_path, dict_list, override=False):
     else:
         retd = dict_list
     content = json.dumps(retd, indent=2)
+    print('Saved json is:')
     print(content)
     api.file_api.save_file(content, output_path, False)
 

@@ -49,7 +49,8 @@ def _parse_args():
 
 def _if_checklist_all_pass(checklist):
     for item in checklist:
-        if not item['status']:
+        if not item['status'] and item['attached']:
+            print('Change {} does not meet the requirement.'.format(item['ticket']))
             return False
     return True
 
@@ -144,7 +145,8 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
             {
                 'ticket': item,
                 'status': False,
-                'verified': False
+                'verified': False,
+                'attached': True
             }
         )
     print('Starting check if all tickets are done...')
@@ -152,6 +154,15 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
         print('Starting a new checking cycle...')
         try:
             for item in pass_list:
+                # update attached:
+                commit = rest.get_commit(item['ticket'])
+                message = commit.get('message')
+                message = message.replace('\n', ' ')
+                if 'This change is an isolated change in this integration.' in message:
+                    item['attached'] = False
+                    print('Change {} is a detatched change.'.format(item['ticket']))
+                else:
+                    item['attached'] = True
                 # update verified
                 verified_new = _check_ticket_checked(
                     ssh_server, ssh_port, ssh_user, ssh_key, item['ticket'])
