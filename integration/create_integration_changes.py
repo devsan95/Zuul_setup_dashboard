@@ -553,7 +553,9 @@ class IntegrationChangesCreation(object):
                 self.meta['backup_topic'] = backup_topic
 
         if streams:
-            stream_list = streams.split(',')
+            stream_list = [x for x in streams.split(',') if x]
+            if not stream_list:
+                stream_list = ['default']
         else:
             stream_list = ['default']
 
