@@ -282,6 +282,10 @@ class IntegrationChangesCreation(object):
             lines.append('%JR={}'.format(self.info_index['meta']['jira_key']))
             section_showed = True
 
+        if 'feature_id' in self.info_index['meta'] and self.info_index['meta']['feature_id']:
+            lines.append('%FIFI={}'.format(self.info_index['meta']['feature_id']))
+            section_showed = True
+
         if section_showed:
             lines.append('  ')
             lines.append('  ')
@@ -517,7 +521,8 @@ class IntegrationChangesCreation(object):
         path = os.path.join(job_tool.get_workspace(), 'result')
         job_tool.write_dict_to_properties(result_dict, path, False)
 
-    def run(self, version_name=None, topic_prefix=None, streams=None, jira_key=None,
+    def run(self, version_name=None, topic_prefix=None, streams=None,
+            jira_key=None, feature_id=None,
             if_restore=False):
 
         # handle integration topic
@@ -556,7 +561,9 @@ class IntegrationChangesCreation(object):
 
         # handle version name
         if not version_name:
-            if jira_key:
+            if feature_id:
+                self.meta['version_name'] = feature_id
+            elif jira_key:
                 self.meta['version_name'] = jira_key
             else:
                 version_name = timestr
@@ -573,7 +580,18 @@ class IntegrationChangesCreation(object):
                 except Exception as ex:
                     print('Exception occured while create jira ticket, {}'.format(str(ex)))
 
-        print('[JOBTAG] Version name is {}. Jira key is {}'.format(self.meta['version_name'], self.meta.get('jira_key')))
+        # handle feature id
+        if feature_id:
+            self.meta['feature_id'] = feature_id
+        elif 'jira_key' in self.meta:
+            self.meta['feature_id'] = self.meta['jira_key']
+
+        print('[JOBTAG] Version name is {}. '
+              'Jira key is {}. '
+              'Feature id is {}'.format(
+                  self.meta.get('version_name'),
+                  self.meta.get('jira_key'),
+                  self.meta.get('feature_id')))
 
         self.create_ticket_by_node(root_node)
         self.add_structure_string()
@@ -599,14 +617,15 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--topic-prefix', default=None, type=unicode)
 @click.option('--streams', default=None, type=unicode)
 @click.option('--jira-key', default=None, type=unicode)
+@click.option('--feature-id', default=None, type=unicode)
 @click.option('--if-restore', default=False, type=bool)
 @click.pass_context
 def create_changes(
         ctx, version_name=None,
         topic_prefix=None, streams=None,
-        jira_key=None, if_restore=False):
+        jira_key=None, feature_id=None, if_restore=False):
     icc = ctx.obj['obj']
-    icc.run(version_name, topic_prefix, streams, jira_key, if_restore)
+    icc.run(version_name, topic_prefix, streams, jira_key, feature_id, if_restore)
 
 
 if __name__ == '__main__':
