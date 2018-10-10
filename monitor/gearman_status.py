@@ -48,8 +48,8 @@ class GearmanStatus(object):
                     worker_obj[key] = value_obj
         return worker_obj
 
-    def _extra_deal(key, org_str):
-        if key == 'jobs':
+    def _extra_deal(self, org_str):
+        if self == 'jobs':
             return org_str.strip('build:').split()
         else:
             return org_str

@@ -110,13 +110,17 @@ class DbHandler(object):
             change_time.window_time = (result[0].merge_time - result[0].start_time).total_seconds() * 1000
 
         else:
+
             window1 = 0
             window2 = 0
 
-            if result[0].merge_time:
-                window1 = (result[0].merge_time - result[0].start_time).total_seconds() * 1000
+            for i in range(len(result) - 1):
+                if not result[i].merge_time:
+                    window1 += (result[i].finish_time - result[i].start_time).total_seconds() * 1000
             if result[-1].merge_time:
                 window2 = (result[-1].merge_time - result[-1].start_time).total_seconds() * 1000
+            else:
+                window2 = (result[-1].finish_time - result[-1].start_time).total_seconds() * 1000
 
             change_time.window_time = window1 + window2
 
@@ -133,12 +137,7 @@ class DbHandler(object):
                 if result[i].status not in ['resetting for nnfi', 'resetting for not merge']:
                     print result[i].status, one_tuple
                     raise Exception()
-                if i == 0:
-                    if result[i].merge_time:
-                        change_time.reschedule_time.append((result[i].finish_time - result[i].merge_time).total_seconds() * 1000)
-                    else:
-                        change_time.reschedule_time.append((result[i].finish_time - result[i].start_time).total_seconds() * 1000)
-                else:
+                if result[i].merge_time:
                     change_time.reschedule_time.append((result[i].finish_time - result[i].start_time).total_seconds() * 1000)
         return change_time
 
@@ -163,6 +162,8 @@ def run(db_url, start_date, end_date, start_hour, end_hour, output=None, write_l
                 continue
             begin_time = current_time.replace(hour=int(start_hour))
             finish_time = current_time.replace(hour=int(end_hour))
+            if end_hour == 0:
+                finish_time = finish_time.replace(days=1)
             output_lines = []
             print('From {} to {}'.format(begin_time, finish_time))
             change_tuple = db.get_change_tuple_by_time(begin_time, finish_time)
