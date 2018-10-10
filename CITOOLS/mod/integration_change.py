@@ -12,14 +12,20 @@ import json
 import re
 
 
+comp_reg = re.compile(r'  - COMP <(.*?)>')
+fifi_reg = re.compile(r'%FIFI=(.*)')
+
+
 class IntegrationChange(object):
     def __init__(self, rest, change_no):
         self.rest = rest
         self.change_no = change_no
         self.info = None
         self.detailed_info = None
+        self.commit_info = None
         self.refresh_info()
         self.refresh_detailed_info()
+        self.refresh_commit_info()
 
     def refresh_info(self):
         self.info = self.rest.get_ticket(self.change_no,
@@ -29,6 +35,9 @@ class IntegrationChange(object):
 
     def refresh_detailed_info(self):
         self.detailed_info = self.rest.get_detailed_ticket(self.change_no)
+
+    def refresh_commit_info(self):
+        self.commit_info = self.rest.get_commit(self.change_no)
 
     def get_info(self):
         return self.info
@@ -47,6 +56,21 @@ class IntegrationChange(object):
                     return 'rejected'
                 elif 'approved' in label_dict:
                     return 'approved'
+        return None
+
+    def get_components(self):
+        components = set()
+        msg = self.commit_info.get('message')
+        miter = comp_reg.findall(msg)
+        for m in miter:
+            components.add(m)
+        return list(components)
+
+    def get_feature_id(self):
+        msg = self.commit_info.get('message')
+        m = fifi_reg.search(msg)
+        if m:
+            return m.group(1)
         return None
 
     def review(self, comment, label_dict=None):
