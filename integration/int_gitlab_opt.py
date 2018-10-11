@@ -23,7 +23,7 @@ CONF = config.ConfigTool()
 CONF.load('repo')
 
 
-def get_int_info(ticket, config_file):
+def get_int_info(ticket, rest_obj):
     """
     get integration info from ticket
     """
@@ -32,7 +32,7 @@ def get_int_info(ticket, config_file):
         'comp': r'\s+- COMP <(\S+)>'}
     match_dict = {}
     for key, regex_str in regex_dict.items():
-        commit_msg = get_int_msg(ticket, config_file)
+        commit_msg = get_int_msg(ticket, rest_obj)
         for line in commit_msg.splitlines():
             m = re.match(regex_str, line)
             if m:
@@ -48,8 +48,7 @@ def get_int_info(ticket, config_file):
     return mr_title, mr_comp
 
 
-def get_int_msg(ticket, config_file):
-    rest_obj = gerrit_rest.init_from_yaml(config_file)
+def get_int_msg(ticket, rest_obj):
     commit = rest_obj.get_commit(ticket)
     if commit and 'message' in commit:
         return commit['message']
@@ -69,10 +68,10 @@ def get_branch_and_srv(comp, ref):
 
 
 def _main(ticket, conf_path, action, branch):
-    mr_title, mr_comp = get_int_info(
-        ticket,
+    rest_obj = gerrit_rest.init_from_yaml(
         conf_path.replace('/ext_gitlab',
                           '/ext_gerrit'))
+    mr_title, mr_comp = get_int_info(ticket, rest_obj)
     comp_branch, comp_repo_srv, project = get_branch_and_srv(mr_comp, branch)
     new_branch = 'int_{}'.format(mr_title)
     params = {
@@ -86,6 +85,12 @@ def _main(ticket, conf_path, action, branch):
     if hasattr(gitlab_obj, action):
         print('Info: start action {}'.format(action))
         getattr(gitlab_obj, action)(params)
+        rest_obj.review_ticket(
+            'MR created in {}/{}\n title:{}\n branch:{}\n'.format(
+                comp_repo_srv,
+                project,
+                mr_title,
+                new_branch))
     else:
         print('Error action:{} is not supported yet'.format(params['action']))
         sys.exit(2)
