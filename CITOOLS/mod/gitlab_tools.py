@@ -34,7 +34,7 @@ class Gitlab_Tools:
                       m_param)
                 sys.exit(1)
 
-    def create_mr(self, params):
+    def create_mr(self, params, brk_exists=False):
         mandatory_params = ['branch', 'project']
         self.chk_mandatory_params(params, mandatory_params)
         branch = params['branch']
@@ -50,8 +50,14 @@ class Gitlab_Tools:
             targe_branch = params['target_branch']
         self.gitlab_client.set_project(project)
         self.gitlab_client.create_branch(branch, ref=ref)
-        mr = self.gitlab_client.create_mr(branch, title, targe_branch)
-        print('MergeRequest Created: %s', mr)
+        mr_list = self.gitlab_client.get_mr({'title': title})
+        if mr_list:
+            print('MergeRequest Already Exists: %s', mr_list)
+            if brk_exists:
+                sys.exit(2)
+        else:
+            mr = self.gitlab_client.create_mr(branch, title, targe_branch)
+            print('MergeRequest Created: %s', mr)
 
     def merge_mr(self, params):
         mandatory_params = ['title', 'project']
