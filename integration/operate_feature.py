@@ -7,6 +7,7 @@ import urllib3
 
 from api import gerrit_rest
 from api import log_api
+from api import file_api
 
 from mod import integration_change
 
@@ -16,16 +17,34 @@ log = log_api.get_console_logger('OPF')
 
 
 class OperateFeature(object):
-    def __init__(self, gerrit_path, info_path):
-        self.rest = gerrit_rest.init_from_yaml(gerrit_path)
+    def __init__(self, info_path, gerrit_path=None):
         self.info = yaml.load(open(info_path, 'r'), Loader=yaml.Loader)
+        if not gerrit_path:
+            try:
+                gerrit_path = self.get_gerrit_path_from_info(info_path)
+            except Exception as e:
+                log.debug(e)
+        self.rest = gerrit_rest.init_from_yaml(gerrit_path)
 
-    def add(self, feature_yaml_path):
+    def get_gerrit_path_from_info(self, info_path):
+        relative_path = self.info.get('gerrit')
+        if not relative_path:
+            raise Exception('No gerrit info in info')
+        folder = file_api.get_file_dir(info_path)
+        if os.path.isabs(relative_path):
+            return relative_path
+        else:
+            return os.path.join(folder, relative_path)
+
+    def add_by_path(self, feature_yaml_path):
+        new_yaml = yaml.load(open(feature_yaml_path, 'r'), Loader=yaml.Loader)
+        self.add(new_yaml)
+
+    def add(self, yaml_obj):
         try:
             project = self.info.get('repo')
             ongoing_file = self.info.get('file').get('ongoing')
-            new_yaml = yaml.load(open(feature_yaml_path, 'r'), Loader=yaml.Loader)
-            feature_id = new_yaml['feature_id']
+            feature_id = yaml_obj['feature_id']
             change_id, ticket_id, rest_id = self.rest.create_ticket(project, "", 'master', 'Adding {}'.format(feature_id))
             open_content = self.rest.get_file_content(ongoing_file, ticket_id)
             if not open_content:
@@ -35,7 +54,7 @@ class OperateFeature(object):
             for feature in open_yaml:
                 if feature_id == feature['feature_id']:
                     raise Exception('Feature id {} exists!'.format(feature_id))
-            open_yaml.append(new_yaml)
+            open_yaml.append(yaml_obj)
             log.debug('Feature {} is about to be added'.format(feature_id))
             open_yaml_string = yaml.dump(open_yaml, Dumper=yaml.RoundTripDumper)
             self.rest.add_file_to_change(ticket_id, ongoing_file, open_yaml_string)
@@ -54,7 +73,7 @@ class OperateFeature(object):
                 except Exception as e:
                     print(e)
 
-    def generate(self, root_change_no, save_path):
+    def generate(self, root_change_no, save_path=None, add=False):
         root_change = integration_change.RootChange(self.rest, root_change_no)
         comp_change_list = root_change.get_all_changes_by_comments()
         comp_set = set()
@@ -78,6 +97,8 @@ class OperateFeature(object):
         if save_path:
             with open(save_path, 'w') as f:
                 f.write(new_yaml)
+        if add:
+            self.add(new_yaml_obj)
 
     def close(self, feature_id):
         try:
