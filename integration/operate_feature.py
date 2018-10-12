@@ -116,6 +116,7 @@ class OperateFeature(object):
             for feature in original_open_yaml:
                 if feature_id == feature['feature_id']:
                     open_yaml.remove(feature)
+                    feature['status'] = 'done'
                     close_yaml.append(feature)
                     log.debug('Feature {} is moved to close'.format(feature_id))
             open_yaml_string = yaml.dump(open_yaml, Dumper=yaml.RoundTripDumper)
@@ -139,7 +140,9 @@ class OperateFeature(object):
 
     def deliver(self, feature_id, component):
         try:
+            find_feature_id = False
             need_close = True
+            need_edit = False
             project = self.info.get('repo')
             ongoing_file = self.info.get('file').get('ongoing')
             change_id, ticket_id, rest_id = self.rest.create_ticket(
@@ -149,13 +152,23 @@ class OperateFeature(object):
             open_yaml = yaml.load(open_content, Loader=yaml.Loader)
             for feature in open_yaml:
                 if feature_id == feature['feature_id']:
+                    find_feature_id = True
                     comps = feature['components']
                     for comp in comps:
                         if comp['name'] == component:
-                            comp['delivered'] = True
-                            log.debug('Comp {} in {} is about to close'.format(component, feature_id))
+                            if comp['delivered']:
+                                log.debug('Comp {} in {} is already closed'.format(component, feature_id))
+                            else:
+                                need_edit = True
+                                comp['delivered'] = True
+                                log.debug('Comp {} in {} is about to close'.format(component, feature_id))
                         if not comp['delivered']:
                             need_close = False
+            if not find_feature_id:
+                log.debug('Feature id {} does not exist'.format(feature_id))
+                return
+            if not need_edit:
+                return
             open_yaml_string = yaml.dump(open_yaml, Dumper=yaml.RoundTripDumper)
             self.rest.add_file_to_change(ticket_id, ongoing_file, open_yaml_string)
             self.rest.publish_edit(ticket_id)
