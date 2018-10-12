@@ -59,6 +59,10 @@ class IntegrationGerritOperation(object):
 
     def clear_change(self, change_id):
         rest = self._rest
+        try:
+            rest.delete_edit(change_id)
+        except Exception:
+            pass
         flist = rest.get_file_list(change_id)
         for file_path in flist:
             file_path = file_path.split('\n', 2)[0]
@@ -68,6 +72,10 @@ class IntegrationGerritOperation(object):
 
     def copy_change(self, from_id, to_id, need_rebase=False):
         rest = self._rest
+        try:
+            rest.delete_edit(to_id)
+        except Exception as e:
+            pass
         rest_id_dst = to_id
         rest_id_src = from_id
         flist = rest.get_file_list(rest_id_src)
@@ -81,12 +89,14 @@ class IntegrationGerritOperation(object):
                 if parents:
                     parent = parents[0].get('commit')
                 if parent:
+                    print('rebase {} to {}'.format(rest_id_dst, parent))
                     rest.rebase(rest_id_dst, parent)
-                    rest.publish_edit()
+                    rest.publish_edit(rest_id_dst)
                 print('rebase done')
             except Exception as e:
                 print('rebase failed')
-                print(e)
+                print('because of {}'.format(e))
+                raise e
         file_content = {}
         for file_path in flist:
             file_path = file_path.split('\n', 2)[0]

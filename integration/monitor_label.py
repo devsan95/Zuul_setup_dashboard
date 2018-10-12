@@ -48,6 +48,7 @@ def _parse_args():
 
 
 def _if_checklist_all_pass(checklist):
+    print('\nCheck if all changes are passed...')
     for item in checklist:
         if not item['status'] and item['attached']:
             print('Change {} does not meet the requirement.'.format(item['ticket']))
@@ -146,7 +147,8 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                 'ticket': item,
                 'status': False,
                 'verified': False,
-                'attached': True
+                'attached': True,
+                'need_backup': False
             }
         )
     print('Starting check if all tickets are done...')
@@ -154,46 +156,63 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
         print('Starting a new checking cycle...')
         try:
             for item in pass_list:
+                print('\nCheck status of [{}]:'.format(item['ticket']))
                 # update attached:
-                commit = rest.get_commit(item['ticket'])
-                message = commit.get('message')
-                message = message.replace('\n', ' ')
-                if 'This change is an isolated change in this integration.' in message:
-                    item['attached'] = False
-                    print('Change {} is a detatched change.'.format(item['ticket']))
-                else:
-                    item['attached'] = True
+                try:
+                    commit = rest.get_commit(item['ticket'])
+                    message = commit.get('message')
+                    message = message.replace('\n', ' ')
+                    if 'This change is an isolated change in this integration.' in message:
+                        item['attached'] = False
+                        print('Change {} is a detatched change.'.format(item['ticket']))
+                    else:
+                        item['attached'] = True
+                except Exception as e:
+                    print('Check Attached status failed.')
+                    print('Because [{}]'.format(e))
+                    traceback.print_exc()
                 # update verified
                 verified_new = _check_ticket_checked(
                     ssh_server, ssh_port, ssh_user, ssh_key, item['ticket'])
+                print('Verified is {}'.format(verified_new))
                 if verified_new != item['verified']:
                     print('Change {} verified status changed!'.format(
                         item['ticket']))
                     if verified_new:
-                        print('Change {} verified became True'.format(
-                            item['ticket']))
-                        if backup_topic and verified_new:
-                            print('Ticket {} OK, begin to backup to topic {}'.format(
-                                item['ticket'], backup_topic))
-                            name, branch, repo, platform = gop.get_info_from_change(
-                                item['ticket'])
-                            backup_id = gop.get_ticket_from_topic(backup_topic, repo,
-                                                                  branch, name)
-                            if not backup_id:
-                                backup_id = gop.create_change_by_topic(
-                                    backup_topic, repo, branch, name)
+                        print('Change {} verified became True, '
+                              'need to backup'.format(item['ticket']))
+                        item['need_backup'] = True
+                if backup_topic and item['need_backup']:
+                    print('Ticket {} begin to backup to topic {}'.format(
+                        item['ticket'], backup_topic))
+                    try:
+                        name, branch, repo, platform = gop.get_info_from_change(
+                            item['ticket'])
+                        backup_id = gop.get_ticket_from_topic(backup_topic, repo,
+                                                              branch, name)
+                        if not backup_id:
+                            backup_id = gop.create_change_by_topic(
+                                backup_topic, repo, branch, name)
+                    except Exception as ex:
+                        print('Backup {} failed.'.format(item['ticket']))
+                        print('Because {}'.format(str(ex)))
+                        traceback.print_exc()
 
-                            if not backup_id:
-                                print('Can not create or find change for '
-                                      '{} {} {}'.format(backup_topic, branch, name))
-                            else:
-                                try:
-                                    gop.clear_change(backup_id)
-                                    gop.copy_change(item['ticket'], backup_id, True)
-                                except Exception as ex:
-                                    print('Can not copy {} to {}'.format(
-                                        item['ticket'], backup_id))
-                                    print('Because {}'.format(str(ex)))
+                    if not backup_id:
+                        print('Can not create or find change for '
+                              '{} {} {}'.format(backup_topic, branch, name))
+                    else:
+                        try:
+                            gop.clear_change(backup_id)
+                            gop.copy_change(item['ticket'], backup_id, True)
+                            item['need_backup'] = False
+                            print('Backup {} complete.'.format(item['ticket']))
+                        except Exception as ex:
+                            print('Backup {} failed.'.format(item['ticket']))
+                            print('Can not copy {} to {}'.format(
+                                item['ticket'], backup_id))
+                            print('Because {}'.format(str(ex)))
+                            traceback.print_exc()
                 # update status
                 item['verified'] = verified_new
                 item['status'] = _check_ticket_ok(ssh_server, ssh_port,

@@ -220,7 +220,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
     file_paths = node_obj['file_path']
 
     if copy_from_id:
-        gop.copy_change(copy_from_id, node_obj['ticket_id'])
+        gop.copy_change(copy_from_id, node_obj['ticket_id'], True)
     else:
         # add files to trigger jobs
         if 'files' in node_obj and node_obj['files']:

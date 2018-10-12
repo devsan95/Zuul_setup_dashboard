@@ -54,20 +54,16 @@ def does_patch_set_match_condition(ssh_user, ssh_server, change_id,
                        'gerrit', 'query',
                        '--format=JSON', '--current-patch-set',
                        'change:{}'.format(change_id), *condition_list)
-    print(json_str)
 
     try:
         json_list = json_str.rstrip('\n').split('\n')
         json_index = json.loads(json_list[-1])
         if int(json_index['rowCount']) < 1:
-            print('Empty results')
             return False
 
         json_dict = json.loads(json_list[0])
         if int(json_dict['number']) != int(change_id):
-            print('{} not match {}'.format(json_dict['number'], change_id))
             return False
-        print('Patch set matches condition.')
         return True
     except Exception as ex:
         print("An exception %s occurred, msg: %s" % (type(ex), str(ex)))
