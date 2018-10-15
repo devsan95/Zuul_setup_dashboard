@@ -49,13 +49,13 @@ class Gitlab_Tools:
         if 'target_branch' in params:
             targe_branch = params['target_branch']
         self.gitlab_client.set_project(project)
-        self.gitlab_client.create_branch(branch, ref=ref)
         mr_list = self.gitlab_client.get_mr({'title': title})
         if mr_list:
             print('MergeRequest Already Exists: %s', mr_list)
             if brk_exists:
                 sys.exit(2)
         else:
+            self.gitlab_client.create_branch(branch, ref=ref)
             mr = self.gitlab_client.create_mr(branch, title, targe_branch)
             print('MergeRequest Created: %s', mr)
 
