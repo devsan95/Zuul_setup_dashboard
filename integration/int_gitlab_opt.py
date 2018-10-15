@@ -28,7 +28,7 @@ def get_int_info(ticket, rest_obj):
     get integration info from ticket
     """
     regex_dict = {
-        'fifi': r'%FIFI=(.*)$',
+        'fifi': r'(%FIFI=.*)$',
         'comp': r'\s+- COMP <(\S+)>'}
     match_dict = {}
     for key, regex_str in regex_dict.items():
