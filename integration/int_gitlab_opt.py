@@ -86,6 +86,7 @@ def _main(ticket, conf_path, action, branch):
         print('Info: start action {}'.format(action))
         getattr(gitlab_obj, action)(params)
         rest_obj.review_ticket(
+            ticket,
             'MR created in {}/{}\n title:{}\n branch:{}\n'.format(
                 comp_repo_srv,
                 project,
