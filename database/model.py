@@ -53,6 +53,40 @@ def get_log_duration_model(table_name):
     return LogDuration
 
 
+def get_gate_statistics_model(table_name='t_gate_statistics'):
+    DynamicBase = declarative_base(class_registry=dict())
+    from sqlalchemy import Column, BIGINT, String, TIMESTAMP, INTEGER
+
+    class TGateStatistic(DynamicBase):
+        __tablename__ = table_name
+
+        id = Column(BIGINT, primary_key=True)
+        changeset = Column(String(50), nullable=False, index=True)
+        queue_item = Column(String(50), nullable=False, index=True)
+        pipeline = Column(String(50), nullable=False)
+        project = Column(String(100))
+        branch = Column(String(100))
+        squad = Column(String(50))
+        tribe = Column(String(50))
+        begin_id = Column(BIGINT)
+        finish_id = Column(BIGINT, index=True)
+        start_time = Column(TIMESTAMP)
+        end_time = Column(TIMESTAMP)
+        window_waiting_time = Column(BIGINT)
+        merge_time = Column(BIGINT)
+        pre_launch_time = Column(BIGINT)
+        first_launch_time = Column(BIGINT)
+        job_running_time = Column(BIGINT)
+        total_duration = Column(BIGINT)
+        reschedule_times = Column(INTEGER)
+        reschedule_total_duration = Column(BIGINT)
+        status = Column(String(50))
+        result = Column(INTEGER)
+        du_name = Column(String(50))
+
+    return TGateStatistic
+
+
 class LogDuration(ModelBase):
     __tablename__ = 'log_duration'
     id = sa.Column(sa.Integer, primary_key=True)

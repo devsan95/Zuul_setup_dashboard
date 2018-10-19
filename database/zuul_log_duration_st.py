@@ -264,7 +264,7 @@ class DbHandler(object):
         self.session.commit()
 
     def rollback(self):
-        self.rollback()
+        self.session.rollback()
 
 
 def main(db_str, db_str_dest='', table_name='', entry_num=5000, run_num=1):
