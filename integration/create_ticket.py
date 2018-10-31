@@ -8,6 +8,7 @@ import shlex
 import sys
 import textwrap
 import traceback
+import urllib
 from datetime import datetime
 
 import git
@@ -763,7 +764,7 @@ def read_from_branch(root_node, input_branch, gerrit_server,
     commit_id = ''
     repo_url = gerrit_server + '/' + root_node['repo']
     url_slices = repo_url.split('://', 1)
-    url_slices[1] = '{}:{}@{}'.format(gerrit_user, gerrit_pwd, url_slices[1])
+    url_slices[1] = '{}:{}@{}'.format(urllib.urlencode(gerrit_user), urllib.urlencode(gerrit_pwd), url_slices[1])
     repo_url = '://'.join(url_slices)
     folder = file_api.TempFolder('env_tmp_')
     repo = git.Repo.clone_from(repo_url, folder.get_directory())
@@ -796,7 +797,7 @@ def read_file_from_branch(
         gerrit_user, gerrit_pwd, file_path):
     repo_url = gerrit_server + '/' + root_node['repo']
     url_slices = repo_url.split('://', 1)
-    url_slices[1] = '{}:{}@{}'.format(gerrit_user, gerrit_pwd, url_slices[1])
+    url_slices[1] = '{}:{}@{}'.format(urllib.urlencode(gerrit_user), urllib.urlencode(gerrit_pwd), url_slices[1])
     repo_url = '://'.join(url_slices)
     folder = file_api.TempFolder('env_tmp_')
     repo = git.Repo.clone_from(repo_url, folder.get_directory())
