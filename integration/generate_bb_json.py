@@ -180,11 +180,19 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
             for stream in streams:
                 components = action['components']
                 for component, param in components.items():
+                    if component_list:
+                        if component not in component_list:
+                            print('[{}] not in comp list'.format(component))
+                            continue
                     result[stream][component] = param
         elif atype == 'remove-component':
             for stream in streams:
                 for component in action['components']:
-                    rp = result[stream][component]
+                    if component_list:
+                        if component not in component_list:
+                            print('[{}] not in comp list'.format(component))
+                            continue
+                    rp = result[stream]
                     rp.pop(component, None)
                     print('delete [{}] from [{}]'.format(
                         component, stream))
