@@ -5,27 +5,28 @@
 For verify the layout file.
 """
 
-import os
-from ruamel import yaml
-import sys
-import re
-import traceback
-import voluptuous
-import time
-import zuul.layoutvalidator as validator
-import argparse
 import ConfigParser
-from copy import deepcopy
-import zuul
-import zuul.lib.connections
-import git
+import argparse
+import collections
+import copy
+import os
+import re
+import sys
+import time
+import traceback
 
+import git
+import voluptuous
+import zuul
+import zuul.layoutvalidator as validator
+import zuul.lib.connections
+from ruamel import yaml
 
 __author__ = "HZ 5G SCM Team"
-__copyright__ = "Copyright 2007, Nokia"
+__copyright__ = "Copyright 2008, Nokia"
 __credits__ = []
 __license__ = "Apache"
-__version__ = "1.0.1"
+__version__ = "1.1.1"
 __maintainer__ = "HZ 5G SCM Team"
 __email__ = "5g_hz.scm@nokia.com"
 __status__ = "Production"
@@ -65,8 +66,45 @@ def get_project_node(project, projects):
     return None
 
 
+def merge_commented_seq(a, b):
+    c = yaml.comments.CommentedSeq()
+    c.ca.comment = [None, None]
+    for item in a:
+        c.append(item)
+    for item in b:
+        c.append(item)
+    idx_m = len(a)
+    if hasattr(a, 'ca'):
+        for k, item in a.ca.items.items():
+            c.ca.items[k] = copy.copy(item)
+        if a.ca.comment:
+            if len(a.ca.comment) > 1 and a.ca.comment[1]:
+                c.ca.comment[1] = a.ca.comment[1]
+            if a.ca.end:
+                if idx_m in c.ca.items:
+                    c.ca.items[idx_m][1] = copy.copy(c.ca.items[idx_m][1])
+                    c.ca.items[idx_m][1].extend(a.ca.end)
+                else:
+                    c.ca.items[idx_m] = [None, a.ca.end, None, None]
+    if hasattr(b, 'ca'):
+        for k, item in b.ca.items.items():
+            c.ca.items[k + idx_m] = copy.copy(item)
+        if b.ca.comment:
+            if len(b.ca.comment) > 1 and b.ca.comment[1]:
+                if idx_m not in c.ca.items:
+                    c.ca.items[idx_m] = [None, [], None, None]
+                if not isinstance(c.ca.items[idx_m][1], collections.Iterable):
+                    c.ca.items[idx_m][1] = [c.ca.items[idx_m][1]]
+                c.ca.items[idx_m][1] = copy.copy(c.ca.items[idx_m][1])
+                c.ca.items[idx_m][1].extend(b.ca.comment[1])
+
+            if b.ca.end:
+                c.ca._end = b.ca.end
+    return c
+
+
 def merge_layout(base_dict, merge_dict):
-    ret_dict = deepcopy(base_dict)
+    ret_dict = copy.copy(base_dict)
     for k, v in merge_dict.iteritems():
         if k in ret_dict:
             require_one_repo_process = False
@@ -76,32 +114,25 @@ def merge_layout(base_dict, merge_dict):
                     require_one_repo_process = True
 
             if require_one_repo_process:
-                to_merge = deepcopy(merge_dict[k])
-                to_ret = deepcopy(ret_dict[k])
+                to_merge = copy.copy(merge_dict[k])
+                to_ret = copy.copy(ret_dict[k])
                 to_merge_node = get_project_node(one_repo_name, to_merge)
                 to_ret_node = get_project_node(one_repo_name, to_ret)
-                ret_one_repo_node = deepcopy(to_ret_node)
+                ret_one_repo_node = copy.copy(to_ret_node)
                 for key in ret_one_repo_node:
                     if key != 'name':
                         if key in to_merge_node:
-                            ret_one_repo_node[key] = \
-                                yaml.round_trip_load(
-                                    yaml.round_trip_dump(
-                                        ret_one_repo_node[key]) +
-                                    yaml.round_trip_dump(to_merge_node[key]),
-                                    version='1.1')
+                            ret_one_repo_node[key] = merge_commented_seq(ret_one_repo_node[key], to_merge_node[key])
+                            # ret_one_repo_node[key] = ret_one_repo_node[key] + to_merge_node[key]
                 for key in to_merge_node:
                     if key not in ret_one_repo_node:
-                        ret_one_repo_node[key] = deepcopy(to_merge_node[key])
+                        ret_one_repo_node[key] = copy.copy(to_merge_node[key])
                 to_ret.remove(to_ret_node)
                 to_merge.remove(to_merge_node)
-                ret_dict[k] = to_ret + to_merge
+                ret_dict[k] = merge_commented_seq(to_ret, to_merge)
                 ret_dict[k].append(ret_one_repo_node)
             else:
-                yaml1 = yaml.round_trip_dump(ret_dict[k])
-                yaml2 = yaml.round_trip_dump(merge_dict[k])
-                ret_dict[k] = yaml.round_trip_load(
-                    yaml1 + '\n' + yaml2, version='1.1')
+                ret_dict[k] = merge_commented_seq(ret_dict[k], merge_dict[k])
         else:
             ret_dict[k] = merge_dict[k]
     return ret_dict
@@ -281,9 +312,19 @@ def check_layout_d_consistency(snippet_list):
 
 
 def check_one_repo_availability(snippet_list):
+    print('Checking One repo job unique:')
     check_one_repo_job_unique(snippet_list)
+
+    print('Checking One repo job filtered:')
     for snippet in snippet_list:
         check_one_repo_job_filtered(snippet)
+    regex_ok = True
+
+    print('Checking regex availability:')
+    for snippet in snippet_list:
+        regex_ok = regex_ok and check_regex_availability(snippet)
+    if not regex_ok:
+        raise Exception('Regex Error Occurred!')
 
 
 def check_one_repo_job_filtered(snippet):
@@ -303,6 +344,28 @@ def check_one_repo_job_filtered(snippet):
                 raise Exception('Job [{}] of [{}] of [{}] is not filtered '
                                 'in jobs section.'.format(
                                     job, one_repo_name, snippet.path))
+
+
+def check_regex_availability(tree, path=None):
+    ret = True
+    if isinstance(tree, LayoutSnippet):
+        path = tree.path
+        tree = tree.obj
+
+    if isinstance(tree, basestring):
+        if tree.startswith('^'):
+            try:
+                re.compile(tree)
+            except re.error as e:
+                print('Regex [{}] in [{}] is invalid, because {}'.format(tree, path, e))
+                ret = False
+    elif isinstance(tree, collections.Mapping):
+        for k, v in tree.items():
+            ret = ret and check_regex_availability(v, path)
+    elif isinstance(tree, collections.Iterable):
+        for item in tree:
+            ret = ret and check_regex_availability(item, path)
+    return ret
 
 
 def check_one_repo_job_unique(snippet_list):
@@ -399,7 +462,7 @@ class LayoutGroup(object):
                                  self._yaml['layout'].obj, snippet.obj))
 
     def combine(self, output_path=None):
-        ret_dct = deepcopy(self._yaml['layout'].obj)
+        ret_dct = copy.copy(self._yaml['layout'].obj)
         for item in self._yaml['layout.d']:
             if not item.obj:
                 continue
@@ -420,7 +483,7 @@ class LayoutGroup(object):
 
     def combine_with_validation(self, output_path=None, connections=None):
         #  verify_layout_with_zuul(self._yaml['layout'])
-        check_list = deepcopy(self._yaml['layout.d'])
+        check_list = self._yaml['layout.d'][:]
         m_layout = self._yaml['layout'].obj
         if ('jobs' in m_layout and m_layout['jobs']) or \
            ('projects' in m_layout and m_layout['projects']):
@@ -497,15 +560,17 @@ def _main():
     op = args['operation']
 
     if op == 'verify':
-        verify_layout_with_zuul(LayoutSnippet(
+        check_snip = LayoutSnippet(
             path=inpath,
             obj=yaml.round_trip_load(open(inpath), version='1.1')
-        ), connections)
+        )
+        verify_layout_with_zuul(check_snip, connections)
     elif op == 'merge':
         group.combine_with_validation(outpath, connections)
     elif op == 'check':
         check_snip = LayoutSnippet(path=insnip, obj=yaml.round_trip_load(
             open(insnip), version='1.1'))
+        print('Checking layout consistency:')
         check_layout_d_consistency([check_snip])
         check_one_repo_availability([check_snip])
         verify_layout_with_zuul(group.combine_one(check_snip), connections)
