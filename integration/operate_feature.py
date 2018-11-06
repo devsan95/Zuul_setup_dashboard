@@ -113,24 +113,30 @@ class OperateFeature(object):
             if not close_yaml:
                 close_yaml = []
             original_open_yaml = open_yaml[:]
+            edited = False
             for feature in original_open_yaml:
                 if feature_id == feature['feature_id']:
+                    if feature['status'] != 'ready':
+                        log.debug('feature {} is not ready, cannot be closed'.format(feature_id))
+                        continue
+                    edited = True
                     open_yaml.remove(feature)
                     feature['status'] = 'done'
                     close_yaml.append(feature)
                     log.debug('Feature {} is moved to close'.format(feature_id))
-            open_yaml_string = yaml.dump(open_yaml, Dumper=yaml.RoundTripDumper)
-            close_yaml_string = yaml.dump(close_yaml, Dumper=yaml.RoundTripDumper)
-            self.rest.add_file_to_change(ticket_id, ongoing_file, open_yaml_string)
-            self.rest.add_file_to_change(ticket_id, closed_file, close_yaml_string)
-            self.rest.publish_edit(ticket_id)
-            self.rest.review_ticket(ticket_id, 'merge',
-                                    {'Verified': 1,
-                                     'Code-Review': 2,
-                                     'Gatekeeper': 1})
-            self.rest.submit_change(ticket_id)
-            print(self.rest.get_change_address(ticket_id))
-            ticket_id = None
+            if edited:
+                open_yaml_string = yaml.dump(open_yaml, Dumper=yaml.RoundTripDumper)
+                close_yaml_string = yaml.dump(close_yaml, Dumper=yaml.RoundTripDumper)
+                self.rest.add_file_to_change(ticket_id, ongoing_file, open_yaml_string)
+                self.rest.add_file_to_change(ticket_id, closed_file, close_yaml_string)
+                self.rest.publish_edit(ticket_id)
+                self.rest.review_ticket(ticket_id, 'merge',
+                                        {'Verified': 1,
+                                         'Code-Review': 2,
+                                         'Gatekeeper': 1})
+                self.rest.submit_change(ticket_id)
+                print(self.rest.get_change_address(ticket_id))
+                ticket_id = None
         finally:
             if ticket_id:
                 try:
@@ -164,6 +170,8 @@ class OperateFeature(object):
                                 log.debug('Comp {} in {} is about to close'.format(component, feature_id))
                         if not comp['delivered']:
                             need_close = False
+                    if need_close:
+                        feature['status'] = 'ready'
             if not find_feature_id:
                 log.debug('Feature id {} does not exist'.format(feature_id))
                 return
@@ -178,8 +186,6 @@ class OperateFeature(object):
                                      'Gatekeeper': 1})
             self.rest.submit_change(ticket_id)
             print(self.rest.get_change_address(ticket_id))
-            if need_close:
-                self.close(feature_id)
             ticket_id = None
         finally:
             if ticket_id:
