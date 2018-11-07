@@ -107,3 +107,70 @@ class LogDuration(ModelBase):
     change_item = sa.Column(sa.String(50), index=True)
     queue_item = sa.Column(sa.String(50), index=True)
     result = sa.Column(TINYINT, index=True)
+
+
+def get_reschedule_statistics_model(table_name='t_reschedule_statistics'):
+    DynamicBase = declarative_base(class_registry=dict())
+    from sqlalchemy import Column, BIGINT, String, TIMESTAMP
+
+    class TRescheduleStatistic(DynamicBase):
+        __tablename__ = table_name
+
+        id = Column(BIGINT, primary_key=True)
+        change = sa.Column(sa.Integer, index=True)
+        patchset = sa.Column(sa.Integer, index=True)
+        queue_item = Column(String(50), nullable=False, index=True)
+        pipeline = Column(String(50), nullable=False)
+        project = Column(String(100))
+        branch = Column(String(100))
+        begin_id = Column(BIGINT)
+        finish_id = Column(BIGINT, index=True)
+        item_finish_id = Column(BIGINT, index=True)
+        start_time = Column(TIMESTAMP)
+        end_time = Column(TIMESTAMP)
+        duration = Column(BIGINT)
+        status = Column(String(50))
+        c_change = sa.Column(sa.Integer, index=True)
+        c_patchset = sa.Column(sa.Integer, index=True)
+        c_queue_item = Column(String(50), nullable=True, index=True)
+        c_project = Column(String(100))
+        c_branch = Column(String(100))
+        c_status = Column(String(50))
+        c_job = Column(String(255))
+        c_job_status = Column(String(255))
+        c_end_time = Column(TIMESTAMP)
+        c_finish_id = Column(BIGINT, index=True)
+
+    return TRescheduleStatistic
+
+
+class ZuulBuild(ModelBase):
+    __tablename__ = 'zuul_build'
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    buildset_id = sa.Column(sa.Integer, nullable=True)
+    uuid = sa.Column(sa.String(36), nullable=True)
+    job_name = sa.Column(sa.String(255), nullable=True)
+    result = sa.Column(sa.String(255), nullable=True)
+    start_time = sa.Column(sa.DateTime, nullable=True)
+    end_time = sa.Column(sa.DateTime, nullable=True)
+    voting = sa.Column(TINYINT, nullable=True)
+    log_url = sa.Column(sa.Text, nullable=True)
+    node_name = sa.Column(sa.String(255), nullable=True)
+    datetime = sa.Column(sa.DateTime, nullable=True)
+    queue_item = sa.Column(sa.String(255), nullable=True)
+
+
+class ZuulBuildset(ModelBase):
+    __tablename__ = 'zuul_buildset'
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    zuul_ref = sa.Column(sa.String(255), nullable=True)
+    pipeline = sa.Column(sa.String(255), nullable=True)
+    project = sa.Column(sa.String(255), nullable=True)
+    change = sa.Column(sa.String(255), nullable=True)
+    patchset = sa.Column(sa.String(255), nullable=True)
+    ref = sa.Column(sa.String(255), nullable=True)
+    score = sa.Column(sa.String(255), nullable=True)
+    message = sa.Column(sa.String(255), nullable=True)
+    datetime = sa.Column(sa.String(255), nullable=True)

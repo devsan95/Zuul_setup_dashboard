@@ -73,6 +73,9 @@ def main(db_str, gerrit_conf, table_name='t_gate_statistics', entry_num=5000, ru
                         item.project = info['project']
                     except Exception as e:
                         log.debug(e)
+                        if 'Status code is [404]' in str(e):
+                            item.branch = 'NOT_FOUND'
+                            item.project = 'NOT_FOUND'
                         traceback.print_exc()
                 log.debug('')
                 log.debug('Committing...')
