@@ -56,7 +56,7 @@ class FileWatcher(object):
     def __del__(self):
         self.close()
 
-    def loop(self, interval=0.1, async=False):
+    def loop(self, interval=0.1, async_=False):
         """Start the loop.
         If async is True make one loop then return.
         """
@@ -64,7 +64,7 @@ class FileWatcher(object):
             self.update_file()
             for fid, file_path in list(self.files_map.iteritems()):
                 self.readfile(file_path)
-            if async:
+            if async_:
                 return
             time.sleep(interval)
 

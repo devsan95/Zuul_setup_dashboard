@@ -23,7 +23,7 @@ def traverse(path):
                     file_path = os.path.join(tmp_path, file)
                     yaml_list.append(file_path)
         elif os.path.isfile(tmp_path):
-            if re.match(".*\.yaml$", f):
+            if re.match(r".*\.yaml$", f):
                 yaml_list.append(tmp_path)
     if yaml_list:
         return yaml_list

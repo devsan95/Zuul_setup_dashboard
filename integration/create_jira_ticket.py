@@ -26,7 +26,7 @@ def run(info_index, jira_url=None, user=None, pwd=None):
                         auth=requests.auth.HTTPBasicAuth(user, pwd))
 
     if not res.ok:
-        raise Exception('Cannot create ticket')
+        raise Exception('Cannot create ticket, reason: {} {}'.format(res.status_code, res.reason))
 
     res_data = json.loads(res.content)
     ticket_key = res_data['key']

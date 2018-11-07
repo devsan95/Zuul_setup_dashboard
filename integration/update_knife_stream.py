@@ -13,7 +13,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def get_platform(change_number, rest, commit_message):
     platform = ""
-    m = re.search("Platform ID: \<([^\>]*)\>", commit_message)
+    m = re.search(r"Platform ID: \<([^\>]*)\>", commit_message)
     platform = m.group(1)
     print("[Info] Platform is {}".format(platform))
     return platform

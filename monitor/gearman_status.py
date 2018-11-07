@@ -31,7 +31,7 @@ class GearmanStatus(object):
         worker_obj = {}
         type_dict = {
             'exec': [
-                '^([0-9]+)\s+([0-9,.]+)\s+(\S+)_exec-[0-9]+ :\s+(build:.*)',
+                r'^([0-9]+)\s+([0-9,.]+)\s+(\S+)_exec-[0-9]+ :\s+(build:.*)',
                 {
                     'host': 2,
                     'jobs': 4

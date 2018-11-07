@@ -581,6 +581,7 @@ class IntegrationChangesCreation(object):
                     self.meta["jira_key"] = jira_key
                 except Exception as ex:
                     print('Exception occured while create jira ticket, {}'.format(str(ex)))
+                    raise ex
 
         # handle feature id
         if feature_id:
