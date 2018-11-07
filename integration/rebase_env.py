@@ -201,7 +201,7 @@ def run(gerrit_info_path, change_no,
             jira_op = jira_api.JIRAPI("autobuild_c_ou", "a4112fc4")
             jira_op.replace_issue_title(jira_ticket, old_str, new_str)
         except Exception as e:
-            print(e)
+            print('Jira update error')
 
         for key, value in change_map.items():
             rest.add_file_to_change(change_no, key, value)
