@@ -9,10 +9,15 @@ A module to do gerrit rest operation.
 """
 
 import json
+import threading
 from urlparse import urljoin
 
 import requests
 import yaml
+
+import extra_api
+
+cachetools = extra_api.try_import('cachetools')
 
 
 def init_from_yaml(path):
@@ -38,6 +43,9 @@ class GerritRestClient:
         self.auth = requests.auth.HTTPDigestAuth
         self.session = requests.Session()
         self.session.verify = False
+        self.cache_lock = threading.RLock()
+        with self.cache_lock:
+            self.cache = None
 
     def change_to_digest_auth(self):
         self.auth = requests.auth.HTTPDigestAuth
@@ -62,6 +70,24 @@ class GerritRestClient:
             url_ = urljoin(self.server_url, path_)
             return url_
 
+    def init_cache(self, size=200):
+        with self.cache_lock:
+            if cachetools:
+                if size > 0:
+                    self.cache = cachetools.LRUCache(size)
+            else:
+                self.cache = dict()
+
+    def get_from_cache(self, key_list):
+        key = ','.join([str(x) for x in key_list])
+        with self.cache_lock:
+            return self.cache.get(key)
+
+    def set_cache(self, key_list, value):
+        key = ','.join([str(x) for x in key_list])
+        with self.cache_lock:
+            self.cache[key] = value
+
     @staticmethod
     def parse_rest_response(response):
         content = response.content
@@ -72,7 +98,11 @@ class GerritRestClient:
         url = urljoin(self.server_url, '#/c/{}/'.format(change_no))
         return url
 
-    def generic_get(self, urlpath):
+    def generic_get(self, urlpath, using_cache=False):
+        if using_cache:
+            result = self.get_from_cache(['generic_get', urlpath])
+            if result:
+                return result
         auth = self.get_auth()
         url = self.get_rest_url(urlpath)
         changes = self.session.get(url, auth=auth)
@@ -84,6 +114,8 @@ class GerritRestClient:
                     urlpath, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
+        if using_cache:
+            self.set_cache(['generic_get', urlpath], result)
         return result
 
     def add_file_to_change(self, rest_id, file_path, content=''):
@@ -214,7 +246,11 @@ class GerritRestClient:
         result = self.parse_rest_response(changes)
         return result
 
-    def get_ticket(self, ticket_id, fields=None):
+    def get_ticket(self, ticket_id, fields=None, using_cache=False):
+        if using_cache:
+            result = self.get_from_cache(['get_ticket', ticket_id, fields])
+            if result:
+                return result
         auth = self.get_auth()
         get_param = {}
         if fields:
@@ -230,6 +266,8 @@ class GerritRestClient:
                     ticket_id, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
+        if using_cache:
+            self.set_cache(['get_ticket', ticket_id, fields], result)
         return result
 
     def get_detailed_ticket(self, ticket_id):
@@ -247,7 +285,11 @@ class GerritRestClient:
         ticket = self.parse_rest_response(ticket)
         return ticket
 
-    def get_change(self, rest_id):
+    def get_change(self, rest_id, using_cache=False):
+        if using_cache:
+            result = self.get_from_cache(['get_change', rest_id])
+            if result:
+                return result
         auth = self.get_auth()
         url = 'changes/{}'.format(rest_id)
         changes = self.session.get(self.get_rest_url(url), auth=auth)
@@ -259,9 +301,15 @@ class GerritRestClient:
                     rest_id, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
+        if using_cache:
+            self.set_cache(['get_change', rest_id], result)
         return result
 
-    def get_commit(self, rest_id, revision_id='current'):
+    def get_commit(self, rest_id, revision_id='current', using_cache=False):
+        if using_cache:
+            result = self.get_from_cache(['get_commit', rest_id, revision_id])
+            if result:
+                return result
         auth = self.get_auth()
         url = 'changes/{}/revisions/{}/commit'.format(
             rest_id, revision_id)
@@ -275,6 +323,8 @@ class GerritRestClient:
                     changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
+        if using_cache:
+            self.set_cache(['get_commit', rest_id, revision_id], result)
         return result
 
     def generate_http_password(self, account_id):
@@ -288,7 +338,11 @@ class GerritRestClient:
                 'Status code is [{}], content is [{}]'.format(
                     account_id, ret.status_code, ret.content))
 
-    def get_file_list(self, rest_id, revision_id='current'):
+    def get_file_list(self, rest_id, revision_id='current', using_cache=False):
+        if using_cache:
+            result = self.get_from_cache(['get_file_list', rest_id, revision_id])
+            if result:
+                return result
         auth = self.get_auth()
         url = 'changes/{}/revisions/{}/files/'.format(
             rest_id, revision_id)
@@ -302,9 +356,15 @@ class GerritRestClient:
                     changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
+        if using_cache:
+            self.set_cache(['get_file_list', rest_id, revision_id], result)
         return result
 
-    def get_file_change(self, file_path, rest_id, revision_id='current'):
+    def get_file_change(self, file_path, rest_id, revision_id='current', using_cache=False):
+        if using_cache:
+            result = self.get_from_cache(['get_file_change', file_path, rest_id, revision_id])
+            if result:
+                return result
         auth = self.get_auth()
         url = 'changes/{}/revisions/{}/files/{}/diff'.format(
             rest_id, revision_id,
@@ -344,6 +404,8 @@ class GerritRestClient:
                     ret_dict['new_diff'] += '\n'.join(content)
 
                     ret_dict['new_diff'] += '\n'
+        if using_cache:
+            self.set_cache(['get_file_change', file_path, rest_id, revision_id], ret_dict)
         return ret_dict
 
     def get_file_content(self, file_path, rest_id, revision_id='current'):
@@ -447,7 +509,11 @@ class GerritRestClient:
                 'Status code is [{}], content is [{}]'.format(
                     rest_id, ret.status_code, ret.content))
 
-    def list_branches(self, project_name):
+    def list_branches(self, project_name, using_cache=False):
+        if using_cache:
+            result = self.get_from_cache(['list_branches', project_name])
+            if result:
+                return result
         auth = self.get_auth()
         url = 'projects/{}/branches/'.format(
             requests.utils.quote(project_name, safe=''))
@@ -460,6 +526,8 @@ class GerritRestClient:
                     project_name, ret.status_code, ret.content))
 
         result = self.parse_rest_response(ret)
+        if using_cache:
+            self.set_cache(['list_branches', project_name], result)
         return result
 
     def create_branch(self, project_name, branch_name, base='HEAD'):

@@ -29,8 +29,8 @@ def strip_begin(text, prefix):
     return text[len(prefix):]
 
 
-def is_adpated(rest, change_no):
-    fl = rest.get_file_list(change_no)
+def is_adapted(rest, change_no):
+    fl = rest.get_file_list(change_no, using_cache=True)
     for fn in fl:
         fn = fn.split('\n', 2)[0]
         if fn == '/COMMIT_MSG':
@@ -41,11 +41,31 @@ def is_adpated(rest, change_no):
     return False
 
 
+def parse_config(rest, change_no):
+    retd = {'linked-projects': set()}
+    comment_list = rest.generic_get('/changes/{}/detail'.format(change_no), using_cache=True)
+    for msg in comment_list['messages']:
+        msg_str = msg['message']
+        if 'update_knife_json_config:' in msg_str:
+            update_yaml = msg_str[msg_str.find('update_knife_json_config:'):]
+            try:
+                parse_config_yaml(update_yaml, retd)
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                continue
+    print('Config parse result:')
+    print(retd)
+    return retd
+
+
 def parse_ric_list(rest, subject, zuul_url,
-                   zuul_ref, project_branch):
+                   zuul_ref, project_branch, config):
     ret_dict = {}
     external_dict = {}
+    link_result = {}
     lines = subject.split('\n')
+    ric = []
     r = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>( <(\d*)>)?( <t:([^<>]*)>)?')
     for line in lines:
         m = r.match(line)
@@ -55,33 +75,45 @@ def parse_ric_list(rest, subject, zuul_url,
             change_no = m.group(4)
             need_change = True
             type_ = m.group(6)
-            if type_ != 'integration':
-                print('{} is {}'.format(change_no, type_))
+            change = rest.get_change(change_no, using_cache=True)
+            project = change['project']
+            ric.append([key, value, change_no, need_change, type_, change, project])
+            # project is linked
+            if project in config['linked-projects']:
+                if project not in link_result:
+                    link_result[project] = is_adapted(rest, change_no)
+                else:
+                    link_result[project] = (link_result[project] or is_adapted(rest, change_no))
+    for item in ric:
+        key, value, change_no, need_change, type_, change, project = item
+        if type_ != 'integration':
+            print('{} is {}'.format(change_no, type_))
+            if change_no:
+                if change_no in external_dict:
+                    external_dict[change_no].append(key)
+                else:
+                    external_dict[change_no] = [key]
+        if type_ != 'external':
+            if change_no:
+                need_change = is_adapted(rest, change_no)
+                print('Change {} is Adapted: {}'.format(change_no, need_change))
+                if link_result.get(project):
+                    print('{} project is adapted for one component'.format(project))
+                    need_change = True
+            if need_change:
+                ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
+                                 'repo_ver': zuul_ref}
                 if change_no:
-                    if change_no in external_dict:
-                        external_dict[change_no].append(key)
+                    if project in project_branch:
+                        branch = project_branch[project]
+                        ret_dict[key]['repo_ver'] = \
+                            form_zuul_ref(zuul_ref, branch)
                     else:
-                        external_dict[change_no] = [key]
-            if type_ != 'external':
-                if change_no:
-                    need_change = is_adpated(rest, change_no)
-                    print('Change {} is Adapted: {}'.format(change_no, need_change))
-                if need_change:
-                    ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
-                                     'repo_ver': zuul_ref}
-                    if change_no:
-                        change = rest.get_change(change_no)
-                        project = change['project']
-                        if project in project_branch:
-                            branch = project_branch[project]
-                            ret_dict[key]['repo_ver'] = \
-                                form_zuul_ref(zuul_ref, branch)
-                        else:
-                            print('project {} not in zuul_changes'.format(project))
-                    if ret_dict[key]['repo_url'].startswith('http:'):
-                        ret_dict[key]['repo_url'] = \
-                            ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
-                        ret_dict[key]['protocol'] = 'http'
+                        print('project {} not in zuul_changes'.format(project))
+                if ret_dict[key]['repo_url'].startswith('http:'):
+                    ret_dict[key]['repo_url'] = \
+                        ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
+                    ret_dict[key]['protocol'] = 'http'
     return ret_dict, external_dict
 
 
@@ -107,7 +139,7 @@ def get_env_commit(msg, rest):
 
     repo = submodule_handle.get_temp_repo_info_from_commit_message(msg)
     if 'MN/5G/COMMON/env' in repo:
-        branches = rest.list_branches('MN/5G/COMMON/env')
+        branches = rest.list_branches('MN/5G/COMMON/env', using_cache=True)
         for branch in branches:
             branch['ref'] = strip_begin(branch['ref'], 'refs/heads/')
 
@@ -121,7 +153,7 @@ def get_env_commit(msg, rest):
 
 def parse_comments(change_id, rest):
     retd = {}
-    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
+    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
     for msg in comment_list['messages']:
         msg_str = msg['message']
         if 'update_knife_json:' in msg_str:
@@ -145,7 +177,7 @@ def parse_ex_comments(ex_dict, rest):
     print(ex_dict)
     retd = {}
     for change_id, comp_list in ex_dict.items():
-        comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
+        comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
         for msg in comment_list['messages']:
             msg_str = msg['message']
             if 'update_knife_json:' in msg_str:
@@ -163,6 +195,28 @@ def parse_ex_comments(ex_dict, rest):
     print('Other change parse result:')
     print(retd)
     return retd
+
+
+def parse_config_yaml(yaml_str, result):
+    yaml_obj = yaml.load(yaml_str, Loader=yaml.Loader)
+    action_list = yaml_obj['update_knife_json_config']
+    for action in action_list:
+        atype = action['type']
+        if atype == 'add-linked-projects':
+            projects = action['projects']
+            if 'linked-projects' not in result:
+                result['linked-projects'] = set()
+            for project in projects:
+                result['linked-projects'].add(project)
+        elif atype == 'remove-linked-projects':
+            projects = action['projects']
+            if 'linked-projects' not in result:
+                result['linked-projects'] = set()
+            for project in projects:
+                if project in result['linked-projects']:
+                    result['linked-projects'].remove(project)
+        else:
+            raise Exception('Unsupported type {}'.format(atype))
 
 
 def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_list=None):
@@ -199,7 +253,7 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
         elif atype == 'component-from-property':
             if not rest or not change_no:
                 raise Exception('No gerrit rest or change no')
-            diff = rest.get_file_change(action['file_name'], change_no).get('new_diff')
+            diff = rest.get_file_change(action['file_name'], change_no, using_cache=True).get('new_diff')
             key_value = {}
             for line in diff.split('\n'):
                 line_snip = line.split('=', 2)
@@ -209,6 +263,9 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
                 if key in key_value:
                     value = key_value[key]
                     component = param['target_name']
+                    if component not in component_list:
+                        print('[{}] not in comp list'.format(component))
+                        continue
                     cparam = {}
                     for k, v in param['target_params'].items():
                         cparam[k] = v.format(key=key, value=value)
@@ -271,7 +328,7 @@ def parse_update_bb(line, result, component_list=None):
 def parse_comments_base(change_id, rest):
     retd = {}
     r = re.compile(r'update_base:(.*),(.*)')
-    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
+    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
     for msg in comment_list['messages']:
         for line in msg['message'].split('\n'):
             m = r.match(line)
@@ -340,6 +397,7 @@ def combine_knife_json(json_list):
 def run(zuul_url, zuul_ref, output_path, change_id,
         gerrit_info_path, zuul_changes):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
+    rest.init_cache(1000)
     project_branch = parse_zuul_changes(zuul_changes)
 
     rest_id = ''
@@ -347,7 +405,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     while True:
         try:
-            data = rest.get_ticket(change_id)
+            data = rest.get_ticket(change_id, using_cache=True)
         except Exception as e:
             print(str(e))
             time.sleep(10)
@@ -358,7 +416,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     while True:
         try:
-            data = rest.get_commit(rest_id)
+            data = rest.get_commit(rest_id, using_cache=True)
         except Exception as e:
             print(str(e))
             time.sleep(10)
@@ -371,9 +429,13 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     base_path = os.path.join(output_path, 'base.json')
     reviews_path = os.path.join(output_path, 'reviewers.json')
 
+    # config
+    knife_config = parse_config(rest, change_id)
+
     # knife json
     ric_dict, ex_dict = parse_ric_list(
-        rest, description, zuul_url, zuul_ref, project_branch)
+        rest, description, zuul_url, zuul_ref, project_branch,
+        knife_config)
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
     comment_dict = parse_comments(change_id, rest)

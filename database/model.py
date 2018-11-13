@@ -77,6 +77,7 @@ def get_gate_statistics_model(table_name='t_gate_statistics'):
         pre_launch_time = Column(BIGINT)
         first_launch_time = Column(BIGINT)
         job_running_time = Column(BIGINT)
+        dequeue_duration = Column(BIGINT)
         total_duration = Column(BIGINT)
         reschedule_times = Column(INTEGER)
         reschedule_total_duration = Column(BIGINT)

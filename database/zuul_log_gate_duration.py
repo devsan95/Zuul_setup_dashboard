@@ -166,6 +166,8 @@ class DbHandler(object):
                     reschedule_times += 1
 
             if item['type'] in ['cancel job']:
+                merge_time = None
+                merged_time = None
                 this_start_time = item['datetime']
 
             # removeItem
@@ -202,12 +204,15 @@ class DbHandler(object):
         pre_launch_duration = 0
         first_launch_duration = 0
         job_running_duration = 0
+        dequeue_duration = 0
         total_duration = 0
         reschedule_total_time = 0
 
         if start_time:
             if waiting_for_window_time:
                 reschedule_total_time = (this_start_time - waiting_for_window_time).total_seconds() * 1000
+                if merge_time:
+                    reschedule_total_time = (merge_time - waiting_for_window_time).total_seconds() * 1000
                 if reschedule_total_time < 0:
                     reschedule_total_time = 0
                 if reschedule_total_time > 0 and reschedule_times < 1:
@@ -222,7 +227,10 @@ class DbHandler(object):
                         if launched_job_time:
                             first_launch_duration = (launched_job_time - launch_job_time).total_seconds() * 1000
                             if complete_job_time:
+                                if complete_job_time > finish_time:
+                                    complete_job_time = finish_time
                                 job_running_duration = (complete_job_time - launched_job_time).total_seconds() * 1000
+                                dequeue_duration = (finish_time - complete_job_time).total_seconds() * 1000
         total_duration = (finish_time - start_time).total_seconds() * 1000
         obj = self.GateStatistics(
             changeset=changeset,
@@ -237,6 +245,7 @@ class DbHandler(object):
             pre_launch_time=pre_launch_duration,
             first_launch_time=first_launch_duration,
             job_running_time=job_running_duration,
+            dequeue_duration=dequeue_duration,
             total_duration=total_duration,
             reschedule_times=reschedule_times,
             reschedule_total_duration=reschedule_total_time,
