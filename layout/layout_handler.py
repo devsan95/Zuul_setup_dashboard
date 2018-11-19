@@ -181,7 +181,7 @@ def check_layout_d_duplication(snippet_list, section='projects'):
         raise Exception(ex_str)
 
 
-def list_job_in_projects(projects_section):
+def list_job_in_projects(projects_section, pipelines):
     ret_list = []
 
     def _scan_jobs_recursive(joblist, retlist):
@@ -196,13 +196,13 @@ def list_job_in_projects(projects_section):
     for item in projects_section:
         if isinstance(item, yaml.comments.CommentedMap):
             for k, v in list(item.items()):
-                if isinstance(v, yaml.comments.CommentedSeq):
+                if isinstance(v, yaml.comments.CommentedSeq) and k in pipelines:
                     _scan_jobs_recursive(v, ret_list)
 
     return list(set(ret_list))
 
 
-def list_job_in_one_repo_by_pipeline(projects_section):
+def list_job_in_one_repo_by_pipeline(projects_section, pipelines):
     ret_list = {}
 
     def _scan_jobs_recursive(pipeline, joblist, ret_list):
@@ -223,7 +223,7 @@ def list_job_in_one_repo_by_pipeline(projects_section):
             if item['name'] != one_repo_name:
                 continue
             for k, v in list(item.items()):
-                if isinstance(v, yaml.comments.CommentedSeq):
+                if isinstance(v, yaml.comments.CommentedSeq) and k in pipelines:
                     _scan_jobs_recursive(k, v, ret_list)
 
     for k in ret_list:
@@ -232,7 +232,7 @@ def list_job_in_one_repo_by_pipeline(projects_section):
     return ret_list
 
 
-def check_layout_d_consistency(snippet_list):
+def check_layout_d_consistency(snippet_list, pipelines):
     new_list = []
     for snippet in snippet_list:
         if not snippet.obj:
@@ -248,7 +248,7 @@ def check_layout_d_consistency(snippet_list):
                 'File [{}] does not contain `projects` section, '
                 'which is not permitted.'.format(snippet.get_identity()))
 
-        list_project = list_job_in_projects(snippet.obj['projects'])
+        list_project = list_job_in_projects(snippet.obj['projects'], pipelines)
         new_list.append({'path': snippet.path,
                          'obj': snippet.obj,
                          'job_list': list_job,
@@ -311,13 +311,13 @@ def check_layout_d_consistency(snippet_list):
             raise Exception(ex_str)
 
 
-def check_one_repo_availability(snippet_list):
+def check_one_repo_availability(snippet_list, pipelines):
     print('Checking One repo job unique:')
-    check_one_repo_job_unique(snippet_list)
+    check_one_repo_job_unique(snippet_list, pipelines)
 
     print('Checking One repo job filtered:')
     for snippet in snippet_list:
-        check_one_repo_job_filtered(snippet)
+        check_one_repo_job_filtered(snippet, pipelines)
     regex_ok = True
 
     print('Checking regex availability:')
@@ -327,8 +327,8 @@ def check_one_repo_availability(snippet_list):
         raise Exception('Regex Error Occurred!')
 
 
-def check_one_repo_job_filtered(snippet):
-    ret_dict = list_job_in_one_repo_by_pipeline(snippet.obj['projects'])
+def check_one_repo_job_filtered(snippet, pipelines):
+    ret_dict = list_job_in_one_repo_by_pipeline(snippet.obj['projects'], pipelines)
     for pipeline in ret_dict:
         for job in ret_dict[pipeline]:
             job_filtered = False
@@ -368,11 +368,11 @@ def check_regex_availability(tree, path=None):
     return ret
 
 
-def check_one_repo_job_unique(snippet_list):
+def check_one_repo_job_unique(snippet_list, pipelines):
     job_list = {}
     for snippet in snippet_list:
         job_list[snippet.path] = list_job_in_one_repo_by_pipeline(
-            snippet.obj['projects'])
+            snippet.obj['projects'], pipelines)
 
     for i in range(0, len(job_list.keys())):
         for j in range(i + 1, len(job_list.keys())):
@@ -422,12 +422,14 @@ class LayoutGroup(object):
         self._layout_d_path = os.path.join(
             os.path.dirname(main_file_path), 'layout.d')
         self._yaml = {}
+        self.pipelines = []
         self._clear_yaml()
         self._load_all_file()
 
     def _clear_yaml(self):
         self._yaml['layout'] = None
         self._yaml['layout.d'] = []
+        self.pipelines = []
 
     def _load_all_file(self):
         self._clear_yaml()
@@ -435,6 +437,8 @@ class LayoutGroup(object):
                                              yaml.round_trip_load(open(
                                                  self._main_file_path),
                                                  version='1.1'))
+        self.pipelines = [x.get('name') for x in self._yaml['layout'].obj.get('pipelines')]
+        print('Pipelines:', self.pipelines)
         if os.path.exists(self._layout_d_path):
             file_list = os.listdir(self._layout_d_path)
             for file_name in file_list:
@@ -481,7 +485,7 @@ class LayoutGroup(object):
             f.close()
         return ret_snippet
 
-    def combine_with_validation(self, output_path=None, connections=None):
+    def combine_with_validation(self, output_path=None, connections=None, pipelines=None):
         #  verify_layout_with_zuul(self._yaml['layout'])
         check_list = self._yaml['layout.d'][:]
         m_layout = self._yaml['layout'].obj
@@ -490,8 +494,8 @@ class LayoutGroup(object):
             check_list.append(self._yaml['layout'])
         check_layout_d_duplication(check_list, 'projects')
         check_layout_d_duplication(check_list, 'jobs')
-        check_layout_d_consistency(check_list)
-        check_one_repo_availability(check_list)
+        check_layout_d_consistency(check_list, pipelines)
+        check_one_repo_availability(check_list, pipelines)
         for snippet in self._yaml['layout.d']:
             if not snippet.obj:
                 continue
@@ -566,13 +570,13 @@ def _main():
         )
         verify_layout_with_zuul(check_snip, connections)
     elif op == 'merge':
-        group.combine_with_validation(outpath, connections)
+        group.combine_with_validation(outpath, connections, pipelines=group.pipelines)
     elif op == 'check':
         check_snip = LayoutSnippet(path=insnip, obj=yaml.round_trip_load(
             open(insnip), version='1.1'))
         print('Checking layout consistency:')
-        check_layout_d_consistency([check_snip])
-        check_one_repo_availability([check_snip])
+        check_layout_d_consistency([check_snip], group.pipelines)
+        check_one_repo_availability([check_snip], group.pipelines)
         verify_layout_with_zuul(group.combine_one(check_snip), connections)
     else:
         raise Exception('Unsupport operation: [{}]'.format(op))
