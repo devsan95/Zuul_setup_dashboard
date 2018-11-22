@@ -115,6 +115,21 @@ def get_ticket_list_from_comments(info):
     return None
 
 
+def update_depends_list(rest, change):
+    commit = rest.get_commit(change)
+    message = commit.get('message')
+    m_list = message.split('\n')
+    d_list = []
+    depends_list = []
+    for line in m_list:
+        if 'Depends-on: ' in line:
+            d_list.append(line.split('Depends-on: ')[1].strip())
+    for did in d_list:
+        info = rest.get_change(did, using_cache=True)
+        depends_list.append(info['_number'])
+    return depends_list
+
+
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
           rest_url, rest_user, rest_pwd, auth_type, backup_topic):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
@@ -122,6 +137,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
         rest.change_to_basic_auth()
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
+    rest.init_cache()
     gop = gerrit_int_op.IntegrationGerritOperation(rest)
     if not backup_topic:
         name, branch, repo, platform = gop.get_info_from_change(change_id)
@@ -155,14 +171,13 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     while not _if_checklist_all_pass(pass_list):
         print('Starting a new checking cycle...')
         try:
+            # update depends list
+            depends_list = update_depends_list(rest, targets['manager'])
             for item in pass_list:
                 print('\nCheck status of [{}]:'.format(item['ticket']))
                 # update attached:
                 try:
-                    commit = rest.get_commit(item['ticket'])
-                    message = commit.get('message')
-                    message = message.replace('\n', ' ')
-                    if 'This change is an isolated change in this integration.' in message:
+                    if item['ticket'] not in depends_list:
                         item['attached'] = False
                         print('Change {} is a detatched change.'.format(item['ticket']))
                     else:

@@ -48,7 +48,7 @@ class DbHandler(object):
             .order_by(sa.desc(self.RescheduleStatistics.item_finish_id))
         result = query.first()
         if not result:
-            return -1
+            return -1, -1
         return result.item_finish_id, result.end_time
 
     def get_end_list(self, begin, limit):
@@ -103,7 +103,7 @@ class DbHandler(object):
                 return i
         return -1
 
-    def process_op_list(self, list_):
+    def process_op_list(self, list_, db):
         if not list_:
             log.debug('Empty list')
             return
@@ -131,9 +131,9 @@ class DbHandler(object):
             #         begin = index + 1
 
         for list__ in reschedule_lists:
-            self.process_reschedule_list(list__, end_id)
+            self.process_reschedule_list(list__, end_id, db)
 
-    def process_reschedule_list(self, list_, end_id):
+    def process_reschedule_list(self, list_, end_id, db):
         # print('---')
         c_change = None
         c_patchset = None
@@ -161,11 +161,11 @@ class DbHandler(object):
                     c_patchset = int(m.group('patchset'))
                     c_queue_item = m.group('queueitem')
                     c_status, c_finish_id, c_end_time = \
-                        self.get_cause_info(c_queue_item,
-                                            c_change,
-                                            c_patchset,
-                                            item['datetime'],
-                                            item['id'])
+                        db.get_cause_info(c_queue_item,
+                                          c_change,
+                                          c_patchset,
+                                          item['datetime'],
+                                          item['id'])
                     # log.debug('%s %s %s', c_status, c_finish_id, c_end_time)
         obj = self.RescheduleStatistics(change=list_[0]['change'],
                                         patchset=list_[0]['patchset'],
@@ -214,7 +214,7 @@ class DbHandler(object):
 
 
 def main(db_str, db_str_dest='', table_name=None, entry_num=5000, run_num=1):
-    last_end = -1
+    last_end = -2
     db = DbHandler(db_str)
     if not db_str_dest:
         db2 = db
@@ -238,7 +238,7 @@ def main(db_str, db_str_dest='', table_name=None, entry_num=5000, run_num=1):
 
             for end_item in rd:
                 op_list = db.get_op_list_from_end(end_item)
-                db2.process_op_list(op_list)
+                db2.process_op_list(op_list, db)
 
             db2.commit()
     except Exception as ex:

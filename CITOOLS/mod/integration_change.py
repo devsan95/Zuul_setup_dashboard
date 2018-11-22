@@ -14,6 +14,9 @@ import re
 
 comp_reg = re.compile(r'  - COMP <(.*?)>')
 fifi_reg = re.compile(r'%FIFI=(.*)')
+ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
+depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
+depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
 
 
 class IntegrationChange(object):
@@ -66,6 +69,22 @@ class IntegrationChange(object):
             components.add(m)
         return list(components)
 
+    def get_depends(self):
+        depends = set()
+        msg = self.commit_info.get('message')
+        miter = depends_reg.findall(msg)
+        for m in miter:
+            depends.add(m)
+        return list(depends)
+
+    def get_depends_on(self):
+        depends = set()
+        msg = self.commit_info.get('message')
+        miter = depends_on_re.findall(msg)
+        for m in miter:
+            depends.add(m)
+        return list(depends)
+
     def get_feature_id(self):
         msg = self.commit_info.get('message')
         m = fifi_reg.search(msg)
@@ -75,6 +94,16 @@ class IntegrationChange(object):
 
     def review(self, comment, label_dict=None):
         self.rest.review_ticket(self.change_no, comment, label_dict)
+
+    def get_type(self):
+        if 'ROOT CHANGE' in self.commit_info.get('message'):
+            return 'root'
+        elif 'MANAGER CHANGE' in self.commit_info.get('message'):
+            return 'integration'
+        elif self.get_info().get('project') == 'MN/SCMTA/zuul/inte_ric':
+            return 'external'
+        else:
+            return 'component'
 
 
 class RootChange(IntegrationChange):
@@ -128,3 +157,116 @@ class RootChange(IntegrationChange):
 class ManageChange(IntegrationChange):
     def __init__(self, rest, change_no):
         super(ManageChange, self).__init__(rest, change_no)
+
+    def get_all_components(self):
+        components = set()
+        msg = self.commit_info.get('message')
+        miter = ric_reg.findall(msg)
+        for m in miter:
+            components.add(m)
+        return list(components)
+
+
+class IntegrationCommitMessage(object):
+    def __init__(self, change):
+        self.change = change
+        self.msg_lines = self.change.commit_info.get('message').split('\n')
+
+    def get_msg(self):
+        return '\n'.join(self.msg_lines)
+
+    def remove_ric(self, change):
+        # judge if there is the need to remove
+        ol = self.change.get_all_components()
+        nl = change.get_components()
+        rl = []
+        for line in nl:
+            for oline in ol:
+                if str(change.change_no) == str(oline[2]) and str(line) == str(oline[0]):
+                    rl.append(line)
+                    break
+        # find where to remove
+        begin, end = self.find_ric()
+        # insert
+        to_remove = []
+        for index in range(begin, end + 1):
+            line = self.msg_lines[index]
+            for rline in rl:
+                if str(change.change_no) in line and rline in line:
+                    to_remove.append(line)
+                    break
+        for line in to_remove:
+            self.msg_lines.remove(line)
+
+    def add_ric(self, change):
+        pass
+
+    def find_ric(self):
+        begin = -1
+        end = -1
+        for index, item in enumerate(self.msg_lines):
+            if begin == -1:
+                if ric_reg.match(item):
+                    begin = index
+            else:
+                if not ric_reg.match(item):
+                    end = index - 1
+                    break
+        return begin, end
+
+    def remove_depends(self, change):
+        # find where to remove
+        begin, end = self.find_depends()
+        # insert
+        to_remove = []
+        for index in range(begin, end + 1):
+            line = self.msg_lines[index]
+            if str(change.change_no) in line:
+                to_remove.append(line)
+        for line in to_remove:
+            self.msg_lines.remove(line)
+
+    def add_depends(self, change):
+        pass
+
+    def find_depends(self):
+        begin = -1
+        end = -1
+        for index, item in enumerate(self.msg_lines):
+            if begin == -1:
+                if depends_reg.match(item):
+                    begin = index
+            else:
+                if not depends_reg.match(item):
+                    end = index - 1
+                    break
+        return begin, end
+
+    def add_depends_on(self, change):
+        pass
+
+    def remove_depends_on(self, change):
+        # find where to remove
+        begin, end = self.find_depends_on()
+        # insert
+        to_remove = []
+        for index in range(begin, end + 1):
+            line = self.msg_lines[index]
+            if str(change.get_info().get('change_id')) in line:
+                to_remove.append(line)
+
+        for line in to_remove:
+            self.msg_lines.remove(line)
+
+    def find_depends_on(self):
+        begin = -1
+        end = -1
+        for index, item in enumerate(self.msg_lines):
+            if begin == -1:
+                if depends_on_re.match(item):
+                    begin = index
+            else:
+                if not depends_on_re.match(item):
+                    end = index - 1
+                    break
+        return begin, end

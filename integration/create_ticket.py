@@ -70,6 +70,9 @@ def _parse_args():
     parser.add_argument('--restore-from-topic', type=int, dest='if_restore',
                         default=0, help='')
 
+    parser.add_argument('--base-commits', type=int, dest='base_commits',
+                        default=None, help='project1,branch1:commit1;project2,branch2:commmit2')
+
     args = parser.parse_args()
     return vars(args)
 
@@ -192,8 +195,9 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
                 return
         message = make_description_by_node(node_obj, nodes, graph_obj, topic,
                                            info_index)
+        base_commit = get_base_commit(node_obj['repo'], node_obj['branch'], info_index['etc']['base_commit'], gerrit_client)
         change_id, ticket_id, rest_id = gerrit_client.create_ticket(
-            node_obj['repo'], None, node_obj['branch'], message
+            node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
         )
         node_obj['change_id'] = change_id
         node_obj['ticket_id'] = ticket_id
@@ -600,7 +604,7 @@ def create_file_change_by_env_change(env_change, file_content, filename):
 
 def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
           input_branch, ric_path, heat_template, version_name, env_change,
-          streams, if_restore):
+          streams, if_restore, base_commits):
     topic = None
     utc_dt = datetime.utcnow()
     timestr = utc_dt.replace(microsecond=0).isoformat()
@@ -668,6 +672,10 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
     root_node, integration_node, nodes, graph_obj = create_graph(structure_obj)
     check_graph_availability(graph_obj, root_node, integration_node)
 
+    base_commits_map = {}
+    if base_commits:
+        parse_base_commits(base_commits, base_commits_map)
+
     info_index = {
         'meta': meta,
         'root': root_node,
@@ -675,7 +683,8 @@ def _main(path, gerrit_path, topic_prefix, init_ticket, zuul_user, zuul_key,
         'nodes': nodes,
         'graph': graph_obj,
         'etc': {
-            'heat_template': heat_template
+            'heat_template': heat_template,
+            'base_commit': base_commits_map
         }
     }
 
@@ -853,6 +862,27 @@ def create_temp_branch(rest, project_name,
     # get commit of the change
     info = rest.get_commit(rest_id)
     return info['commit']
+
+
+def parse_base_commits(base_commit_str, base_commit_dict):
+    list1 = base_commit_str.split(';')
+    for item1 in list1:
+        list2 = item1.split(':')
+        base_commit_dict[list2[0]] = list2[1]
+
+
+def get_base_commit(project, branch_str, base_commit_dict, rest):
+    key = '{},{}'.format(project, branch_str)
+    commit = base_commit_dict.get(key)
+    print('Get commit [{}] from key [{}]'.format(commit, key))
+    if not commit:
+        change_info = rest.query_ticket('branch:{} project:{} status:merged'.format(branch_str, project), count=1)
+        if change_info:
+            change_info = change_info[0]
+            commit = change_info['_number']
+            base_commit_dict[key] = commit
+            print('Set commit [{}] to key [{}]'.format(commit, key))
+    return commit
 
 
 if __name__ == '__main__':

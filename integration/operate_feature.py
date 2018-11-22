@@ -85,6 +85,7 @@ class OperateFeature(object):
 
         new_yaml_obj = dict()
         new_yaml_obj['feature_id'] = str(root_change.get_feature_id())
+        new_yaml_obj['branch'] = str(root_change.get_info().get('branch'))
         new_yaml_obj['status'] = 'on-going'
         new_yaml_obj['components'] = list()
         for comp in comp_set:

@@ -25,6 +25,8 @@ from api import job_tool
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+auto_branch_repos = ['MN/SCMTA/zuul/inte_mn', 'MN/SCMTA/zuul/inte_ric', 'MN/SCMTA/zuul/inte_root']
+
 
 def load_structure(path):
     structure_obj = yaml.load(open(path),
@@ -139,6 +141,8 @@ class IntegrationChangesCreation(object):
 
         self.load_yaml(yaml_path)
         self.load_gerrit(gerrit_path, zuul_user, zuul_key)
+        self.auto_branch_status = {}
+        self.base_commits_info = {}
 
     def load_yaml(self, yaml_path):
         self.change_info = load_structure(yaml_path)
@@ -166,6 +170,21 @@ class IntegrationChangesCreation(object):
     def update_meta(self, update_dict):
         collection_api.dict_merge(self.meta, update_dict)
 
+    def handle_auto_branch(self, repo, branch):
+        if repo not in self.auto_branch_status:
+            self.auto_branch_status[repo] = set()
+        if branch in self.auto_branch_status[repo]:
+            return
+        b_list = self.gerrit_rest.list_branches(repo)
+        if branch in b_list:
+            self.auto_branch_status[repo].add(branch)
+            return
+        self.gerrit_rest.create_branch(repo, branch)
+        b_list = self.gerrit_rest.list_branches(repo)
+        if branch in b_list:
+            self.auto_branch_status[repo].add(branch)
+            return
+
     def create_ticket_by_node(self, node_obj):
         nodes = self.info_index['nodes']
         graph = self.info_index['graph']
@@ -177,8 +196,11 @@ class IntegrationChangesCreation(object):
                         not nodes[depend]['change_id']:
                     return
             message = self.make_description_by_node(node_obj)
+            if node_obj['repo'] in auto_branch_repos:
+                self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
+            base_commit = self.get_base_commit(node_obj['repo'], node_obj['branch'])
             change_id, ticket_id, rest_id = self.gerrit_rest.create_ticket(
-                node_obj['repo'], None, node_obj['branch'], message
+                node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
             )
             node_obj['change_id'] = change_id
             node_obj['ticket_id'] = ticket_id
@@ -498,6 +520,25 @@ class IntegrationChangesCreation(object):
                     except Exception as ex:
                         print('Adding reviwer failed, {}'.format(str(ex)))
 
+    def parse_base_commits(self, base_commit_str):
+        list1 = base_commit_str.split(';')
+        for item1 in list1:
+            list2 = item1.split(':')
+            self.base_commits_info[list2[0]] = list2[1]
+
+    def get_base_commit(self, project, branch):
+        key = '{},{}'.format(project, branch)
+        commit = self.base_commits_info.get(key)
+        print('Get commit [{}] from key [{}]'.format(commit, key))
+        if not commit:
+            change_info = self.gerrit_rest.query_ticket('branch:{} project:{} status:merged'.format(branch, project), count=1)
+            if change_info:
+                change_info = change_info[0]
+                commit = change_info['_number']
+                self.base_commits_info[key] = commit
+                print('Set commit [{}] to key [{}]'.format(commit, key))
+        return commit
+
     def print_result(self):
         root_node = self.info_index['root']
         integration_node = self.info_index['mn']
@@ -523,7 +564,10 @@ class IntegrationChangesCreation(object):
 
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None,
-            if_restore=False):
+            if_restore=False, base_commits=None):
+
+        if base_commits:
+            self.parse_base_commits(base_commits)
 
         # handle integration topic
         utc_dt = datetime.utcnow()
@@ -622,13 +666,15 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--jira-key', default=None, type=unicode)
 @click.option('--feature-id', default=None, type=unicode)
 @click.option('--if-restore', default=False, type=bool)
+@click.option('--base-commits', default=None, type=unicode)
 @click.pass_context
 def create_changes(
         ctx, version_name=None,
         topic_prefix=None, streams=None,
-        jira_key=None, feature_id=None, if_restore=False):
+        jira_key=None, feature_id=None, if_restore=False,
+        base_commits=None):
     icc = ctx.obj['obj']
-    icc.run(version_name, topic_prefix, streams, jira_key, feature_id, if_restore)
+    icc.run(version_name, topic_prefix, streams, jira_key, feature_id, if_restore, base_commits)
 
 
 if __name__ == '__main__':
