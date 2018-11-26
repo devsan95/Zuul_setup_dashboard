@@ -171,6 +171,7 @@ class IntegrationChangesCreation(object):
         collection_api.dict_merge(self.meta, update_dict)
 
     def handle_auto_branch(self, repo, branch):
+        branch = 'refs/heads/' + branch
         if repo not in self.auto_branch_status:
             self.auto_branch_status[repo] = set()
         if branch in self.auto_branch_status[repo]:
