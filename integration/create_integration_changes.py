@@ -170,19 +170,21 @@ class IntegrationChangesCreation(object):
     def update_meta(self, update_dict):
         collection_api.dict_merge(self.meta, update_dict)
 
-    def handle_auto_branch(self, repo, branch):
-        branch = 'refs/heads/' + branch
+    def handle_auto_branch(self, repo, branch_):
+        branch = 'refs/heads/' + branch_
         if repo not in self.auto_branch_status:
             self.auto_branch_status[repo] = set()
         if branch in self.auto_branch_status[repo]:
             return
         b_list = self.gerrit_rest.list_branches(repo)
-        if branch in b_list:
+        bn_list = [x['ref'] for x in b_list]
+        if branch in bn_list:
             self.auto_branch_status[repo].add(branch)
             return
         self.gerrit_rest.create_branch(repo, branch)
         b_list = self.gerrit_rest.list_branches(repo)
-        if branch in b_list:
+        bn_list = [x['ref'] for x in b_list]
+        if branch in bn_list:
             self.auto_branch_status[repo].add(branch)
             return
 
