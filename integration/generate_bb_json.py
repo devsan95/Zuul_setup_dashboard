@@ -93,7 +93,7 @@ def parse_ric_list(rest, subject, zuul_url,
                     external_dict[change_no].append(key)
                 else:
                     external_dict[change_no] = [key]
-        if type_ != 'external':
+        if type_ != 'external' and type_ != 'root' and type_ != 'integration':
             if change_no:
                 need_change = is_adapted(rest, change_no)
                 print('Change {} is Adapted: {}'.format(change_no, need_change))

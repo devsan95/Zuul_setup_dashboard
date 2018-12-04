@@ -167,6 +167,24 @@ class DbHandler(object):
                                           item['datetime'],
                                           item['id'])
                     # log.debug('%s %s %s', c_status, c_finish_id, c_end_time)
+        r_status = ''
+        if status == 'resetting for not merge':
+            r_status = 'Merge Error'
+        elif status == 'resetting for nnfi':
+            if c_status == 'finish with merge fail':
+                r_status = 'Merger Failure'
+            elif c_status == 'success':
+                r_status = 'Non-head Failure'
+            elif c_status == 'Dequeued by promotion':
+                r_status = 'Dequeued by Promotion'
+            elif c_status == 'fail':
+                r_status = 'Job Failure'
+            elif c_status == 'remove for replace':
+                r_status = 'Dequeued by New Patchset'
+            elif c_status == 'remove for abandon':
+                r_status = 'Dequeued by Abandon'
+            elif c_status == 'finish with no job':
+                r_status = 'No Jobs to Run'
         obj = self.RescheduleStatistics(change=list_[0]['change'],
                                         patchset=list_[0]['patchset'],
                                         queue_item=list_[0]['queue_item'],
@@ -188,7 +206,8 @@ class DbHandler(object):
                                         c_status=c_status,
                                         c_job=None,
                                         c_end_time=c_end_time,
-                                        c_finish_id=c_finish_id)
+                                        c_finish_id=c_finish_id,
+                                        reschedule_reason=r_status)
         self.session.add(obj)
 
     def get_cause_info(self, queue_item, change, patchset, time, id):

@@ -141,6 +141,7 @@ def get_reschedule_statistics_model(table_name='t_reschedule_statistics'):
         c_job_status = Column(String(255))
         c_end_time = Column(TIMESTAMP)
         c_finish_id = Column(BIGINT, index=True)
+        reschedule_reason = Column(String(50))
 
     return TRescheduleStatistic
 

@@ -283,7 +283,9 @@ def main(db_str, db_str_dest='', table_name='t_gate_statistics', entry_num=5000,
                 op_list = db.get_op_list_from_end(end_item)
                 db2.save_op_list(op_list)
 
+            log.debug('committing...')
             db2.commit()
+            log.debug('done')
     except Exception as ex:
         log.debug('Exception occurs:')
         log.debug(ex)
