@@ -93,7 +93,7 @@ def parse_ric_list(rest, subject, zuul_url,
                     external_dict[change_no].append(key)
                 else:
                     external_dict[change_no] = [key]
-        if type_ != 'external' and type_ != 'root' and type_ != 'integration':
+        if type_ != 'external':
             if change_no:
                 need_change = is_adapted(rest, change_no)
                 print('Change {} is Adapted: {}'.format(change_no, need_change))
@@ -263,9 +263,9 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
                 if key in key_value:
                     value = key_value[key]
                     component = param['target_name']
-                    if component not in component_list:
-                        print('[{}] not in comp list'.format(component))
-                        continue
+                    # if component not in component_list:
+                    #     print('[{}] not in comp list'.format(component))
+                    #     continue
                     cparam = {}
                     for k, v in param['target_params'].items():
                         cparam[k] = v.format(key=key, value=value)
