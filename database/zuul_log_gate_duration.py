@@ -29,6 +29,7 @@ class DbHandler(object):
             self.GateStatistics = get_gate_statistics_model(table_name)
         else:
             self.GateStatistics = get_gate_statistics_model('log_duration')
+        # self.GateStatistics.metadata.create_all(self.engine)
 
     def get_last_end_no(self):
         query = self.session.query(self.GateStatistics.finish_id) \
@@ -219,18 +220,32 @@ class DbHandler(object):
                     reschedule_times = 1
 
                 window_waiting_duration = (waiting_for_window_time - start_time).total_seconds() * 1000
+            if not waiting_for_window_time:
+                window_waiting_duration = (finish_time - start_time).total_seconds() * 1000
             if merge_time:
                 if merged_time:
                     merge_duration = (merged_time - merge_time).total_seconds() * 1000
                     if launch_job_time:
                         pre_launch_duration = (launch_job_time - merged_time).total_seconds() * 1000
                         if launched_job_time:
+                            if launched_job_time > finish_time:
+                                log.debug('launched time error, {} > {}'.format(launched_job_time, finish_time))
+                                launched_job_time = finish_time
                             first_launch_duration = (launched_job_time - launch_job_time).total_seconds() * 1000
                             if complete_job_time:
                                 if complete_job_time > finish_time:
+                                    log.debug('complete_job_time time error, {} > {}'.format(complete_job_time, finish_time))
                                     complete_job_time = finish_time
                                 job_running_duration = (complete_job_time - launched_job_time).total_seconds() * 1000
                                 dequeue_duration = (finish_time - complete_job_time).total_seconds() * 1000
+                            else:
+                                job_running_duration = (finish_time - launched_job_time).total_seconds() * 1000
+                        else:
+                            first_launch_duration = (finish_time - launch_job_time).total_seconds() * 1000
+                    else:
+                        pre_launch_duration = (finish_time - merged_time).total_seconds() * 1000
+                else:
+                    merge_duration = (finish_time - merge_time).total_seconds() * 1000
         total_duration = (finish_time - start_time).total_seconds() * 1000
         obj = self.GateStatistics(
             changeset=changeset,
