@@ -95,9 +95,9 @@ class DbHandler(object):
         if not list_:
             log.debug('Empty list')
             return
-        log.debug('---')
-        log.debug('[%s] [%s]', list_[0]['change_item'], list_[0]['queue_item'])
-        log.debug('')
+        # log.debug('---')
+        # log.debug('[%s] [%s]', list_[0]['change_item'], list_[0]['queue_item'])
+        # log.debug('')
 
         start_time = None
         merge_time = None
@@ -110,7 +110,7 @@ class DbHandler(object):
         pipeline = list_[0]['pipeline']
         queue_item = list_[0]['queue_item']
         begin_id = list_[0]['id']
-        end_id = list_[-1]['id']
+        end_id = None
         changeset = '{},{}'.format(list_[0]['change'], list_[0]['patchset'])
         waiting_for_window = True
         waiting_for_window_time = None
@@ -118,7 +118,7 @@ class DbHandler(object):
         reschedule_times = 0
 
         for index, item in enumerate(list_):
-            log.debug('%s\t%s\t[%s]\t[%s]', item['id'], item['type'], item['datetime'], item['pipeline'])
+            # log.debug('%s\t%s\t[%s]\t[%s]', item['id'], item['type'], item['datetime'], item['pipeline'])
             # start
             if not start_time:
                 if index == 0:
@@ -200,6 +200,9 @@ class DbHandler(object):
             if item['type'] == 'fail':
                 status_str = 'fail'
 
+            if not end_id and item['type'] == 'remove from queue':
+                end_id = item['id']
+
         window_waiting_duration = 0
         merge_duration = 0
         pre_launch_duration = 0
@@ -208,6 +211,8 @@ class DbHandler(object):
         dequeue_duration = 0
         total_duration = 0
         reschedule_total_time = 0
+        if not end_id:
+            end_id = list_[-1]['id']
 
         if start_time:
             if waiting_for_window_time:
@@ -287,6 +292,7 @@ def main(db_str, db_str_dest='', table_name='t_gate_statistics', entry_num=5000,
 
         for i in range(0, run_num):
             last_end = db2.get_last_end_no()
+            log.debug('last end is %s', last_end)
 
             rd = db.get_end_list(last_end, entry_num)
 
@@ -295,8 +301,10 @@ def main(db_str, db_str_dest='', table_name='t_gate_statistics', entry_num=5000,
                 break
 
             for end_item in rd:
+                log.debug('Process %s', end_item)
                 op_list = db.get_op_list_from_end(end_item)
                 db2.save_op_list(op_list)
+                log.debug('\n------', end_item)
 
             log.debug('committing...')
             db2.commit()
