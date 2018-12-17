@@ -87,6 +87,33 @@ reg_Added = re.compile(
     r'Added (?P<project>.*), <Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)> to '
     r'<Pipeline (?P<pipeline>.*)>')
 
+reg_window = re.compile(r'Item <QueueItem (?P<queue_item>.*) for <Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)> in (?P<pipeline>.*)> is now in '
+                        r'window, window size (?P<window_size>\d*), '
+                        r'queue size (?P<queue_size>\d*), '
+                        r'index (?P<index>\d*)')
+
+reg_cancel_job_new = re.compile(r'Reason for cancel jobs for change '
+                                r'<QueueItem (?P<queue_item>.*?) for <Change (?P<item>.*?) (?P<change>\d*?),(?P<patchset>\d*?)> in (?P<pipeline>.*?)> '
+                                r'is (?P<reason>.*)')
+
+reg_reason_promote = re.compile(
+    r'to promote change <QueueItem (?P<queue_item>.*) for <Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)> in (?P<pipeline>.*)>')
+
+reg_reason_cannot_merge = re.compile(
+    r'Change <QueueItem (?P<queue_item>.*) for <Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)> in (?P<pipeline>.*)> is (?P<reason>.*)'
+    r' can no longer merge'
+)
+
+reg_reason_nnfi = re.compile(
+    r'reschedule for <QueueItem (?P<queue_item>.*) for <Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)> in (?P<pipeline>.*)> is not nnfi, '
+    r'failing reason is (?P<reason>.*)')
+
+reg_reason_merge_error = re.compile(
+    r'reschedule for item '
+    r'<QueueItem (?P<queue_item>.*) for <Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)> in (?P<pipeline>.*)>'
+    r' fail to merge, reason is (?P<reason>.*)')
+
+
 # Dequeue reason
 # 1 removeItem: Canceling builds behind change: %s because it is being removed. (with log)
 # 1.1 Change %s is a new version of %s, removing %s (with log)
@@ -292,7 +319,8 @@ reg_list = [
     {'reg': reg_result_fail_merge, 'type': 'finish with merge fail'},
     {'reg': reg_result_success, 'type': 'success'},
     {'reg': reg_result_fail, 'type': 'fail'},
-
+    {'reg': reg_window, 'type': 'go in window'},
+    {'reg': reg_cancel_job_new, 'type': 'cancel jobs with reason'},
 ]
 
 
@@ -405,6 +433,10 @@ class LogLine(object):
                         self._handle_type_success,
                     'fail':
                         self._handle_type_fail,
+                    'go in window':
+                        self._handle_window,
+                    'cancel jobs with reason':
+                        self._handle_cancel_jobs_new,
 
                 }[self.type](m)
 
@@ -624,6 +656,64 @@ class LogLine(object):
         self.change_item = m.group('item')
         self.queue_item = m.group('queue_item')
         self.pipeline = m.group('pipeline')
+
+    def _handle_window(self, m):
+        self.change = m.group('change')
+        self.patchset = m.group('patchset')
+        self.change_item = m.group('item')
+        self.queue_item = m.group('queue_item')
+        self.pipeline = m.group('pipeline')
+        if self.logger == 'zuul.IndependentPipelineManager':
+            self.type = 'start process'
+
+    def _handle_cancel_jobs_new(self, m):
+        self.change = m.group('change')
+        self.patchset = m.group('patchset')
+        self.change_item = m.group('item')
+        self.queue_item = m.group('queue_item')
+        self.pipeline = m.group('pipeline')
+        reason = m.group('reason')
+        # print('_handle_cancel_jobs_new')
+        # print(self.change, self.patchset)
+        # print(self.change_item, self.queue_item)
+        # print(self.pipeline)
+        # print(reason)
+
+        reason_matched = False
+        if not reason_matched:
+            m = reg_reason_promote.match(reason)
+            if m:
+                self.type = 'cancel jobs for promotion'
+                reason_matched = True
+
+        if not reason_matched:
+            m = reg_reason_cannot_merge.match(reason)
+            if m:
+                self.type = 'cancel jobs for can no longer match'
+                # inner_reason = m.group('reason')
+                # inner_reason_list = ast.literal_eval(inner_reason)
+                # print(inner_reason_list)
+                reason_matched = True
+
+        if not reason_matched:
+            m = reg_reason_nnfi.match(reason)
+            if m:
+                self.type = 'cancel jobs for reschedule of nnfi'
+                # inner_reason = m.group('reason')
+                # inner_reason_list = ast.literal_eval(inner_reason)
+                # print(inner_reason_list)
+                reason_matched = True
+
+        if not reason_matched:
+            m = reg_reason_merge_error.match(reason)
+            if m:
+                self.type = 'cancel jobs for reschedule of merge error'
+                # inner_reason = m.group('reason')
+                # inner_reason_list = ast.literal_eval(inner_reason)
+                # print(inner_reason_list)
+                reason_matched = True
+
+        # print(self.type)
 
 
 class DbHandler(object):
