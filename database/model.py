@@ -137,7 +137,7 @@ def get_reschedule_statistics_model(table_name='t_reschedule_statistics'):
         c_project = Column(String(100))
         c_branch = Column(String(100))
         c_status = Column(String(50))
-        c_job = Column(String(255))
+        c_job = Column(String(2560))
         c_job_status = Column(String(255))
         c_end_time = Column(TIMESTAMP)
         c_finish_id = Column(BIGINT, index=True)
