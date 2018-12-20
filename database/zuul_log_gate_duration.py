@@ -11,13 +11,14 @@ from model import get_gate_statistics_model
 
 log = log_api.get_console_logger('ZUUL_LOG_DURATION')
 
+start_strings = ['added to queue', 'cancel job']
+end_strings = ['remove from queue', 'resetting for nnfi',
+               'resetting for not merge']
+break_strings = ['resetting for nnfi', 'resetting for not merge']
+new_break_strings = ['cancel jobs for reschedule of merge error', 'cancel jobs for reschedule of nnfi']
+
 
 class DbHandler(object):
-    start_strings = ['added to queue', 'cancel job']
-    end_strings = ['remove from queue', 'resetting for nnfi',
-                   'resetting for not merge']
-    break_strings = ['resetting for nnfi', 'resetting for not merge']
-
     def __init__(self, db_str):
         self.engine = sa.create_engine(db_str)
         self.Session = sessionmaker(bind=self.engine)
@@ -117,6 +118,8 @@ class DbHandler(object):
         this_start_time = None
         reschedule_times = 0
 
+        use_old_reschdule = True
+
         for index, item in enumerate(list_):
             # log.debug('%s\t%s\t[%s]\t[%s]', item['id'], item['type'], item['datetime'], item['pipeline'])
             # start
@@ -124,7 +127,7 @@ class DbHandler(object):
                 if index == 0:
                     start_time = item['datetime']
                     this_start_time = start_time
-                    if item['type'] not in self.start_strings:
+                    if item['type'] not in start_strings:
                         log.debug('error begin entry {}'.format(item))
             # merge
             if item['type'] == 'prepare ref':
@@ -151,7 +154,7 @@ class DbHandler(object):
                 else:
                     complete_job_time = item['datetime']
             # finish
-            if item['type'] in self.end_strings:
+            if item['type'] in end_strings:
                 finish_time = item['datetime']
                 if item['type'].startswith('resetting'):
                     status_str = item['type']
@@ -162,7 +165,14 @@ class DbHandler(object):
                     log.debug('error end entry {}'.format(item))
 
             # resetting
-            if item['type'] in ['resetting for nnfi', 'resetting for not merge']:
+            if use_old_reschdule:
+                if item['type'] in ['resetting for nnfi', 'resetting for not merge']:
+                    if not waiting_for_window:
+                        reschedule_times += 1
+            if item['type'] in new_break_strings:
+                if use_old_reschdule:
+                    use_old_reschdule = False
+                    reschedule_times = 0
                 if not waiting_for_window:
                     reschedule_times += 1
 
