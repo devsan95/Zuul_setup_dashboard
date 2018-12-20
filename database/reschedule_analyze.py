@@ -421,5 +421,7 @@ if __name__ == '__main__':
         fire.Fire(main)
     except Exception as e:
         log.debug('Exception: {}'.format(str(e)))
+        if str(e) == 'Last End not Changed, break':
+            sys.exit(0)
         traceback.print_exc()
         sys.exit(2)
