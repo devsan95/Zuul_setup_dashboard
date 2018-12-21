@@ -67,6 +67,16 @@ class JIRAPI(object):
     def search_issue(self, jql):
         return self.jira.search_issues(jql)
 
+    def open_issue(self, jira_id):
+        transitions = self.jira.transitions(jira_id)
+        status_with_ids = [(t["name"], t["id"]) for t in transitions]
+        transition_id = [one[1] for one in status_with_ids if one[0] == u'Open Issue']
+        if transition_id:
+            transition_id = transition_id[0]
+            self.jira.transition_issue(jira_id, transition_id)
+        else:
+            raise Exception('Can not find open transition of {}'.format(jira_id))
+
     def api(self):
         return self.jira
 

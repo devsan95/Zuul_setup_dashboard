@@ -5,6 +5,7 @@ import requests
 import json
 import ruamel.yaml as yaml
 import copy
+from api import jira_api
 
 
 def run(info_index, jira_url=None, user=None, pwd=None):
@@ -32,6 +33,18 @@ def run(info_index, jira_url=None, user=None, pwd=None):
     ticket_key = res_data['key']
     print(ticket_key)
     return ticket_key
+
+
+def open(jira_id, jira_url=None, user=None, pwd=None):
+    if jira_url is None:
+        jira_url = 'https://jira3.int.net.nokia.com'
+    if user is None:
+        user = 'autobuild_c_ou'
+    if pwd is None:
+        pwd = 'a4112fc4'
+
+    api = jira_api.JIRAPI(user, pwd, jira_url)
+    api.open_issue(jira_id)
 
 
 if __name__ == '__main__':

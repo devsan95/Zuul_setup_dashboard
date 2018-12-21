@@ -4,6 +4,7 @@
 import copy
 import json
 import os
+import shlex
 import sys
 import textwrap
 import traceback
@@ -24,8 +25,6 @@ from api import gerrit_rest
 from api import job_tool
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-auto_branch_repos = ['MN/SCMTA/zuul/inte_mn', 'MN/SCMTA/zuul/inte_ric', 'MN/SCMTA/zuul/inte_root']
 
 
 def load_structure(path):
@@ -73,6 +72,8 @@ def create_graph(structure_obj):
     # make manager node depends on all other nodes
     for node in node_list:
         if node is not integration_node:
+            if 'attached' in node and not node['attached']:
+                continue
             graph_obj.add_edge(node['name'], integration_node['name'])
     return root_node, integration_node, nodes, graph_obj
 
@@ -141,7 +142,6 @@ class IntegrationChangesCreation(object):
 
         self.load_yaml(yaml_path)
         self.load_gerrit(gerrit_path, zuul_user, zuul_key)
-        self.auto_branch_status = {}
         self.base_commits_info = {}
 
     def load_yaml(self, yaml_path):
@@ -170,23 +170,23 @@ class IntegrationChangesCreation(object):
     def update_meta(self, update_dict):
         collection_api.dict_merge(self.meta, update_dict)
 
-    def handle_auto_branch(self, repo, branch_):
-        branch = 'refs/heads/' + branch_
-        if repo not in self.auto_branch_status:
-            self.auto_branch_status[repo] = set()
-        if branch in self.auto_branch_status[repo]:
-            return
-        b_list = self.gerrit_rest.list_branches(repo)
-        bn_list = [x['ref'] for x in b_list]
-        if branch in bn_list:
-            self.auto_branch_status[repo].add(branch)
-            return
-        self.gerrit_rest.create_branch(repo, branch)
-        b_list = self.gerrit_rest.list_branches(repo)
-        bn_list = [x['ref'] for x in b_list]
-        if branch in bn_list:
-            self.auto_branch_status[repo].add(branch)
-            return
+    def create_file_change_by_env_change(self, file_content, filename):
+        env_change = self.meta.get('env_change')
+        lines = file_content.split('\n')
+        env_change_split = shlex.split(env_change)
+        for i, line in enumerate(lines):
+            if '=' in line:
+                key2, value2 = line.strip().split('=', 1)
+                for env_line in env_change_split:
+                    if '=' in env_line:
+                        key, value = env_line.split('=', 1)
+                        if key.strip() == key2.strip():
+                            lines[i] = key2 + '=' + value
+        for env_line in env_change_split:
+            if env_line.startswith('#'):
+                lines.append(env_line)
+        ret_dict = {filename: '\n'.join(lines)}
+        return ret_dict
 
     def create_ticket_by_node(self, node_obj):
         nodes = self.info_index['nodes']
@@ -199,16 +199,23 @@ class IntegrationChangesCreation(object):
                         not nodes[depend]['change_id']:
                     return
             message = self.make_description_by_node(node_obj)
-            if node_obj['repo'] in auto_branch_repos:
-                self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
             base_commit = self.get_base_commit(node_obj['repo'], node_obj['branch'])
             change_id, ticket_id, rest_id = self.gerrit_rest.create_ticket(
-                node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
+                node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit,
+                new_branch=True
             )
             node_obj['change_id'] = change_id
             node_obj['ticket_id'] = ticket_id
             node_obj['rest_id'] = rest_id
             node_obj['commit_message'] = message
+
+            # env change
+            env_change = self.meta.get('env_change')
+            if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] == 'MN/5G/COMMON/env':
+                if env_change:
+                    node_obj['env_change'] = env_change
+                    env_content = self.gerrit_rest.get_file_content('env-config.d/ENV', rest_id)
+                    node_obj['add_files'] = self.create_file_change_by_env_change(env_content, 'env-config.d/ENV')
 
         # restore
         copy_from_id = None
@@ -267,6 +274,16 @@ class IntegrationChangesCreation(object):
                 node_obj['rest_id'],
                 filename, content)
             need_publish = True
+
+        # add files for submodule
+        if 'submodules' in node_obj and node_obj['submodules']:
+            for path, repo in node_obj['submodules'].items():
+                p_node = nodes.get(repo)
+                if p_node:
+                    if p_node.get('submodule_list') is None:
+                        p_node['submodule_list'] = []
+                    s_list = p_node.get('submodule_list')
+                    s_list.append([path, node_obj['ticket_id']])
 
         if need_publish:
             self.gerrit_rest.publish_edit(node_obj['rest_id'])
@@ -523,6 +540,11 @@ class IntegrationChangesCreation(object):
                     except Exception as ex:
                         print('Adding reviwer failed, {}'.format(str(ex)))
 
+            comment_list = node.get('comments')
+            if comment_list:
+                for comment_str in comment_list:
+                    self.gerrit_rest.review_ticket(node['rest_id'], comment_str)
+
     def parse_base_commits(self, base_commit_str):
         list1 = base_commit_str.split(';')
         for item1 in list1:
@@ -567,7 +589,8 @@ class IntegrationChangesCreation(object):
 
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None,
-            if_restore=False, base_commits=None):
+            if_restore=False, base_commits=None, env_change=None,
+            force_feature_id=False, open_jira=False, skip_jira=False):
 
         if base_commits:
             self.parse_base_commits(base_commits)
@@ -581,6 +604,9 @@ class IntegrationChangesCreation(object):
             topic = '{}_{}'.format(topic_prefix, timestr)
         topic = slugify(topic)
         self.meta['topic'] = topic
+
+        if env_change:
+            self.meta['env_change'] = env_change
 
         # create graph
         root_node, integration_node, nodes, graph_obj = create_graph(self.info_index)
@@ -609,31 +635,62 @@ class IntegrationChangesCreation(object):
         self.meta['streams'] = stream_list
 
         # handle version name
+        if not version_name and env_change:
+            versions = set()
+            env_change_split = shlex.split(env_change)
+            for line in env_change_split:
+                line = line.strip()
+                env_list = line.split('=', 2)
+                if len(env_list) >= 2:
+                    versions.add(env_list[1])
+
+            if versions:
+                vk = self.meta.get('version_keyword')
+                if vk:
+                    for value in versions:
+                        if vk in value and len(value) < 35:
+                            version_name = value
+                            break
+                else:
+                    for value in versions:
+                        if len(value) <= 35:
+                            if version_name:
+                                if len(version_name) + 1 + len(value) <= 60:
+                                    version_name += '/'
+                                    version_name += value
+                                else:
+                                    break
+                            else:
+                                version_name = value
         if not version_name:
             if feature_id:
-                self.meta['version_name'] = feature_id
+                version_name = feature_id
             elif jira_key:
-                self.meta['version_name'] = jira_key
+                version_name = jira_key
             else:
                 version_name = timestr
-                self.meta['version_name'] = version_name
+
+        self.meta['version_name'] = version_name
 
         # handle jira
         if jira_key:
             self.meta['jira_key'] = jira_key
         else:
-            if 'jira' in self.meta:
-                try:
-                    jira_key = create_jira_ticket.run(self.info_index)
-                    self.meta["jira_key"] = jira_key
-                except Exception as ex:
-                    print('Exception occured while create jira ticket, {}'.format(str(ex)))
-                    raise ex
+            if not skip_jira:
+                if 'jira' in self.meta:
+                    try:
+                        jira_key = create_jira_ticket.run(self.info_index)
+                        self.meta["jira_key"] = jira_key
+                        if open_jira:
+                            create_jira_ticket.open(jira_key)
+                    except Exception as ex:
+                        print('Exception occured while create jira ticket, {}'.format(str(ex)))
+                        raise ex
 
         # handle feature id
         if feature_id:
             self.meta['feature_id'] = feature_id
-        elif 'jira_key' in self.meta:
+        elif 'jira_key' in self.meta and force_feature_id:
             self.meta['feature_id'] = self.meta['jira_key']
 
         print('[JOBTAG] Version name is {}. '
@@ -670,14 +727,21 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--feature-id', default=None, type=unicode)
 @click.option('--if-restore', default=False, type=bool)
 @click.option('--base-commits', default=None, type=unicode)
+@click.option('--env-change', default=None, type=unicode)
+@click.option('--force-feature-id', default=False, type=bool)
+@click.option('--open-jira', default=False, type=bool)
+@click.option('--skip-jira', default=False, type=bool)
 @click.pass_context
 def create_changes(
         ctx, version_name=None,
         topic_prefix=None, streams=None,
         jira_key=None, feature_id=None, if_restore=False,
-        base_commits=None):
+        base_commits=None, env_change=None, force_feature_id=False,
+        open_jira=False, skip_jira=False):
     icc = ctx.obj['obj']
-    icc.run(version_name, topic_prefix, streams, jira_key, feature_id, if_restore, base_commits)
+    icc.run(version_name, topic_prefix, streams, jira_key,
+            feature_id, if_restore, base_commits,
+            env_change, force_feature_id, open_jira, skip_jira)
 
 
 if __name__ == '__main__':

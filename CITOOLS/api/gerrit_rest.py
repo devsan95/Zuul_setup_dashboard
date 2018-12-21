@@ -179,12 +179,13 @@ class GerritRestClient:
                 'Status code is [{}], content is [{}]'.format(
                     rest_id, ret.status_code, ret.content))
 
-    def create_ticket(self, project, topic, branch, message, drafted=False, base_change=None):
+    def create_ticket(self, project, topic, branch, message, drafted=False, base_change=None, new_branch=False):
         input_data = {
             "project": project,
             "subject": message,
             "branch": branch,
-            "status": 'DRAFT' if drafted else 'NEW'
+            "status": 'DRAFT' if drafted else 'NEW',
+            'new_branch': new_branch
         }
         if base_change:
             input_data['base_change'] = base_change
