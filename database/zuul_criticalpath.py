@@ -1,4 +1,3 @@
-
 import sys
 import logging
 import argparse
@@ -17,12 +16,11 @@ class JobTreeOper(object):
 
     def _connect(self):
         conn = pymysql.connect(host=self.host,
-                        user=self.username,
-                        password=self.password,
-                        db=self.db,
-                        # charset='utf8mb4',
-                        cursorclass=pymysql.cursors.DictCursor
-                        )
+                               user=self.username,
+                               password=self.password,
+                               db=self.db,
+                               cursorclass=pymysql.cursors.DictCursor
+                               )
         return conn
 
     def _close(self):
@@ -52,7 +50,7 @@ class JobTreeOper(object):
         buildsinfo = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
         longest = max([vitem[-1] for vitem in buildsinfo.values() if vitem[-1]])
         lbuild = ''
-        for k,v in buildsinfo.items():
+        for k, v in buildsinfo.items():
             if v[-1] == longest:
                 lbuild = k
                 break
@@ -100,6 +98,7 @@ class JobTreeOper(object):
                 cpath.append(p)
         return cpath
 
+
 class Runner(object):
     def __init__(self):
         self.parser = self.get_parser()
@@ -121,6 +120,37 @@ class Runner(object):
     def parse_arguments(self):
         self.jto_args, self.other_args = self.parser.parse_known_args()
 
+    def get_buildtime(self, cpath, builds):
+        timeinfo = list()
+        timeslots = list()
+        for bu in cpath.split(' -> '):
+            if builds.get(bu):
+                timeslots.append(builds[bu][1:4])
+            else:
+                timeslots.append([0, 0, 0])
+        try:
+            totaltime = str(int(timeslots[-1][2]) - int(timeslots[0][0]))
+        except:
+            totaltime = 'N/A'
+            log.debug('Unvalid time exist. ')
+        for i, ts in enumerate(timeslots):
+            try:
+                base = int(timeslots[i - 1][2]) if i else int(ts[0])
+            except:
+                base = 'N/A'
+            try:
+                waittime = str(int(ts[1]) - base)
+            except:
+                waittime = 'N/A'
+            timeinfo.append(waittime)
+            try:
+                runtime = str(int(ts[2]) - int(ts[1]))
+            except:
+                runtime = 'N/A'
+            timeinfo.append(runtime)
+        timeinfo.append(totaltime)
+        return ','.join(timeinfo)
+
     def run(self):
         if self.jto_args.debug:
             logging.basicConfig(level=logging.DEBUG,
@@ -130,7 +160,7 @@ class Runner(object):
         if not self.jto_args.ps:
             raise Exception("Please input change and patchset.")
         if not self.jto_args.host or not self.jto_args.usr or \
-            not self.jto_args.passwd or not self.jto_args.table:
+                not self.jto_args.passwd or not self.jto_args.table:
             raise Exception("Please input database information.")
         jto_ins = JobTreeOper(self.jto_args.host, self.jto_args.usr,
                               self.jto_args.passwd, self.jto_args.table)
@@ -140,15 +170,24 @@ class Runner(object):
         if self.jto_args.qitem in queueitems:
             try:
                 cpath = jto_ins.critical_path(self.jto_args.qitem)
+                binfo = jto_ins._get_builds(self.jto_args.qitem)
+                builds = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
+                timeinfo = self.get_buildtime(cpath[0], builds)
                 print cpath
+                print timeinfo
             except:
                 jto_ins._close()
         else:
             for qitem in queueitems:
                 try:
                     cpath = jto_ins.critical_path(qitem)
+                    binfo = jto_ins._get_builds(qitem)
+                    builds = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
+                    timeinfo = self.get_buildtime(cpath[0], builds)
                     print cpath
+                    print timeinfo
                 except:
                     jto_ins._close()
+
 
 sys.exit(Runner().run())
