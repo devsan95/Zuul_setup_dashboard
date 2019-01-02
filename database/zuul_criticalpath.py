@@ -130,22 +130,27 @@ class Runner(object):
                 timeslots.append([0, 0, 0])
         try:
             totaltime = str(int(timeslots[-1][2]) - int(timeslots[0][0]))
-        except:
+        except Exception as err:
+            log.debug(str(err))
             totaltime = 'N/A'
             log.debug('Unvalid time exist. ')
         for i, ts in enumerate(timeslots):
             try:
                 base = int(timeslots[i - 1][2]) if i else int(ts[0])
-            except:
+            except Exception as err:
+                log.debug(str(err))
+                log.debug(str(err))
                 base = 'N/A'
             try:
                 waittime = str(int(ts[1]) - base)
-            except:
+            except Exception as err:
+                log.debug(str(err))
                 waittime = 'N/A'
             timeinfo.append(waittime)
             try:
                 runtime = str(int(ts[2]) - int(ts[1]))
-            except:
+            except Exception as err:
+                log.debug(str(err))
                 runtime = 'N/A'
             timeinfo.append(runtime)
         timeinfo.append(totaltime)
@@ -173,9 +178,10 @@ class Runner(object):
                 binfo = jto_ins._get_builds(self.jto_args.qitem)
                 builds = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
                 timeinfo = self.get_buildtime(cpath[0], builds)
-                print cpath
-                print timeinfo
-            except:
+                log.debug("Critical paths for this patch-set {}".format(cpath))
+                log.debug("waiting-runing pairs and total timelist {}".format(timeinfo))
+            except Exception as btime_err:
+                log.debug(str(btime_err))
                 jto_ins._close()
         else:
             for qitem in queueitems:
@@ -184,9 +190,10 @@ class Runner(object):
                     binfo = jto_ins._get_builds(qitem)
                     builds = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
                     timeinfo = self.get_buildtime(cpath[0], builds)
-                    print cpath
-                    print timeinfo
-                except:
+                    log.debug("Critical paths for this patch-set {}".format(cpath))
+                    log.debug("waiting-runing pairs and total timelist {}".format(timeinfo))
+                except Exception as cpath_err:
+                    log.debug(str(cpath_err))
                     jto_ins._close()
 
 

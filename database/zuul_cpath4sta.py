@@ -1,5 +1,4 @@
 import sys
-import time
 import datetime
 import logging
 import argparse
@@ -62,8 +61,7 @@ class JobTreeOper(object):
         return result['count(*)']
 
     def get_records(self, number=0):
-        condstr = 'where id > {}'.format(self._get_records_amount()
-                                         - number) if number else ''
+        condstr = 'where id > {}'.format(self._get_records_amount() - number) if number else ''
         with self.connection.cursor() as cursor:
             sql = "select * from item_jobtree {}".format(condstr)
             cursor.execute(sql)
@@ -115,6 +113,7 @@ class JobTreeOper(object):
             longest = max([vitem[-1] for vitem in builds.values() if vitem[-1]])
         except Exception as err:
             longest = ''
+            log.debug(str(err))
             log.debug('Selected data build time info is not complete.')
             # raise Exception('Selected data build time info is not complete.')
         lbuild = ''
@@ -173,7 +172,8 @@ class JobTreeOper(object):
                 log.debug(sql)
                 cursor.execute(sql)
             self.connection.commit()
-        except:
+        except Exception as err:
+            log.debug(str(err))
             self.connection.rollback()
             self.connection.close()
 
@@ -220,22 +220,26 @@ class Runner(object):
                 timeslots.append([0, 0, 0])
         try:
             totaltime = str(int(timeslots[-1][2]) - int(timeslots[0][0]))
-        except:
+        except Exception as err:
+            log.debug(str(err))
             totaltime = 'N/A'
             log.debug('Unvalid time exist. ')
         for i, ts in enumerate(timeslots):
             try:
                 base = int(timeslots[i - 1][2]) if i else int(ts[0])
-            except:
+            except Exception as ts_err:
+                log.debug(str(ts_err))
                 base = 'N/A'
             try:
                 waittime = str(int(ts[1]) - base)
-            except:
+            except Exception as wt_err:
+                log.debug(str(wt_err))
                 waittime = 'N/A'
             timeinfo.append(waittime)
             try:
                 runtime = str(int(ts[2]) - int(ts[1]))
-            except:
+            except Exception as rt_err:
+                log.debug(str(rt_err))
                 runtime = 'N/A'
             timeinfo.append(runtime)
         timeinfo.append(totaltime)
