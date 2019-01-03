@@ -26,6 +26,9 @@ from api import job_tool
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+auto_branch_repos = ['MN/SCMTA/zuul/inte_mn', 'MN/SCMTA/zuul/inte_ric', 'MN/SCMTA/zuul/inte_root', 'MN/5G/COMMON/env']
+env_repo = 'MN/5G/COMMON/env'
+
 
 def load_structure(path):
     structure_obj = yaml.load(open(path),
@@ -142,6 +145,7 @@ class IntegrationChangesCreation(object):
 
         self.load_yaml(yaml_path)
         self.load_gerrit(gerrit_path, zuul_user, zuul_key)
+        self.auto_branch_status = {}
         self.base_commits_info = {}
 
     def load_yaml(self, yaml_path):
@@ -169,6 +173,24 @@ class IntegrationChangesCreation(object):
 
     def update_meta(self, update_dict):
         collection_api.dict_merge(self.meta, update_dict)
+
+    def handle_auto_branch(self, repo, branch_):
+        branch = 'refs/heads/' + branch_
+        if repo not in self.auto_branch_status:
+            self.auto_branch_status[repo] = set()
+        if branch in self.auto_branch_status[repo]:
+            return
+        b_list = self.gerrit_rest.list_branches(repo)
+        bn_list = [x['ref'] for x in b_list]
+        if branch in bn_list:
+            self.auto_branch_status[repo].add(branch)
+            return
+        self.gerrit_rest.create_branch(repo, branch)
+        b_list = self.gerrit_rest.list_branches(repo)
+        bn_list = [x['ref'] for x in b_list]
+        if branch in bn_list:
+            self.auto_branch_status[repo].add(branch)
+            return
 
     def create_file_change_by_env_change(self, file_content, filename):
         env_change = self.meta.get('env_change')
@@ -199,10 +221,11 @@ class IntegrationChangesCreation(object):
                         not nodes[depend]['change_id']:
                     return
             message = self.make_description_by_node(node_obj)
+            if node_obj['repo'] in auto_branch_repos:
+                self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
             base_commit = self.get_base_commit(node_obj['repo'], node_obj['branch'])
             change_id, ticket_id, rest_id = self.gerrit_rest.create_ticket(
-                node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit,
-                new_branch=True
+                node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
             )
             node_obj['change_id'] = change_id
             node_obj['ticket_id'] = ticket_id
@@ -211,7 +234,7 @@ class IntegrationChangesCreation(object):
 
             # env change
             env_change = self.meta.get('env_change')
-            if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] == 'MN/5G/COMMON/env':
+            if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] == env_repo:
                 if env_change:
                     node_obj['env_change'] = env_change
                     env_content = self.gerrit_rest.get_file_content('env-config.d/ENV', rest_id)
