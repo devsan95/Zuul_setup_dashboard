@@ -40,6 +40,7 @@ def create_graph(structure_obj):
     root_node = None
     nodes = {}
     integration_node = None
+    integration_all_node = None
 
     # get all nodes from structure
     for node in structure_obj['structure']:
@@ -53,6 +54,8 @@ def create_graph(structure_obj):
             root_node = node
         elif node['type'] == 'integration':
             integration_node = node
+        elif node['type'] == 'integration_all':
+            integration_all_node = node
 
     # create a directed graph
     node_list = nodes.values()
@@ -71,6 +74,11 @@ def create_graph(structure_obj):
                         'depend {} of {} does not exist'.format(
                             depend_name, node['name']))
                 graph_obj.add_edge(depend_name, node['name'])
+
+    # make integration_all_node depends on all other nodes
+    for node in node_list:
+        if node is not integration_node and node is not integration_all_node:
+            graph_obj.add_edge(node['name'], integration_all_node['name'])
 
     # make manager node depends on all other nodes
     for node in node_list:
