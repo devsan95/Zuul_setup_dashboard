@@ -7,15 +7,15 @@ import collections
 
 log = logging.getLogger(__file__)
 
-DB_HOST = '10.157.165.0'
-DB_USER = 'root'
-DB_PASS = 'zuul_common'
-DB_TEST = 'zuul-test-common'
-
-# DB_HOST = '10.159.10.111'
+# DB_HOST = '10.157.165.0'
 # DB_USER = 'root'
-# DB_PASS = 'hzscmzuul'
-# DB_TEST = 'zuul'
+# DB_PASS = 'zuul_common'
+# DB_TEST = 'zuul-test-common'
+
+DB_HOST = '10.159.10.111'
+DB_USER = 'root'
+DB_PASS = 'hzscmzuul'
+DB_TEST = 'zuul'
 
 SDB_HOST = '10.157.163.176'
 SDB_USER = 'skytrack_dev'
