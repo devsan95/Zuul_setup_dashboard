@@ -276,7 +276,7 @@ class Runner(object):
             else:
                 subs = jenkins + ',' + 'Reserved'
             v['cpath'] = cpa
-            v['subsystem'] = subs
+            v['subsystem'] = subs.encode()
 
         sky_ins = JobTreeOper(SDB_HOST, SDB_USER, SDB_PASS, SDB_TEST)
         log.debug("Connection {0} to skytrack db {1}".format(jto_ins.connection, SDB_TEST))
