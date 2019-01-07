@@ -165,6 +165,7 @@ class JobTreeOper(object):
 
     def update_skytrack(self, *sdata):
         try:
+            self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
                 sql = "INSERT INTO t_critical_path " \
                       "(pipeline,queueitem,changeitem,timeslot,path,subsystem,create_time,update_time)" \
