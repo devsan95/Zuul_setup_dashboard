@@ -225,6 +225,7 @@ class Runner(object):
             log.debug(str(err))
             totaltime = 'N/A'
             log.debug('Unvalid time exist. ')
+        timeinfo.append(totaltime)
         for i, ts in enumerate(timeslots):
             try:
                 base = int(timeslots[i - 1][2]) if i else int(ts[0])
@@ -243,7 +244,6 @@ class Runner(object):
                 log.debug(str(rt_err))
                 runtime = 'N/A'
             timeinfo.append(runtime)
-        timeinfo.append(totaltime)
         return ','.join(timeinfo)
 
     def run(self):
