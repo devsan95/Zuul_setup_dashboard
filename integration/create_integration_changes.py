@@ -339,7 +339,8 @@ class IntegrationChangesCreation(object):
             if node_obj['type'] == 'root':
                 lines.append('ROOT CHANGE')
                 lines.append('Please do not modify this change.')
-            elif node_obj['type'] == 'integration':
+            elif node_obj['type'] == 'integration' or \
+                    node_obj['type'] == 'integration_all':
                 lines.append('MANAGER CHANGE')
                 lines.append('Please do not modify this change.')
         if 'submodules' in node_obj and node_obj['submodules']:
@@ -391,7 +392,9 @@ class IntegrationChangesCreation(object):
 
         section_showed = False
         ric_title = False
-        if 'type' in node_obj and node_obj['type'] == 'integration':
+        if 'type' in node_obj and \
+            (node_obj['type'] == 'integration' or
+             node_obj['type'] == 'integration_all'):
             for depend in graph_obj.predecessors(node_obj['name']):
                 if depend in nodes:
                     node = nodes[depend]
@@ -418,7 +421,9 @@ class IntegrationChangesCreation(object):
             lines.append('  ')
 
         section_showed = False
-        if 'type' in node_obj and node_obj['type'] == 'integration':
+        if 'type' in node_obj and \
+            (node_obj['type'] == 'integration' or
+             node_obj['type'] == 'integration_all'):
             for name, node in nodes.items():
                 if 'type' in node and node['type'] == 'ric':
                     section_showed = True
@@ -432,7 +437,9 @@ class IntegrationChangesCreation(object):
             lines.append('  ')
 
         section_showed = False
-        if 'type' in node_obj and node_obj['type'] == 'integration':
+        if 'type' in node_obj and \
+            (node_obj['type'] == 'integration' or
+             node_obj['type'] == 'integration_all'):
             submodule_set = set()
             for name, node in nodes.items():
                 if 'submodules' in node and node['submodules']:
