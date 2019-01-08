@@ -76,9 +76,10 @@ def create_graph(structure_obj):
                 graph_obj.add_edge(depend_name, node['name'])
 
     # make integration_all_node depends on all other nodes
-    for node in node_list:
-        if node is not integration_node and node is not integration_all_node:
-            graph_obj.add_edge(node['name'], integration_all_node['name'])
+    if integration_all_node:
+        for node in node_list:
+            if node is not integration_node and node is not integration_all_node:
+                graph_obj.add_edge(node['name'], integration_all_node['name'])
 
     # make manager node depends on all other nodes
     for node in node_list:
