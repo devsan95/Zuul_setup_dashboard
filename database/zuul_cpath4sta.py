@@ -1,5 +1,4 @@
 import sys
-import datetime
 import logging
 import argparse
 import pymysql
@@ -168,7 +167,7 @@ class JobTreeOper(object):
             self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
                 sql = "INSERT INTO t_critical_path " \
-                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem,create_time,update_time)" \
+                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem)" \
                       " VALUES {}".format(sdata)
                 log.debug(sql)
                 cursor.execute(sql)
@@ -280,10 +279,8 @@ class Runner(object):
 
         sky_ins = JobTreeOper(SDB_HOST, SDB_USER, SDB_PASS, SDB_TEST)
         log.debug("Connection {0} to skytrack db {1}".format(jto_ins.connection, SDB_TEST))
-        cutime = str(datetime.datetime.now())[:19]
         for k, v in jto_ins.datas.items():
             if v['cpath']:
-                log.debug('Create time: {}'.format(cutime))
                 timeslot = self.get_buildtime(v['cpath'][0], v['builds'])
                 log.debug("{0},{1},{2},{3},{4},{5}".format(v['pipeline'], v['queueitem'],
                                                            v['change'], timeslot, v['cpath'][0], v['subsystem']))
@@ -292,9 +289,7 @@ class Runner(object):
                                         v['change'],
                                         timeslot,
                                         v['cpath'][0],
-                                        v['subsystem'],
-                                        cutime,
-                                        cutime)
+                                        v['subsystem'])
 
 
 sys.exit(Runner().run())
