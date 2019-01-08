@@ -23,11 +23,15 @@ from api import collection_api
 from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
+from api import config
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 auto_branch_repos = ['MN/SCMTA/zuul/inte_mn', 'MN/SCMTA/zuul/inte_ric', 'MN/SCMTA/zuul/inte_root', 'MN/5G/COMMON/env']
 env_repo = 'MN/5G/COMMON/env'
+
+CONF = config.ConfigTool()
+CONF.load('repo')
 
 
 def load_structure(path):
@@ -603,6 +607,20 @@ class IntegrationChangesCreation(object):
                 print('Set commit [{}] to key [{}]'.format(commit, key))
         return commit
 
+    def update_oam_description(self):
+        for node in self.info_index['nodes']:
+            try:
+                node_dict = CONF.get_dict(node['name'])
+            except Exception:
+                continue
+            title = '{}_%FIFI={}'.format(node['ticket_id'], self.meta['feature_id'])
+            oam_description = [
+                'MR will be created in {}/{} soon.'.format(node_dict['repo_server'], node_dict['repo_project']),
+                'title: {}'.format(title),
+                'branch: int_{}'.format(title)
+            ]
+            self.info_index['nodes'][node]['description'] += oam_description
+
     def print_result(self):
         root_node = self.info_index['root']
         integration_node = self.info_index['mn']
@@ -742,6 +760,7 @@ class IntegrationChangesCreation(object):
         self.create_ticket_by_node(root_node)
         self.add_structure_string()
         self.label_all_tickets()
+        self.update_oam_description()
         self.print_result()
         send_result_email.run(self.info_index)
 
