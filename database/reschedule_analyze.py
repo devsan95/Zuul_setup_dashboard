@@ -370,6 +370,8 @@ class DbHandler(object):
                 if reason_list is None:
                     reason_list = []
                 return 'submit error', ';'.join(reason_list)
+        print('None of the reason matches')
+        return None, None
 
     def commit(self):
         self.session.commit()
