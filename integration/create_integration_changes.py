@@ -645,7 +645,7 @@ class IntegrationChangesCreation(object):
         job_tool.write_dict_to_properties(result_dict, path, False)
 
     def run(self, version_name=None, topic_prefix=None, streams=None,
-            jira_key=None, feature_id=None,
+            jira_key=None, feature_id=None, feature_owner=None,
             if_restore=False, base_commits=None, env_change=None,
             force_feature_id=False, open_jira=False, skip_jira=False):
 
@@ -664,6 +664,9 @@ class IntegrationChangesCreation(object):
 
         if env_change:
             self.meta['env_change'] = env_change
+
+        if feature_owner and feature_owner != 'anonymous' and not self.meta['jira']['assignee']:
+            self.meta['jira']['assignee'] = {'name': feature_owner}
 
         # create graph
         root_node, integration_node, nodes, graph_obj = create_graph(self.info_index)
@@ -783,6 +786,7 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--streams', default=None, type=unicode)
 @click.option('--jira-key', default=None, type=unicode)
 @click.option('--feature-id', default=None, type=unicode)
+@click.option('--feature-owner', default=None, type=unicode)
 @click.option('--if-restore', default=False, type=bool)
 @click.option('--base-commits', default=None, type=unicode)
 @click.option('--env-change', default=None, type=unicode)
@@ -790,15 +794,14 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--open-jira', default=False, type=bool)
 @click.option('--skip-jira', default=False, type=bool)
 @click.pass_context
-def create_changes(
-        ctx, version_name=None,
-        topic_prefix=None, streams=None,
-        jira_key=None, feature_id=None, if_restore=False,
-        base_commits=None, env_change=None, force_feature_id=False,
-        open_jira=False, skip_jira=False):
+def create_changes(ctx, version_name=None,
+                   topic_prefix=None, streams=None,
+                   jira_key=None, feature_id=None, feature_owner=None, if_restore=False,
+                   base_commits=None, env_change=None, force_feature_id=False,
+                   open_jira=False, skip_jira=False):
     icc = ctx.obj['obj']
     icc.run(version_name, topic_prefix, streams, jira_key,
-            feature_id, if_restore, base_commits,
+            feature_id, feature_owner, if_restore, base_commits,
             env_change, force_feature_id, open_jira, skip_jira)
 
 
