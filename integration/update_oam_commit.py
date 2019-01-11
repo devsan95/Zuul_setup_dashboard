@@ -31,7 +31,7 @@ def update_oam_comments(rest, component, oam_change, oam_commit, dry_run):
         print("Fake comment {change_id}: {message}".format(change_id=oam_change,
                                                            message=message))
         return
-    rest.review(oam_change, message)
+    rest.review_ticket(oam_change, message)
 
 
 def parse_oam_changes(rest, change_id, gitlab_info_path):
