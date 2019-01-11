@@ -613,7 +613,7 @@ class IntegrationChangesCreation(object):
                 node_dict = CONF.get_dict(node)
             except Exception:
                 continue
-            title = '{}_%FIFI={}'.format(node['ticket_id'], self.meta['feature_id'])
+            title = '{}_%FIFI={}'.format(self.info_index['nodes'][node]['ticket_id'], self.meta['feature_id'])
             oam_description = [
                 'MR will be created in {}/{} soon.'.format(node_dict['repo_server'], node_dict['repo_project']),
                 'title: {}'.format(title),
