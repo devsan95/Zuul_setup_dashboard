@@ -14,6 +14,9 @@ import re
 import sys
 import argparse
 import traceback
+
+from slugify import slugify
+
 from api import config
 from api import gerrit_rest
 from mod import gitlab_tools
@@ -45,7 +48,7 @@ def get_int_info(ticket, rest_obj):
     mr_comp = ''
     if 'comp' in match_dict:
         mr_comp = match_dict['comp']
-    return mr_title, mr_comp
+    return slugify(mr_title.decode()), slugify(mr_comp.decode())
 
 
 def get_int_msg(ticket, rest_obj):
@@ -79,6 +82,7 @@ def _main(ticket, conf_path, action, branch):
         'project': project,
         'ref': comp_branch,
         'branch': new_branch}
+    print(params)
     gitlab_obj = gitlab_tools.Gitlab_Tools(path=conf_path, repo=comp_repo_srv)
     print('Info: set project {}'.format(project))
     gitlab_obj.gitlab_client.set_project(project)
