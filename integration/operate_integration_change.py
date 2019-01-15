@@ -27,6 +27,7 @@ class OperateIntegrationChange(object):
 
         self.rest.change_commit_msg_to_edit(self.inte_change_no, commit_msg_obj.get_msg())
         self.rest.publish_edit(self.inte_change_no)
+        self.rest.review_ticket(component_change, 'detached')
 
     def add(self, component_change):
         commit_msg_obj = inte_change.IntegrationCommitMessage(self.inte_change)
