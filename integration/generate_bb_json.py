@@ -328,6 +328,7 @@ def parse_update_bb(line, result, component_list=None):
 def parse_comments_base(change_id, rest):
     retd = {}
     r = re.compile(r'update_base:(.*),(.*)')
+    de = 'use_default_base'
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
     for msg in comment_list['messages']:
         for line in msg['message'].split('\n'):
@@ -337,6 +338,9 @@ def parse_comments_base(change_id, rest):
                 m1 = m.group(1).strip().strip('"')
                 m2 = m.group(2).strip().strip('"')
                 retd[m1] = m2
+            if de in line:
+                print(line)
+                retd = {}
     print('Comments of base parse result:')
     print(retd)
     return retd
