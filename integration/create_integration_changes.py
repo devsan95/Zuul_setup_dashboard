@@ -240,6 +240,7 @@ class IntegrationChangesCreation(object):
             change_id, ticket_id, rest_id = self.gerrit_rest.create_ticket(
                 node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
             )
+            print ('ticket {} created'.format(ticket_id))
             node_obj['change_id'] = change_id
             node_obj['ticket_id'] = ticket_id
             node_obj['rest_id'] = rest_id
@@ -325,7 +326,15 @@ class IntegrationChangesCreation(object):
             self.gerrit_rest.publish_edit(node_obj['rest_id'])
 
         for child in graph.successors(node_obj['name']):
-            self.create_ticket_by_node(nodes[child])
+            try:
+                self.create_ticket_by_node(nodes[child])
+            except Exception:
+                nodes = self.info_index['nodes']
+                for node in nodes.values():
+                    if 'ticket_id' in node:
+                        self.gerrit_rest.abandon_change(node['ticket_id'])
+                        print ('ticket {} is abandoned'.format(node['ticket_id']))
+                raise Exception
 
     def make_description_by_node(self, node_obj):
         topic = self.meta['topic']
