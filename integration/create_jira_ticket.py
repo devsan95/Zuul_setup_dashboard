@@ -7,15 +7,12 @@ import ruamel.yaml as yaml
 import copy
 from api import jira_api
 
+DEFAULT_JIRA_URL = 'https://jira3.int.net.nokia.com'
+DEFAULT_USER = 'autobuild_c_ou'
+DEFAULT_PASSWD = 'a4112fc4'
 
-def run(info_index, jira_url=None, user=None, pwd=None):
-    if jira_url is None:
-        jira_url = 'https://jira3.int.net.nokia.com'
-    if user is None:
-        user = 'autobuild_c_ou'
-    if pwd is None:
-        pwd = 'a4112fc4'
 
+def run(info_index, jira_url=DEFAULT_JIRA_URL, user=DEFAULT_USER, pwd=DEFAULT_PASSWD):
     meta = copy.deepcopy(info_index['meta']['jira'])
     meta['summary'] = meta['summary'].format(
         title=info_index['meta']['title'],
@@ -35,16 +32,14 @@ def run(info_index, jira_url=None, user=None, pwd=None):
     return ticket_key
 
 
-def open(jira_id, jira_url=None, user=None, pwd=None):
-    if jira_url is None:
-        jira_url = 'https://jira3.int.net.nokia.com'
-    if user is None:
-        user = 'autobuild_c_ou'
-    if pwd is None:
-        pwd = 'a4112fc4'
-
+def open(jira_id, jira_url=DEFAULT_JIRA_URL, user=DEFAULT_USER, pwd=DEFAULT_PASSWD):
     api = jira_api.JIRAPI(user, pwd, jira_url)
     api.open_issue(jira_id)
+
+
+def close(jira_id, jira_url=DEFAULT_JIRA_URL, user=DEFAULT_USER, pwd=DEFAULT_PASSWD):
+    api = jira_api.JIRAPI(user, pwd, jira_url)
+    api.close_issue(jira_id)
 
 
 if __name__ == '__main__':

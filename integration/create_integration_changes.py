@@ -330,6 +330,8 @@ class IntegrationChangesCreation(object):
                 self.create_ticket_by_node(nodes[child])
             except Exception:
                 nodes = self.info_index['nodes']
+                if 'jira_key' in self.meta:
+                    create_jira_ticket.close(self.meta['jira_key'])
                 for node in nodes.values():
                     if 'ticket_id' in node:
                         self.gerrit_rest.abandon_change(node['ticket_id'])
