@@ -41,7 +41,6 @@ def parse_oam_changes(rest, change_id, gitlab_info_path):
     for message in ticket['messages']:
         if 'MR created in' in message['message']:
             oam_comments = message['message']
-            break
     if oam_comments:
         print('Parsing oam int change: {}'.format(rest.get_change_address(change_id)))
         m = oam_re.match(oam_comments)
