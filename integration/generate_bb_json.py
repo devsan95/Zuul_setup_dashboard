@@ -398,8 +398,36 @@ def combine_knife_json(json_list):
     return result
 
 
+def rewrite_knife_json(knife_json_path, gnblist_path):
+    # input knife.json and gnb_list files
+    with open(gnblist_path, 'r') as f:
+        gnbList = f.read().splitlines()
+
+    with open(knife_json_path, 'a+') as f:
+        data = json.load(f)
+        flag = False
+        # if knife.json include any gnb component,flag = True
+        for k in data['all'].keys():
+            if k in gnbList:
+                flag = True
+                print('Include gnb component:***{}***,need update knife json'.format(k))
+                # get gnb component's repo_ver/protocol/repo_url
+                values = data['all'].get(k)
+                break
+
+        if flag:
+            for i in gnbList:
+                # add other gnb components
+                data['all'][i] = values
+            content = json.dumps(data, indent=2)
+            api.file_api.save_file(content, knife_json_path, False)
+            print('Updated gnb components!!')
+        else:
+            print('No need update knife json!')
+
+
 def run(zuul_url, zuul_ref, output_path, change_id,
-        gerrit_info_path, zuul_changes):
+        gerrit_info_path, zuul_changes, gnb_list_path):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.init_cache(1000)
     project_branch = parse_zuul_changes(zuul_changes)
@@ -461,6 +489,9 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     # email list
     reviews_json = rest.get_reviewer(change_id)
     save_json_file(reviews_path, reviews_json)
+
+    # add all gnb components
+    rewrite_knife_json(knife_path, gnb_list_path)
 
 
 if __name__ == '__main__':
