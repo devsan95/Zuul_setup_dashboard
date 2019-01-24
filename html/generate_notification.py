@@ -2,6 +2,7 @@ import click
 import cgi
 import arrow
 from api import gerrit_rest
+import codecs
 
 
 @click.command()
@@ -17,12 +18,12 @@ from api import gerrit_rest
 @click.option('--branch', default=None)
 @click.option('--file-path', default=None)
 def main(title, content, author, alert_type, icon, label, label_type, gerrit_path, project, branch, file_path):
-    title = cgi.escape(title)
-    content = cgi.escape(content)
-    author = cgi.escape(author)
+    title = codecs.decode(cgi.escape(title), 'utf-8')
+    content = codecs.decode(cgi.escape(content), 'utf-8')
+    author = codecs.decode(cgi.escape(author), 'utf-8')
     alert_type = cgi.escape(alert_type)
     icon = cgi.escape(icon)
-    label = cgi.escape(label)
+    label = codecs.decode(cgi.escape(label), 'utf-8')
     label_type = cgi.escape(label_type)
     template = """
 <div class="alert alert-{alert_type}" role="alert">
@@ -38,18 +39,20 @@ def main(title, content, author, alert_type, icon, label, label_type, gerrit_pat
         </div>
 </div>
     """
+    if title:
+        content_line = '<br />'.join(content.split('\n'))
+        label_template = '<span class="label label-{type}">{label}</span>'
+        label_line = ''
+        if label:
+            label_line = label_template.format(type=label_type, label=label)
 
-    content_line = '<br />'.join(content.split('\n'))
-    label_template = '<span class="label label-{type}">{label}</span>'
-    label_line = ''
-    if label:
-        label_line = label_template.format(type=label_type, label=label)
+        time_now = arrow.utcnow()
 
-    time_now = arrow.utcnow()
-
-    output = template.format(alert_type=alert_type, icon=icon, title=title,
-                             label=label_line, content=content_line,
-                             author=author, time=time_now.timestamp * 1000)
+        output = template.format(alert_type=alert_type, icon=icon, title=title,
+                                 label=label_line, content=content_line,
+                                 author=author, time=time_now.timestamp * 1000)
+    else:
+        output = ""
 
     if gerrit_path:
         rest = gerrit_rest.init_from_yaml(gerrit_path)
