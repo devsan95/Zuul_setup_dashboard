@@ -130,6 +130,15 @@ def update_depends_list(rest, change):
     return depends_list
 
 
+def _check_if_external(rest, ticket_id):
+    if_external = False
+    result = rest.get_ticket(ticket_id)
+    project = result['project']
+    if project == 'MN/SCMTA/zuul/inte_ric':
+        if_external = True
+    return if_external
+
+
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
           rest_url, rest_user, rest_pwd, auth_type, backup_topic):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
@@ -197,6 +206,11 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                         print('Change {} verified became True, '
                               'need to backup'.format(item['ticket']))
                         item['need_backup'] = True
+                # check if external component
+                if_external = _check_if_external(rest, item['ticket'])
+                if if_external:
+                    item['need_backup'] = False
+                    print('Ticket {} is external component, no need to backup'.format(item['ticket']))
                 if backup_topic and item['need_backup']:
                     print('Ticket {} begin to backup to topic {}'.format(
                         item['ticket'], backup_topic))
