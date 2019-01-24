@@ -18,14 +18,14 @@ import codecs
 @click.option('--branch', default=None)
 @click.option('--file-path', default=None)
 def main(title, content, author, alert_type, icon, label, label_type, gerrit_path, project, branch, file_path):
-    title = codecs.decode(cgi.escape(title), 'utf-8')
-    content = codecs.decode(cgi.escape(content), 'utf-8')
-    author = codecs.decode(cgi.escape(author), 'utf-8')
+    title = cgi.escape(title)
+    content = cgi.escape(content)
+    author = cgi.escape(author)
     alert_type = cgi.escape(alert_type)
     icon = cgi.escape(icon)
-    label = codecs.decode(cgi.escape(label), 'utf-8')
+    label = cgi.escape(label)
     label_type = cgi.escape(label_type)
-    template = """
+    template = u"""
 <div class="alert alert-{alert_type}" role="alert">
         <div style="display: flex;flex-direction: row;">
                 <div class="col-1 alert-icon-col" style="float:left;margin-right:10px;">
@@ -51,6 +51,7 @@ def main(title, content, author, alert_type, icon, label, label_type, gerrit_pat
         output = template.format(alert_type=alert_type, icon=icon, title=title,
                                  label=label_line, content=content_line,
                                  author=author, time=time_now.timestamp * 1000)
+        output = codecs.encode(output, 'utf-8')
     else:
         output = ""
 
@@ -60,7 +61,7 @@ def main(title, content, author, alert_type, icon, label, label_type, gerrit_pat
         try:
             rest.add_file_to_change(rest_id, file_path, output)
             rest.publish_edit(rest_id)
-            rest.review_ticket(rest_id, 'Try to merge', {'Code-Review': 2, 'Verified': 1, 'Gatekeeper': 1})
+            rest.review_ticket(rest_id, codecs.encode(u'Author is {}'.format(author), 'utf-8'), {'Code-Review': 2, 'Verified': 1, 'Gatekeeper': 1})
             rest.submit_change(rest_id)
         except Exception as e:
             rest.abandon_change(rest_id)
