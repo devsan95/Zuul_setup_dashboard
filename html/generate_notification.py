@@ -55,6 +55,8 @@ def main(title, content, author, alert_type, icon, label, label_type, gerrit_pat
     else:
         output = ""
 
+    print("Output is:")
+    print(output)
     if gerrit_path:
         rest = gerrit_rest.init_from_yaml(gerrit_path)
         change_id, ticket_id, rest_id = rest.create_ticket(project, None, branch, 'Update Notification')
