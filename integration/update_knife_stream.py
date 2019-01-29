@@ -73,7 +73,7 @@ def set_stream(change_number, stream_list, rest, commit_message):
     if not need_publish:
         print("[Info] No need to remove files from the original file list, goint to add new stream")
     if stream_list:
-        need_publish_add = add_stream(change_number, stream_list, rest)
+        need_publish_add = add_stream(change_number, stream_list, rest, commit_message)
     need_publish = need_publish_remove or need_publish_add
     return need_publish
 
