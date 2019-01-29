@@ -369,6 +369,8 @@ class DbHandler(object):
                 reason_list = ast.literal_eval(reason)
                 if reason_list is None:
                     reason_list = []
+                if reason_list is True:
+                    reason_list = []
                 return 'submit error', ';'.join(reason_list)
         print('None of the reason matches')
         return None, None
