@@ -17,6 +17,7 @@ fifi_reg = re.compile(r'%FIFI=(.*)')
 ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
 depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
 depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
+comp_name_reg = re.compile(r'<(.*?)> on <(.*?)> of <(.*?)> topic')
 
 
 class IntegrationChange(object):
@@ -104,6 +105,15 @@ class IntegrationChange(object):
             return 'external'
         else:
             return 'component'
+
+    def get_project(self):
+        project = self.rest.get_ticket(self.change_no)['project']
+        return project
+
+    def get_change_name(self):
+        msg = self.commit_info.get('message')
+        change_name = comp_name_reg.search(msg).groups()[0]
+        return change_name
 
 
 class RootChange(IntegrationChange):
@@ -199,7 +209,19 @@ class IntegrationCommitMessage(object):
             self.msg_lines.remove(line)
 
     def add_ric(self, change):
-        pass
+        # find the beginning line of ric
+        begin_line = -1
+        for i, v in enumerate(self.msg_lines):
+            if 'This integration contains following ric component(s):' in v:
+                begin_line = i + 1
+        project = change.get_project()
+        components = change.get_components()
+        change_no = str(change.change_no)
+        type = change.get_type()
+        for comp in components:
+            line_value = '  - RIC <{}> <{}> <{}> <t:{}>'.format(comp, project, change_no, type)
+            if begin_line > -1:
+                self.msg_lines.insert(begin_line, line_value)
 
     def find_ric(self):
         begin = -1
@@ -227,7 +249,17 @@ class IntegrationCommitMessage(object):
             self.msg_lines.remove(line)
 
     def add_depends(self, change):
-        pass
+        # find the beginning line of depends
+        begin_line = -1
+        for i, v in enumerate(self.msg_lines):
+            if 'This change depends on following change(s):' in v:
+                begin_line = i + 1
+        change_name = change.get_change_name()
+        change_no = str(change.change_no)
+        type = change.get_type()
+        if begin_line > -1:
+            line_value = '  - Project:<{}> Change:<{}> Type:<{}>'.format(change_name, change_no, type)
+            self.msg_lines.insert(begin_line, line_value)
 
     def find_depends(self):
         begin = -1
@@ -243,7 +275,14 @@ class IntegrationCommitMessage(object):
         return begin, end
 
     def add_depends_on(self, change):
-        pass
+        begin_line = -1
+        for i, v in enumerate(self.msg_lines):
+            if v.startswith('Depends-on: '):
+                begin_line = i + 1
+        change_id = str(change.get_info().get('change_id'))
+        if begin_line > -1:
+            line_value = 'Depends-on: {}'.format(change_id)
+            self.msg_lines.insert(begin_line, line_value)
 
     def remove_depends_on(self, change):
         # find where to remove
