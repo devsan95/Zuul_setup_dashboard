@@ -1,15 +1,17 @@
 import sys
+import copy
 import logging
 import argparse
 import pymysql
 import collections
+import datetime
 
 log = logging.getLogger(__file__)
 
 # DB_HOST = '10.157.165.0'
 # DB_USER = 'root'
 # DB_PASS = 'zuul_common'
-# DB_TEST = 'zuul-test-common'
+# DB_TEST = 'zuul_test'
 
 DB_HOST = '10.159.10.111'
 DB_USER = 'root'
@@ -18,7 +20,7 @@ DB_TEST = 'zuul'
 
 SDB_HOST = '10.157.163.176'
 SDB_USER = 'skytrack_dev'
-SDB_PASS = 'dev123'
+SDB_PASS = 'dev_666'
 SDB_TEST = 'skytrack'
 
 
@@ -52,17 +54,18 @@ class JobTreeOper(object):
         else:
             log.debug("No connection exist.")
 
-    def _get_records_amount(self):
+    def _get_records_amount(self, tdate=''):
         with self.connection.cursor() as cursor:
-            sql = "select count(*) from item_jobtree"
+            sql = "select count(*) from item_jobtree where " \
+                  "created_at > str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)
             cursor.execute(sql)
             result = cursor.fetchone()
         return result['count(*)']
 
-    def get_records(self, number=0):
-        condstr = 'where id > {}'.format(self._get_records_amount() - number) if number else ''
+    def get_records(self, tdate=''):
         with self.connection.cursor() as cursor:
-            sql = "select * from item_jobtree {}".format(condstr)
+            sql = "select * from item_jobtree where created_at " \
+                  "> str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)
             cursor.execute(sql)
             results = cursor.fetchall()
         if not results:
@@ -73,39 +76,21 @@ class JobTreeOper(object):
             pipeline = res.get('pipeline')
             builds = eval(res.get('builds').replace("defaultdict(<type 'list'>, ", '')[:-1])
             jobtree = eval(res.get('jobtree'))
+            project = res.get('project')
+            branch = res.get('branch')
             cpath = ''
             subsystem = ''
+            timeslots = ''
             self.datas[':'.join([chps, qit])] = dict(pipeline=pipeline,
                                                      change=chps,
                                                      queueitem=qit,
                                                      builds=builds,
                                                      jobtree=jobtree,
+                                                     project=project,
+                                                     branch=branch,
                                                      cpath=cpath,
-                                                     subsystem=subsystem)
-
-    def _get_queueitems(self, chps):
-        with self.connection.cursor() as cursor:
-            sql = "select queueitem from item_jobtree where changeitem='{}'".format(chps)
-            cursor.execute(sql)
-            result = cursor.fetchall()
-            log.debug("Queueitems: {}".format(result))
-            return [res['queueitem'] for res in result]
-
-    def _get_all_queueitems(self):
-        with self.connection.cursor() as cursor:
-            sql = "select queueitem from item_jobtree"
-            cursor.execute(sql)
-            result = cursor.fetchall()
-            log.debug("Queueitems: {}".format(result))
-            return [res['queueitem'] for res in result]
-
-    def _get_builds(self, qitem):
-        with self.connection.cursor() as cursor:
-            sql = "select builds from item_jobtree where queueitem='{}'".format(qitem)
-            cursor.execute(sql)
-            result = cursor.fetchone()
-            log.debug("Builds: {}".format(result))
-            return result
+                                                     subsystem=subsystem,
+                                                     timeslots=timeslots)
 
     def _get_longest_build(self, builds):
         try:
@@ -114,21 +99,12 @@ class JobTreeOper(object):
             longest = ''
             log.debug(str(err))
             log.debug('Selected data build time info is not complete.')
-            # raise Exception('Selected data build time info is not complete.')
         lbuild = ''
         for k, v in builds.items():
             if v[-1] == longest:
                 lbuild = k
                 break
         return lbuild
-
-    def _get_trees(self, qitem):
-        with self.connection.cursor() as cursor:
-            sql = "select jobtree from item_jobtree where queueitem='{}'".format(qitem)
-            cursor.execute(sql)
-            result = cursor.fetchone()
-            # log.debug("Trees: {}".format(result))
-            return result
 
     def get_paths(self, btree):
 
@@ -162,33 +138,84 @@ class JobTreeOper(object):
                 cpath.append(p)
         return cpath
 
-    def update_skytrack(self, *sdata):
+    def update_data(self):
+        """
+        update critical path and the timeslots, each build waiting time and running time.
+        :param builds:
+        :param cpath:
+        :return:
+        """
+        for k, v in self.datas.items():
+            dbuilds = v['builds']
+            timeinfo = list()
+            timeslots = list()
+            cpath = self.critical_path(dbuilds, v['jobtree'])
+            if not cpath:
+                continue
+            cpath_ls = cpath[0].split(' -> ')
+            tmp_ls = copy.deepcopy(cpath_ls)
+            log.debug(k)
+            log.debug(cpath_ls)
+
+            for i, bui in enumerate(cpath_ls):
+                if i < len(cpath_ls) - 1:
+                    if dbuilds[bui][-1] > dbuilds[cpath_ls[i + 1]][1]:
+                        try:
+                            if dbuilds[bui][-1] > dbuilds[cpath_ls[i + 1]][-1]:
+                                tmp_ls.remove(cpath_ls[i + 1])
+                            else:
+                                tmp_ls.remove(bui)
+                        except Exception as re_err:
+                            log.debug(re_err)
+            v['cpath'] = ' -> '.join(tmp_ls)
+
+            for bu in tmp_ls:
+                if dbuilds.get(bu):
+                    timeslots.append(dbuilds[bu][1:4])
+                else:
+                    raise Exception("Unfound cpath build, must be error")
+            try:
+                totaltime = str(int(timeslots[-1][2]) - int(timeslots[0][0]))
+            except Exception as err:
+                log.debug(str(err))
+                totaltime = 'N/A'
+                log.debug('Unvalid time exist. ')
+            timeinfo.append(totaltime)
+
+            for i, ts in enumerate(timeslots):
+                try:
+                    base = int(timeslots[i - 1][2]) if i else int(ts[0])
+                except Exception as ts_err:
+                    log.debug(str(ts_err))
+                    base = 'N/A'
+                try:
+                    waittime = str(int(ts[1]) - base)
+                except Exception as wt_err:
+                    log.debug(str(wt_err))
+                    waittime = 'N/A'
+                timeinfo.append(waittime)
+                try:
+                    runtime = str(int(ts[2]) - int(ts[1]))
+                except Exception as rt_err:
+                    log.debug(str(rt_err))
+                    runtime = 'N/A'
+                timeinfo.append(runtime)
+            v['timeslots'] = ','.join(timeinfo)
+
+    def update_skytrack(self, sdata):
         try:
             self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
                 sql = "INSERT INTO t_critical_path " \
-                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem)" \
-                      " VALUES {}".format(sdata)
+                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem,c_project,c_branch,end_time)" \
+                      " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}',{8})".format(*sdata)
                 log.debug(sql)
                 cursor.execute(sql)
             self.connection.commit()
         except Exception as err:
             log.debug(str(err))
-            self.connection.rollback()
-            self.connection.close()
-
-    def update_test(self, *sdata):
-        try:
-            with self.connection.cursor() as cursor:
-                sql = "INSERT INTO item_jobtree (pipeline, queueitem, changeitem, builds, jobtree)" \
-                      " VALUES {}".format(sdata)
-                log.debug(sql)
-                cursor.execute(sql)
-            self.connection.commit()
-        except Exception as db_err:
-            log.debug(str(db_err))
-            self.connection.rollback()
-            self.connection.close()
+            # self.connection.rollback()
+            # self.connection.close()
 
 
 class Runner(object):
@@ -200,96 +227,53 @@ class Runner(object):
 
     def get_parser(self):
         parser = argparse.ArgumentParser(description='Used for job find critical path')
-        parser.add_argument('-p', '--patchset', dest='ps', help='change and patch-set')
-        parser.add_argument('-q', '--queueitem', dest='qitem', help='queue item of change')
-        parser.add_argument('-l', '--lines', dest='lines', help='latest lines data')
-        parser.add_argument('-a', '--all', dest='all', action='store_true', help='all items')
-        parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="logging level ")
+        parser.add_argument('-t', '--tdate', dest='tdate', help="time date")
+        parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="logging level")
         return parser
 
     def parse_arguments(self):
         self.jto_args, self.other_args = self.parser.parse_known_args()
-
-    def get_buildtime(self, cpath, builds):
-        timeinfo = list()
-        timeslots = list()
-        for bu in cpath.split(' -> '):
-            if builds.get(bu):
-                timeslots.append(builds[bu][1:4])
-            else:
-                timeslots.append([0, 0, 0])
-        try:
-            totaltime = str(int(timeslots[-1][2]) - int(timeslots[0][0]))
-        except Exception as err:
-            log.debug(str(err))
-            totaltime = 'N/A'
-            log.debug('Unvalid time exist. ')
-        timeinfo.append(totaltime)
-        for i, ts in enumerate(timeslots):
-            try:
-                base = int(timeslots[i - 1][2]) if i else int(ts[0])
-            except Exception as ts_err:
-                log.debug(str(ts_err))
-                base = 'N/A'
-            try:
-                waittime = str(int(ts[1]) - base)
-            except Exception as wt_err:
-                log.debug(str(wt_err))
-                waittime = 'N/A'
-            timeinfo.append(waittime)
-            try:
-                runtime = str(int(ts[2]) - int(ts[1]))
-            except Exception as rt_err:
-                log.debug(str(rt_err))
-                runtime = 'N/A'
-            timeinfo.append(runtime)
-        return ','.join(timeinfo)
 
     def run(self):
         if self.jto_args.debug:
             logging.basicConfig(level=logging.DEBUG,
                                 format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                                 datefmt='%a, %d %b %Y %H:%M:%S')
-
-        if not self.jto_args.all and not self.jto_args.ps:
-            raise Exception("Please input change and patchset.")
-        input_lines = self.jto_args.lines if self.jto_args.lines else 3000
-
+        if self.jto_args.tdate:
+            tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
+        else:
+            tdate = datetime.datetime.now().strftime("%Y-%m-%d 00:00:00")
         jto_ins = JobTreeOper(DB_HOST, DB_USER, DB_PASS, DB_TEST)
         log.debug("Connection {0} to ZUUL db {1}".format(jto_ins.connection, DB_TEST))
+        jto_ins.get_records(tdate)
+        jto_ins.update_data()
+        log.debug(jto_ins.datas)
 
-        jto_ins.get_records(input_lines)
-        for k, v in jto_ins.datas.items():
-            log.debug(v['builds'])
-            log.debug(v['jobtree'])
-            cpa = jto_ins.critical_path(v['builds'], v['jobtree'])
-            jenkins = 'NONE'
-            for buildset in v['builds'].values():
-                if buildset[0].startswith('http'):
-                    jenkins = buildset[0].split('/')[2]
-                    break
-            if cpa and cpa[0].count(r'MASTER_PROD/UPLANE'):
-                subs = jenkins + ',' + 'UPLANE'
-            elif cpa and cpa[0].count(r'MASTER_PROD/CPLANE'):
-                subs = jenkins + ',' + 'CPLANE'
-            else:
-                subs = jenkins + ',' + 'Reserved'
-            v['cpath'] = cpa
-            v['subsystem'] = subs.encode()
-
-        sky_ins = JobTreeOper(SDB_HOST, SDB_USER, SDB_PASS, SDB_TEST)
-        log.debug("Connection {0} to skytrack db {1}".format(jto_ins.connection, SDB_TEST))
-        for k, v in jto_ins.datas.items():
-            if v['cpath']:
-                timeslot = self.get_buildtime(v['cpath'][0], v['builds'])
-                log.debug("{0},{1},{2},{3},{4},{5}".format(v['pipeline'], v['queueitem'],
-                                                           v['change'], timeslot, v['cpath'][0], v['subsystem']))
-                sky_ins.update_skytrack(v['pipeline'],
-                                        v['queueitem'],
-                                        v['change'],
-                                        timeslot,
-                                        v['cpath'][0],
-                                        v['subsystem'])
+        try:
+            sky_ins = JobTreeOper(SDB_HOST, SDB_USER, SDB_PASS, SDB_TEST)
+            log.debug("Connection {0} to skytrack db {1}".format(jto_ins.connection, SDB_TEST))
+            for k, v in jto_ins.datas.items():
+                if v['cpath']:
+                    log.debug("{0},{1},{2},{3},{4},{5}".format(v['pipeline'], v['queueitem'],
+                                                               v['change'], v['timeslots'],
+                                                               v['cpath'], v['subsystem']))
+                    try:
+                        sky_ins.update_skytrack((v['pipeline'],
+                                                v['queueitem'],
+                                                v['change'],
+                                                v['timeslots'],
+                                                v['cpath'],
+                                                v['subsystem'],
+                                                v['project'],
+                                                v['branch'],
+                                                "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)))
+                    except Exception as sky_err:
+                        log.debug(sky_err)
+                        continue
+        except Exception as sky_err:
+            log.debug(str(sky_err))
+        finally:
+            sky_ins._close()
 
 
 sys.exit(Runner().run())
