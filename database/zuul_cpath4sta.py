@@ -157,6 +157,14 @@ class JobTreeOper(object):
             log.debug(k)
             log.debug(cpath_ls)
 
+            if cpath and cpath[0].count(r'MASTER_PROD/UPLANE'):
+                subs = 'UPLANE'
+            elif cpath and cpath[0].count(r'MASTER_PROD/CPLANE'):
+                subs = 'CPLANE'
+            else:
+                subs = 'Reserved'
+            v['subsystem'] = subs
+
             for i, bui in enumerate(cpath_ls):
                 if i < len(cpath_ls) - 1:
                     if dbuilds[bui][-1] > dbuilds[cpath_ls[i + 1]][1]:
