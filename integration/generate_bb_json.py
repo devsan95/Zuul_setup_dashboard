@@ -253,9 +253,12 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
         elif atype == 'component-from-property':
             if not rest or not change_no:
                 raise Exception('No gerrit rest or change no')
-            diff = rest.get_file_change(action['file_name'], change_no, using_cache=True).get('new_diff')
+            file_content = rest.get_file_content(action['file_name'], change_no)
             key_value = {}
-            for line in diff.split('\n'):
+            for line in file_content.split('\n'):
+                m = re.match('\s*#', line)
+                if m:
+                    continue
                 line_snip = line.split('=', 2)
                 if len(line_snip) > 1:
                     key_value[line_snip[0].strip()] = line_snip[1].strip()
