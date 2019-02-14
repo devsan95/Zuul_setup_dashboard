@@ -217,7 +217,10 @@ def run(gerrit_info_path, change_no,
 
     label_value = check_user_label_from_detail(change_info,
                                                username, 'Integrated')
-    if label_value == -1 or label_value == -2 or label_value == 2:
+    if label_value == -1 or label_value == -2:
+        print('Integrated is {} and '
+              'no need to do anything'.format(label_value))
+    elif label_value == 2:
         print('Integrated is {} and '
               'no need to do anything'.format(label_value))
         return
