@@ -329,6 +329,7 @@ class IntegrationChangesCreation(object):
             try:
                 self.create_ticket_by_node(nodes[child])
             except Exception:
+                print("[Error] create changes failed!Trying to abandon gerrit changes and close jira!")
                 nodes = self.info_index['nodes']
                 if 'jira_key' in self.meta:
                     create_jira_ticket.close(self.meta['jira_key'])

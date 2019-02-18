@@ -54,13 +54,14 @@ def parse_config(rest, change_no):
                 print(e)
                 traceback.print_exc()
                 continue
-    print('Config parse result:')
+    print('[Info] Config parse result:')
     print(retd)
     return retd
 
 
 def parse_ric_list(rest, subject, zuul_url,
                    zuul_ref, project_branch, config):
+    print("---------------------------parsing integration change to get the ric list-------------------------------")
     ret_dict = {}
     external_dict = {}
     link_result = {}
@@ -87,7 +88,7 @@ def parse_ric_list(rest, subject, zuul_url,
     for item in ric:
         key, value, change_no, need_change, type_, change, project = item
         if type_ != 'integration':
-            print('{} is {}'.format(change_no, type_))
+            print('[Info] for ric key {}, change number is {}, type is {}'.format(key, change_no, type_))
             if change_no:
                 if change_no in external_dict:
                     external_dict[change_no].append(key)
@@ -96,9 +97,10 @@ def parse_ric_list(rest, subject, zuul_url,
         if type_ != 'external':
             if change_no:
                 need_change = is_adapted(rest, change_no)
-                print('Change {} is Adapted: {}'.format(change_no, need_change))
+                if need_change:
+                    print('[Info] For ric key {}, change {} has adaptation'.format(key, change_no))
                 if link_result.get(project):
-                    print('{} project is adapted for one component'.format(project))
+                    print('[Info] one component in project {} has adaptation, so the other related components will be added in knife json'.format(project))
                     need_change = True
             if need_change:
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
@@ -109,7 +111,7 @@ def parse_ric_list(rest, subject, zuul_url,
                         ret_dict[key]['repo_ver'] = \
                             form_zuul_ref(zuul_ref, branch)
                     else:
-                        print('project {} not in zuul_changes'.format(project))
+                        print('[Warning] project {} not in zuul_changes'.format(project))
                 if ret_dict[key]['repo_url'].startswith('http:'):
                     ret_dict[key]['repo_url'] = \
                         ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
@@ -371,7 +373,7 @@ def parse_zuul_changes(zuul_changes):
         if len(blist) > 1:
             retd[blist[0]] = blist[1]
         else:
-            print('{} cant be parsed'.format(p))
+            print('[warning] zuul_changes {} cant be parsed, since it is empty'.format(p))
     return retd
 
 
@@ -480,8 +482,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
                        {'all': ric_dict},
                        {'all': ric_commit_dict},
                        {'all': env_dict},
-                       comment_dict,
-                       ex_comment_dict
+                       ex_comment_dict,
+                       comment_dict
                    ])],
                    override=True)
 

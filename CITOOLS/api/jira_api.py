@@ -39,6 +39,8 @@ class JIRAPI(object):
 
     def close_issue(self, issue_name):
         transitions = self.jira.transitions(issue_name)
+        print("-------------transition value------------")
+        print(transitions)
         status_with_ids = [(t["name"], t["id"]) for t in transitions]
         transition_id = [one[1] for one in status_with_ids if one[0] == u'Close Issue']
         if transition_id:
