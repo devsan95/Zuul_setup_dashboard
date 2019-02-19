@@ -1,7 +1,9 @@
+
 import sys
 import logging
 import argparse
 import pymysql
+import collections
 
 log = logging.getLogger(__file__)
 
@@ -19,6 +21,7 @@ class JobTreeOper(object):
                                user=self.username,
                                password=self.password,
                                db=self.db,
+                               # charset='utf8mb4',
                                cursorclass=pymysql.cursors.DictCursor
                                )
         return conn
@@ -57,11 +60,11 @@ class JobTreeOper(object):
         return lbuild
 
     def _get_trees(self, qitem):
+        self.connection.ping(reconnect=True)
         with self.connection.cursor() as cursor:
             sql = "select jobtree from item_jobtree where queueitem='{}'".format(qitem)
             cursor.execute(sql)
             result = cursor.fetchone()
-            # log.debug("Trees: {}".format(result))
             return result
 
     def get_paths(self, btree):
@@ -71,7 +74,7 @@ class JobTreeOper(object):
             for k, v in d.items():
                 for inv in v:
                     if isinstance(inv, str):
-                        paths.append('-'.join([k, inv]))
+                        paths.append(' -> '.join([k, inv]))
                     elif isinstance(inv, dict):
                         invpath = _get_dict_path(inv)
                         for tmpath in invpath:
@@ -87,6 +90,24 @@ class JobTreeOper(object):
                 allpaths.append(build)
         return allpaths
 
+    def get_layer_jobs(self, qitem):
+        ljob = collections.defaultdict(list)
+        dbt = self._get_trees(qitem)
+        bt = eval(dbt.items()[0][1])
+        tmpbt = bt
+        i = 0
+        while tmpbt:
+            ttmpbt = list()
+            for b in tmpbt:
+                if isinstance(b, str):
+                    ljob[i].append(b)
+                if isinstance(b, dict):
+                    ljob[i].append(b.keys()[0])
+                    ttmpbt.extend(b.values()[0])
+            i += 1
+            tmpbt = ttmpbt
+        return ljob
+
     def critical_path(self, qitem):
         cpath = list()
         lbuild = self._get_longest_build(qitem)
@@ -97,6 +118,58 @@ class JobTreeOper(object):
             if p.endswith(lbuild):
                 cpath.append(p)
         return cpath
+
+    def get_final_cpath(self, qitem):
+        binfo = self._get_builds(qitem)
+        buildsinfo = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
+        ljobs = self.get_layer_jobs(qitem)
+        cpath = self.critical_path(qitem)
+        fcpath = list()
+        cpath_ls = cpath[0].split(' -> ')
+        for i, p in enumerate(cpath_ls):
+            if not i:
+                fcpath.append(p)
+            else:
+                tls = list()
+                for j in range(i):
+                    tls.extend(ljobs[j])
+                if p not in tls:
+                    fcpath.append(p)
+                else:
+                    # pl = 0
+                    ttls = list()
+                    for firstRun in range(i):
+                        if p in ljobs[firstRun]:
+                            # pl = firstRun
+                            break
+                    for h in range(firstRun + 1, i):
+                        ttls.append(cpath_ls[h])
+                    if ttls:
+                        # st = buildsinfo[ttls[0]][1]
+                        et = buildsinfo[ttls[-1]][3]
+                        if buildsinfo[p][3] > et:
+                            fcpath.append(p)
+                            for m in ttls:
+                                try:
+                                    fcpath.remove(m)
+                                except Exception as re_err:
+                                    log.error(str(re_err))
+                                    log.debug("Already removed {}".format(m))
+        timeslots = list()
+        total = int(buildsinfo[fcpath[-1]][3] - buildsinfo[fcpath[0]][1])
+        timeslots.append(total)
+        for n, fcp in enumerate(fcpath):
+            if not n:
+                t1 = int(buildsinfo[fcp][2] - buildsinfo[fcp][1])
+                t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
+            else:
+                t1 = int(buildsinfo[fcp][2] - buildsinfo[fcpath[n - 1]][3])
+                t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
+            timeslots.append(t1)
+            timeslots.append(t2)
+        fcp = ' -> '.join(fcpath)
+        tls = ','.join([str(tls) for tls in timeslots])
+        return buildsinfo, fcp, tls
 
 
 class Runner(object):
@@ -120,42 +193,6 @@ class Runner(object):
     def parse_arguments(self):
         self.jto_args, self.other_args = self.parser.parse_known_args()
 
-    def get_buildtime(self, cpath, builds):
-        timeinfo = list()
-        timeslots = list()
-        for bu in cpath.split(' -> '):
-            if builds.get(bu):
-                timeslots.append(builds[bu][1:4])
-            else:
-                timeslots.append([0, 0, 0])
-        try:
-            totaltime = str(int(timeslots[-1][2]) - int(timeslots[0][0]))
-        except Exception as err:
-            log.debug(str(err))
-            totaltime = 'N/A'
-            log.debug('Unvalid time exist. ')
-        for i, ts in enumerate(timeslots):
-            try:
-                base = int(timeslots[i - 1][2]) if i else int(ts[0])
-            except Exception as err:
-                log.debug(str(err))
-                log.debug(str(err))
-                base = 'N/A'
-            try:
-                waittime = str(int(ts[1]) - base)
-            except Exception as err:
-                log.debug(str(err))
-                waittime = 'N/A'
-            timeinfo.append(waittime)
-            try:
-                runtime = str(int(ts[2]) - int(ts[1]))
-            except Exception as err:
-                log.debug(str(err))
-                runtime = 'N/A'
-            timeinfo.append(runtime)
-        timeinfo.append(totaltime)
-        return ','.join(timeinfo)
-
     def run(self):
         if self.jto_args.debug:
             logging.basicConfig(level=logging.DEBUG,
@@ -172,29 +209,29 @@ class Runner(object):
         log.debug("connection {0} to db {1}".format(jto_ins.connection,
                                                     self.jto_args.table))
         queueitems = jto_ins._get_queueitems(self.jto_args.ps)
+        results = list()
         if self.jto_args.qitem in queueitems:
             try:
-                cpath = jto_ins.critical_path(self.jto_args.qitem)
-                binfo = jto_ins._get_builds(self.jto_args.qitem)
-                builds = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
-                timeinfo = self.get_buildtime(cpath[0], builds)
-                log.debug("Critical paths for this patch-set {}".format(cpath))
-                log.debug("waiting-runing pairs and total timelist {}".format(timeinfo))
-            except Exception as btime_err:
-                log.debug(str(btime_err))
+                jto_ins.get_layer_jobs(self.jto_args.qitem)
+                res = jto_ins.get_final_cpath(self.jto_args.qitem)
+                results.append(res)
+            except Exception as c_err:
+                log.error(str(c_err))
                 jto_ins._close()
         else:
             for qitem in queueitems:
                 try:
-                    cpath = jto_ins.critical_path(qitem)
-                    binfo = jto_ins._get_builds(qitem)
-                    builds = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
-                    timeinfo = self.get_buildtime(cpath[0], builds)
-                    log.debug("Critical paths for this patch-set {}".format(cpath))
-                    log.debug("waiting-runing pairs and total timelist {}".format(timeinfo))
-                except Exception as cpath_err:
-                    log.debug(str(cpath_err))
+                    jto_ins.get_layer_jobs(qitem)
+                    res = jto_ins.get_final_cpath(qitem)
+                    results.append(res)
+                except Exception as c_err:
+                    log.error(str(c_err))
                     jto_ins._close()
+
+        for result in results:
+            print("Builds info: {}".format(result[0]))
+            print("Critical Path: {}".format(result[1]))
+            print("Timeslots : {}".format(result[2]))
 
 
 sys.exit(Runner().run())
