@@ -167,9 +167,12 @@ class JobTreeOper(object):
                 t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
             timeslots.append(t1)
             timeslots.append(t2)
+        cp_builds = list()
+        for cpat in fcpath:
+            cp_builds.append(buildsinfo[cpat])
         fcp = ' -> '.join(fcpath)
         tls = ','.join([str(tls) for tls in timeslots])
-        return buildsinfo, fcp, tls
+        return cp_builds, fcp, tls
 
 
 class Runner(object):

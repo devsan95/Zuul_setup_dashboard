@@ -256,7 +256,7 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
             file_content = rest.get_file_content(action['file_name'], change_no)
             key_value = {}
             for line in file_content.split('\n'):
-                m = re.match('\s*#', line)
+                m = re.match(r'\s*#', line)
                 if m:
                     continue
                 line_snip = line.split('=', 2)
