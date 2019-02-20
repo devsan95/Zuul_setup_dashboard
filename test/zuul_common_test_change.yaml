@@ -47,3 +47,8 @@ repos:
       master:
         folders:
           - test/
+  zuul_test:
+    branches:
+      master:
+        folders:
+        - test/
