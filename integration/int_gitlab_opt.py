@@ -29,7 +29,8 @@ def get_int_info(ticket, rest_obj):
     """
     regex_dict = {
         'fifi': r'(%FIFI=.*)$',
-        'comp': r'\s+- COMP <(\S+)>'}
+        'comp': r'\s+- COMP <(\S+)>',
+        'title_comp': r'<(.*)> on .*'}
     match_dict = {}
     for key, regex_str in regex_dict.items():
         commit_msg = get_int_msg(ticket, rest_obj)
@@ -45,6 +46,8 @@ def get_int_info(ticket, rest_obj):
     mr_comp = ''
     if 'comp' in match_dict:
         mr_comp = match_dict['comp']
+    if not mr_comp:
+        mr_comp = match_dict['title_comp']
     return mr_title, mr_comp
 
 
