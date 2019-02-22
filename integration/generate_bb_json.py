@@ -334,7 +334,7 @@ def parse_comments_mail(change_id, rest):
     r = re.compile(r'(\S+)@(\S+)')
     mail_key = 'knife recipients:'
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
-    mail_list = set()
+    mail_list = []
     for msg in comment_list['messages']:
         is_mail_list = False
         for line in msg['message'].split('\n'):
@@ -345,7 +345,7 @@ def parse_comments_mail(change_id, rest):
                 m = r.match(line)
                 if m:
                     print(line)
-                    mail_list.add(m.group(1))
+                    mail_list.append(m.group(1))
     print('Comments of mail parse result:')
     print(mail_list)
     return mail_list
@@ -516,9 +516,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     reviews_json = rest.get_reviewer(change_id)
     reviews_mail_list = [x['email'] for x in reviews_json if 'email' in x]
     mail_list = parse_comments_mail(change_id, rest)
-    mail_list.append(reviews_mail_list)
-    reviews_json.append({'email_list': mail_list})
-    save_json_file(reviews_path, mail_list)
+    mail_list.extend(reviews_mail_list)
+    save_json_file(reviews_path, list(set(mail_list)))
 
     # add all gnb components
     rewrite_knife_json(knife_path, gnb_list_path)
