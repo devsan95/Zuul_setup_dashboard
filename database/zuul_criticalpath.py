@@ -37,8 +37,14 @@ class JobTreeOper(object):
             sql = "select queueitem from item_jobtree where changeitem='{}'".format(chps)
             cursor.execute(sql)
             result = cursor.fetchall()
+            log.debug("Review queueitem and result:{}".format(result))
             log.debug("Queueitems: {}".format(result))
-            return [res['queueitem'] for res in result]
+            try:
+                frel = [res['queueitem'].split(',')[0] for res in result]
+            except Exception as rel_err:
+                log.debug("No review result, {}".format(str(rel_err)))
+                frel = [res['queueitem'] for res in result]
+            return frel
 
     def _get_builds(self, qitem):
         with self.connection.cursor() as cursor:
