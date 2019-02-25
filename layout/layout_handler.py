@@ -287,12 +287,12 @@ def check_layout_d_consistency(snippet_list, pipelines):
             is_matched = False
             for snippet_e in new_list:
                 if snippet is not snippet_e:
-                        for item in snippet_e['project_list']:
-                            if reg.match(item):
-                                reg_wildly_matching.append(
-                                    [rege, item, snippet_e.get('path')])
-                                # is_matched = True
-                                # break
+                    for item in snippet_e['project_list']:
+                        if reg.match(item):
+                            reg_wildly_matching.append(
+                                [rege, item, snippet_e.get('path')])
+                            # is_matched = True
+                            # break
                 # if is_matched:
                 #    break
 
