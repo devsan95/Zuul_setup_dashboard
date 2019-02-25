@@ -91,7 +91,15 @@ def main(change_number, action, stream_number, gerrit_info_path):
 
     stream_number = str(stream_number)
     stream_number.strip()
-    stream_list = stream_number.split(";")
+    if ',' in stream_number:
+        stream_list = stream_number.split(",")
+    if ';' in stream_number:
+        stream_list = stream_number.split(";")
+    stream_re = re.compile(r'^\d+\.\d+$')
+    for stream in stream_list:
+        if not stream_re.match(stream):
+            print('[Error] {} is not stream number, please input stream number only!'.format(stream))
+
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     commit_message = rest.get_commit(change_number)['message']
 
