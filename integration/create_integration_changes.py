@@ -611,7 +611,9 @@ class IntegrationChangesCreation(object):
         commit = self.base_commits_info.get(key)
         print('Get commit [{}] from key [{}]'.format(commit, key))
         if not commit:
-            change_info = self.gerrit_rest.query_ticket('branch:{} project:{} status:merged'.format(branch, project), count=1)
+            commit_info = self.gerrit_rest.get_latest_commit_from_branch(project, branch)
+            commit_hash = commit_info['revision']
+            change_info = self.gerrit_rest.query_ticket('commit:{}'.format(commit_hash), count=1)
             if change_info:
                 change_info = change_info[0]
                 commit = change_info['_number']
@@ -819,6 +821,7 @@ def create_changes(ctx, version_name=None,
 
 if __name__ == '__main__':
     try:
+        # pylint: disable=E1123
         cli(obj={})
     except Exception as e:
         print("An exception %s occurred, msg: %s" % (type(e), str(e)))

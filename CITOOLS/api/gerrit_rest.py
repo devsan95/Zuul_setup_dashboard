@@ -33,7 +33,7 @@ def init_from_yaml(path):
         return rest
 
 
-class GerritRestClient:
+class GerritRestClient(object):
     def __init__(self, url, user, pwd, auth=None, cache_size=None):
         self.server_url = url
         if not self.server_url.endswith('/'):
@@ -51,7 +51,7 @@ class GerritRestClient:
         with self.cache_lock:
             self.cache = None
         if cache_size:
-            self.init_cache(self, cache_size)
+            self.init_cache(cache_size)
 
     def change_to_digest_auth(self):
         self.auth = requests.auth.HTTPDigestAuth
@@ -62,19 +62,17 @@ class GerritRestClient:
     def get_auth(self):
         if self.user:
             return self.auth(self.user, self.pwd)
-        else:
-            return None
+        return None
 
     def get_rest_url(self, path_):
         if path_.startswith('/'):
             path_ = path_[1:]
         if self.user:
             url_ = urljoin(self.server_url, 'a/')
-            url__ = urljoin(url_, path_)
-            return url__
+            url_ = urljoin(url_, path_)
         else:
             url_ = urljoin(self.server_url, path_)
-            return url_
+        return url_
 
     def init_cache(self, size=200):
         with self.cache_lock:
@@ -642,4 +640,19 @@ class GerritRestClient:
                     rest_url, changes.status_code, changes.content))
 
         result = self.parse_rest_response(changes)
+        return result
+
+    def get_latest_commit_from_branch(self, project, branch):
+        auth = self.get_auth()
+        _url = '/projects/{}/branches/{}'.format(requests.utils.quote(project, safe=''), requests.utils.quote(branch, safe=''))
+        get_param = {}
+        commit = self.session.get(self.get_rest_url(_url), auth=auth, params=get_param)
+
+        if not commit.ok:
+            raise Exception(
+                'Query branch [{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    branch, commit.status_code, commit.content))
+
+        result = self.parse_rest_response(commit)
         return result
