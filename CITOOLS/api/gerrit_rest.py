@@ -643,3 +643,18 @@ class GerritRestClient:
 
         result = self.parse_rest_response(changes)
         return result
+
+    def get_latest_commit_from_branch(self, project, branch):
+        auth = self.get_auth()
+        _url = '/projects/{}/branches/{}'.format(project, branch)
+        get_param = {}
+        commit = self.session.get(self.get_rest_url(_url), auth=auth, params=get_param)
+
+        if not commit.ok:
+            raise Exception(
+                'Query branch [{}] failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    branch, commit.status_code, commit.content))
+
+        result = self.parse_rest_response(commit)
+        return result
