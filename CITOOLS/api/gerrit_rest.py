@@ -34,18 +34,24 @@ def init_from_yaml(path):
 
 
 class GerritRestClient:
-    def __init__(self, url, user, pwd):
+    def __init__(self, url, user, pwd, auth=None, cache_size=None):
         self.server_url = url
         if not self.server_url.endswith('/'):
             self.server_url = self.server_url + '/'
         self.user = user
         self.pwd = pwd
         self.auth = requests.auth.HTTPDigestAuth
+        if auth == 'basic':
+            self.change_to_basic_auth()
+        elif auth == 'digest':
+            self.change_to_digest_auth()
         self.session = requests.Session()
         self.session.verify = False
         self.cache_lock = threading.RLock()
         with self.cache_lock:
             self.cache = None
+        if cache_size:
+            self.init_cache(self, cache_size)
 
     def change_to_digest_auth(self):
         self.auth = requests.auth.HTTPDigestAuth
