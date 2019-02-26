@@ -271,7 +271,7 @@ class Runner(object):
                                                 v['change'],
                                                 v['timeslots'],
                                                 v['cpath'],
-                                                v['subsystem'],
+                                                v['subsystem'].replace('MERGER_', ''),
                                                 v['project'],
                                                 v['branch'],
                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)))
