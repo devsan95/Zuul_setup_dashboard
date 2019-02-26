@@ -1,7 +1,7 @@
 gerrit:
   url: http://gerrit.zuultest.dynamic.nsn-net.net
-  user: dxuan
-  pwd: 4ECc3mtPnXly3d/HjzAmtS/ya1QvLJgW4gP/qGjN6g
+  user: test
+  pwd: jFDajhhuJkoKwJ0+22a/xxxnaDgU8SR1ekbP3yQ90A
   auth: basic
   ssh_server: gerrit.zuultest.dynamic.nsn-net.net
   ssh_port: 29418
