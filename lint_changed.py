@@ -25,6 +25,9 @@ def run_command(command_line, log):
 
 def main(repo_path, gerrit_path, flake8_conf, pylint_conf):
     log = log_api.get_console_logger('Linting')
+    log.info('Start linting %s', repo_path)
+    log.info('Using %s and %s', flake8_conf, pylint_conf)
+    log.info('==============================')
     rest = gerrit_rest.init_from_yaml(gerrit_path)
     zuul_changes = os.environ.get('ZUUL_CHANGE_IDS').split(' ')
     file_set = set()
@@ -39,12 +42,14 @@ def main(repo_path, gerrit_path, flake8_conf, pylint_conf):
             continue
         if not file_name.endswith('.py'):
             continue
-        log.info('Linting %s', file_name)
+        log.info('Linting [%s]', file_name)
         log.info('----flake8----')
         total_ret += run_command("flake8 --config={} {}".format(flake8_conf, os.path.join(repo_path, file_name)), log)
         log.info('----pylint----')
         total_ret += run_command("pylint --rcfile={} {}".format(pylint_conf, os.path.join(repo_path, file_name)), log)
         log.info('==============================')
+
+    exit(total_ret)
 
 
 if __name__ == '__main__':
