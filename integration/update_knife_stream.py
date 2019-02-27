@@ -11,7 +11,7 @@ from submodule_handle import get_topic_from_commit_message
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def get_platform(change_number, rest, commit_message):
+def get_platform(commit_message):
     platform = ""
     m = re.search(r"Platform ID: \<([^\>]*)\>", commit_message)
     platform = m.group(1)
@@ -19,9 +19,9 @@ def get_platform(change_number, rest, commit_message):
     return platform
 
 
-def parse_file_name_by_stream_list(change_number, stream_list, rest, commit_message):
+def parse_file_name_by_stream_list(stream_list, commit_message):
     print("[Info] Parsing platform ID from original commit message...")
-    platform = get_platform(change_number, rest, commit_message)
+    platform = get_platform(commit_message)
     print("[Info] Parsing topic from original commit message...")
     topic = get_topic_from_commit_message(commit_message)
     file_list = []
@@ -33,7 +33,7 @@ def parse_file_name_by_stream_list(change_number, stream_list, rest, commit_mess
 
 def add_stream(change_number, stream_list, rest, commit_message):
     need_publish = False
-    file_list = parse_file_name_by_stream_list(change_number, stream_list, rest, commit_message)
+    file_list = parse_file_name_by_stream_list(stream_list, commit_message)
     current_file_list = rest.get_file_list(change_number)
     for file_path in file_list:
         if file_path not in current_file_list:
@@ -45,7 +45,7 @@ def add_stream(change_number, stream_list, rest, commit_message):
 
 def remove_stream(change_number, stream_list, rest, commit_message):
     need_publish = False
-    file_list = parse_file_name_by_stream_list(change_number, stream_list, rest, commit_message)
+    file_list = parse_file_name_by_stream_list(stream_list, commit_message)
     current_file_list = rest.get_file_list(change_number)
     if file_list:
         for file_path in file_list:
@@ -60,17 +60,17 @@ def set_stream(change_number, stream_list, rest, commit_message):
     need_publish = False
     current_file_list = rest.get_file_list(change_number)
     if current_file_list:
-        for file in current_file_list:
-            print("[Info] The files in change {} is: {}".format(change_number, file))
-            if len(file.split('/', 2)) > 1:
-                stream = file.split('/', 2)[1]
+        for current_file in current_file_list:
+            print("[Info] The files in change {} is: {}".format(change_number, current_file))
+            if len(current_file.split('/', 2)) > 1:
+                stream = current_file.split('/', 2)[1]
             else:
                 continue
-            if stream != "default" and file != "/COMMIT_MSG":
-                print("[Info] File {} is going to be removed from the change {}".format(file, change_number))
-                rest.restore_file_to_change(change_number, file)
+            if stream != "default" and current_file != "/COMMIT_MSG":
+                print("[Info] File {} is going to be removed from the change {}".format(current_file, change_number))
+                rest.restore_file_to_change(change_number, current_file)
                 need_publish_remove = True
-    if not need_publish:
+    if not need_publish_remove:
         print("[Info] No need to remove files from the original file list, goint to add new stream")
     if stream_list:
         need_publish_add = add_stream(change_number, stream_list, rest, commit_message)
@@ -91,6 +91,7 @@ def main(change_number, action, stream_number, gerrit_info_path):
 
     stream_number = str(stream_number)
     stream_number.strip()
+    stream_list = stream_number
     if ',' in stream_number:
         stream_list = stream_number.split(",")
     if ';' in stream_number:
