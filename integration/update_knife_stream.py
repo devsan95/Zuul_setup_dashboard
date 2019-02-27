@@ -91,11 +91,12 @@ def main(change_number, action, stream_number, gerrit_info_path):
 
     stream_number = str(stream_number)
     stream_number.strip()
-    stream_list = stream_number
     if ',' in stream_number:
         stream_list = stream_number.split(",")
     if ';' in stream_number:
         stream_list = stream_number.split(";")
+    if ',' not in stream_number and ';' not in stream_number:
+        stream_list = stream_number.split()
     stream_re = re.compile(r'^\d+\.\d+$')
     for stream in stream_list:
         if not stream_re.match(stream):
