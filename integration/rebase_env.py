@@ -233,8 +233,8 @@ def run(gerrit_info_path, change_no,
     else:
         print('Integrated is {} and will relabel'.format(label_value))
 
-    # 3 relabel and reintegrate env
-    print('relabel change {} and reintegrate'.format(change_no))
+    # 3 relabel env with integrated-1 label
+    print('relabel change {}'.format(change_no))
     if use_ssh:
         gerrit_api.review_patch_set(ssh_gerrit_user, ssh_gerrit_server,
                                     change_no,
@@ -255,8 +255,6 @@ def run(gerrit_info_path, change_no,
     else:
         print('Fail')
         raise Exception('Label integrated -1 failed')
-
-    rest.review_ticket(change_no, 'reintegrate')
 
     # 4 find all changes
     print('Looking for all changes...')

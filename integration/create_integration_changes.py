@@ -573,7 +573,6 @@ class IntegrationChangesCreation(object):
                                     root_node['ticket_id'],
                                     ['Integrated=-1'], 'init_label',
                                     self.gerrit_ssh_key, self.gerrit_ssh_port)
-        self.gerrit_rest.review_ticket(root_node['rest_id'], 'reintegrate')
         self.gerrit_rest.review_ticket(integration_node['rest_id'], 'reexperiment')
         for node in nodes.values():
             if node is not root_node and node is not integration_node:
