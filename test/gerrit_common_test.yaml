@@ -1,6 +1,6 @@
 gerrit:
   url: http://gerrit.common.dynamic.nsn-net.net
-  user: ca_test
+  user: ca_5gtest
   pwd: test
   auth: basic
   ssh_server: gerrit.common.dynamic.nsn-net.net
