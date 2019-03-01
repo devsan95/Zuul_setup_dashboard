@@ -56,7 +56,7 @@ def _if_checklist_all_pass(checklist):
     return True
 
 
-def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
+def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket, project):
     try:
         if api.gerrit_api.does_patch_set_match_condition(
                 ssh_user, ssh_server, ticket,
@@ -68,6 +68,12 @@ def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket):
                 ssh_user, ssh_server, ticket,
                 ['label:Verified=+1', 'label:Integrated=0',
                  'label:Code-Review=+2'],
+                ssh_key, port=ssh_port):
+            return True
+        elif project == 'MN/SCMTA/zuul/inte_ric' and api.gerrit_api.does_patch_set_match_condition(
+                ssh_user, ssh_server, ticket,
+                ['label:Verified=+1', 'label:Integrated=0',
+                 'label:Code-Review=+1'],
                 ssh_key, port=ssh_port):
             return True
     except Exception as ex:
@@ -244,9 +250,11 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                             traceback.print_exc()
                 # update status
                 item['verified'] = verified_new
+                ticket_result = rest.get_ticket(item['ticket'])
+                ticket_project = ticket_result['project']
                 item['status'] = _check_ticket_ok(ssh_server, ssh_port,
                                                   ssh_user,
-                                                  ssh_key, item['ticket'])
+                                                  ssh_key, item['ticket'], ticket_project)
                 print('Ticket {} pass status: {}'.format(
                     item['ticket'], item['status']))
         except Exception as ex:
