@@ -1,5 +1,5 @@
 import sys
-import copy
+import ast
 import logging
 import argparse
 import pymysql
@@ -74,8 +74,8 @@ class JobTreeOper(object):
             chps = res.get('changeitem')
             qit = res.get('queueitem')
             pipeline = res.get('pipeline')
-            builds = eval(res.get('builds').replace("defaultdict(<type 'list'>, ", '')[:-1])
-            jobtree = eval(res.get('jobtree'))
+            builds = ast.literal_eval(res.get('builds').replace("defaultdict(<type 'list'>, ", '')[:-1])
+            jobtree = ast.literal_eval(res.get('jobtree'))
             project = res.get('project')
             branch = res.get('branch')
             cpath = ''
@@ -129,14 +129,31 @@ class JobTreeOper(object):
                 allpaths.append(build)
         return allpaths
 
+    def get_layer_jobs(self, btree):
+        ljob = collections.defaultdict(list)
+        tmpbt = btree
+        i = 0
+        while tmpbt:
+            ttmpbt = list()
+            for b in tmpbt:
+                if isinstance(b, str):
+                    ljob[i].append(b)
+                if isinstance(b, dict):
+                    ljob[i].append(b.keys()[0])
+                    ttmpbt.extend(b.values()[0])
+            i += 1
+            tmpbt = ttmpbt
+        return ljob
+
     def critical_path(self, builds, btree):
         cpath = list()
         lbuild = self._get_longest_build(builds)
         allpaths = self.get_paths(btree)
+        ljobs = self.get_layer_jobs(btree)
         for p in allpaths:
             if p.endswith(lbuild):
                 cpath.append(p)
-        return cpath
+        return cpath, ljobs
 
     def update_data(self):
         """
@@ -145,17 +162,70 @@ class JobTreeOper(object):
         :param cpath:
         :return:
         """
+
+        def _get_final_cpath(cpath, ljobs, buildsinfo):
+            fcpath = list()
+            cpath_ls = cpath.split(' -> ')
+            for i, p in enumerate(cpath_ls):
+                if not i:
+                    fcpath.append(p)
+                else:
+                    tls = list()
+                    for j in range(i):
+                        tls.extend(ljobs[j])
+                    if p not in tls:
+                        fcpath.append(p)
+                    else:
+                        pl = 0
+                        ttls = list()
+                        for firstRun in range(i):
+                            if p in ljobs[firstRun]:
+                                pl = firstRun
+                                break
+                        for h in range(pl, i):
+                            ttls.append(cpath_ls[h])
+                        if ttls:
+                            et = buildsinfo[ttls[-1]][3]
+                            if buildsinfo[p][3] > et:
+                                fcpath.append(p)
+                                for m in ttls:
+                                    try:
+                                        fcpath.remove(m)
+                                    except Exception as re_err:
+                                        log.debug(str(re_err))
+                                        log.debug("Maybe already removed.")
+            timeslots = list()
+            try:
+                total = int(buildsinfo[fcpath[-1]][3] - buildsinfo[fcpath[0]][1])
+            except Exception as t_err:
+                total = 'N/A'
+                log.debug(str(t_err))
+            timeslots.append(total)
+            for n, fcp in enumerate(fcpath):
+                try:
+                    if not n:
+                        t1 = int(buildsinfo[fcp][2] - buildsinfo[fcp][1])
+                        t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
+                    else:
+                        t1 = int(buildsinfo[fcp][2] - buildsinfo[fcpath[n - 1]][3])
+                        t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
+                except Exception as t_err:
+                    t1 = 'N/A'
+                    t2 = 'N/A'
+                    log.debug(str(t_err))
+                timeslots.append(t1)
+                timeslots.append(t2)
+            fcpath = ' -> '.join(fcpath)
+            tlstr = ','.join([str(tls) for tls in timeslots])
+            return fcpath, tlstr
+
         for k, v in self.datas.items():
             dbuilds = v['builds']
-            timeinfo = list()
-            timeslots = list()
-            cpath = self.critical_path(dbuilds, v['jobtree'])
+            patadata = self.critical_path(dbuilds, v['jobtree'])
+            cpath = patadata[0]
+            ljobs = patadata[1]
             if not cpath:
                 continue
-            cpath_ls = cpath[0].split(' -> ')
-            tmp_ls = copy.deepcopy(cpath_ls)
-            log.debug(k)
-            log.debug(cpath_ls)
 
             if cpath and cpath[0].count(r'MASTER_PROD/UPLANE'):
                 subs = 'UPLANE'
@@ -165,50 +235,9 @@ class JobTreeOper(object):
                 subs = 'Reserved'
             v['subsystem'] = subs
 
-            for i, bui in enumerate(cpath_ls):
-                if i < len(cpath_ls) - 1:
-                    if dbuilds[bui][-1] > dbuilds[cpath_ls[i + 1]][1]:
-                        try:
-                            if dbuilds[bui][-1] > dbuilds[cpath_ls[i + 1]][-1]:
-                                tmp_ls.remove(cpath_ls[i + 1])
-                            else:
-                                tmp_ls.remove(bui)
-                        except Exception as re_err:
-                            log.debug(re_err)
-            v['cpath'] = ' -> '.join(tmp_ls)
-
-            for bu in tmp_ls:
-                if dbuilds.get(bu):
-                    timeslots.append(dbuilds[bu][1:4])
-                else:
-                    raise Exception("Unfound cpath build, must be error")
-            try:
-                totaltime = str(int(timeslots[-1][2]) - int(timeslots[0][0]))
-            except Exception as err:
-                log.debug(str(err))
-                totaltime = 'N/A'
-                log.debug('Unvalid time exist. ')
-            timeinfo.append(totaltime)
-
-            for i, ts in enumerate(timeslots):
-                try:
-                    base = int(timeslots[i - 1][2]) if i else int(ts[0])
-                except Exception as ts_err:
-                    log.debug(str(ts_err))
-                    base = 'N/A'
-                try:
-                    waittime = str(int(ts[1]) - base)
-                except Exception as wt_err:
-                    log.debug(str(wt_err))
-                    waittime = 'N/A'
-                timeinfo.append(waittime)
-                try:
-                    runtime = str(int(ts[2]) - int(ts[1]))
-                except Exception as rt_err:
-                    log.debug(str(rt_err))
-                    runtime = 'N/A'
-                timeinfo.append(runtime)
-            v['timeslots'] = ','.join(timeinfo)
+            fcpath, tlstr = _get_final_cpath(cpath[0], ljobs, dbuilds)
+            v['cpath'] = fcpath
+            v['timeslots'] = tlstr
 
     def update_skytrack(self, sdata):
         try:
@@ -252,26 +281,21 @@ class Runner(object):
         else:
             tdate = datetime.datetime.now().strftime("%Y-%m-%d 00:00:00")
         jto_ins = JobTreeOper(DB_HOST, DB_USER, DB_PASS, DB_TEST)
-        log.debug("Connection {0} to ZUUL db {1}".format(jto_ins.connection, DB_TEST))
         jto_ins.get_records(tdate)
         jto_ins.update_data()
         log.debug(jto_ins.datas)
-
         try:
             sky_ins = JobTreeOper(SDB_HOST, SDB_USER, SDB_PASS, SDB_TEST)
-            log.debug("Connection {0} to skytrack db {1}".format(jto_ins.connection, SDB_TEST))
             for k, v in jto_ins.datas.items():
                 if v['cpath']:
-                    log.debug("{0},{1},{2},{3},{4},{5}".format(v['pipeline'], v['queueitem'],
-                                                               v['change'], v['timeslots'],
-                                                               v['cpath'], v['subsystem']))
+                    log.debug(v.items())
                     try:
                         sky_ins.update_skytrack((v['pipeline'],
                                                 v['queueitem'],
                                                 v['change'],
                                                 v['timeslots'],
                                                 v['cpath'],
-                                                v['subsystem'].replace('MERGER_', ''),
+                                                v['subsystem'],
                                                 v['project'],
                                                 v['branch'],
                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)))

@@ -1,4 +1,5 @@
 
+import ast
 import sys
 import logging
 import argparse
@@ -37,12 +38,12 @@ class JobTreeOper(object):
             sql = "select queueitem from item_jobtree where changeitem='{}'".format(chps)
             cursor.execute(sql)
             result = cursor.fetchall()
-            log.debug("Review queueitem and result:{}".format(result))
-            log.debug("Queueitems: {}".format(result))
+            log.debug("Queueitems:")
+            log.debug(result)
             try:
                 frel = [res['queueitem'].split(',')[0] for res in result]
             except Exception as rel_err:
-                log.debug("No review result, {}".format(str(rel_err)))
+                log.debug(str(rel_err))
                 frel = [res['queueitem'] for res in result]
             return frel
 
@@ -51,12 +52,13 @@ class JobTreeOper(object):
             sql = "select builds from item_jobtree where queueitem='{}'".format(qitem)
             cursor.execute(sql)
             result = cursor.fetchone()
-            log.debug("Builds: {}".format(result))
+            log.debug("Builds:")
+            log.debug(result)
             return result
 
     def _get_longest_build(self, qitem):
         binfo = self._get_builds(qitem)
-        buildsinfo = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
+        buildsinfo = ast.literal_eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
         longest = max([vitem[-1] for vitem in buildsinfo.values() if vitem[-1]])
         lbuild = ''
         for k, v in buildsinfo.items():
@@ -99,7 +101,7 @@ class JobTreeOper(object):
     def get_layer_jobs(self, qitem):
         ljob = collections.defaultdict(list)
         dbt = self._get_trees(qitem)
-        bt = eval(dbt.items()[0][1])
+        bt = ast.literal_eval(dbt.items()[0][1])
         tmpbt = bt
         i = 0
         while tmpbt:
@@ -118,7 +120,7 @@ class JobTreeOper(object):
         cpath = list()
         lbuild = self._get_longest_build(qitem)
         btree = self._get_trees(qitem)
-        btree = eval(btree.items()[0][1])
+        btree = ast.literal_eval(btree.items()[0][1])
         allpaths = self.get_paths(btree)
         for p in allpaths:
             if p.endswith(lbuild):
@@ -127,7 +129,7 @@ class JobTreeOper(object):
 
     def get_final_cpath(self, qitem):
         binfo = self._get_builds(qitem)
-        buildsinfo = eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
+        buildsinfo = ast.literal_eval(str(binfo['builds']).replace("defaultdict(<type 'list'>, ", '')[:-1])
         ljobs = self.get_layer_jobs(qitem)
         cpath = self.critical_path(qitem)
         fcpath = list()
@@ -142,13 +144,13 @@ class JobTreeOper(object):
                 if p not in tls:
                     fcpath.append(p)
                 else:
-                    # pl = 0
+                    pl = 0
                     ttls = list()
                     for firstRun in range(i):
                         if p in ljobs[firstRun]:
-                            # pl = firstRun
+                            pl = firstRun
                             break
-                    for h in range(firstRun + 1, i):
+                    for h in range(pl, i):
                         ttls.append(cpath_ls[h])
                     if ttls:
                         # st = buildsinfo[ttls[0]][1]
@@ -160,7 +162,7 @@ class JobTreeOper(object):
                                     fcpath.remove(m)
                                 except Exception as re_err:
                                     log.error(str(re_err))
-                                    log.debug("Already removed {}".format(m))
+                                    log.debug("Already removed")
         timeslots = list()
         total = int(buildsinfo[fcpath[-1]][3] - buildsinfo[fcpath[0]][1])
         timeslots.append(total)
@@ -215,8 +217,6 @@ class Runner(object):
             raise Exception("Please input database information.")
         jto_ins = JobTreeOper(self.jto_args.host, self.jto_args.usr,
                               self.jto_args.passwd, self.jto_args.table)
-        log.debug("connection {0} to db {1}".format(jto_ins.connection,
-                                                    self.jto_args.table))
         queueitems = jto_ins._get_queueitems(self.jto_args.ps)
         results = list()
         if self.jto_args.qitem in queueitems:
@@ -230,7 +230,8 @@ class Runner(object):
         else:
             for qitem in queueitems:
                 try:
-                    jto_ins.get_layer_jobs(qitem)
+                    ljobs = jto_ins.get_layer_jobs(qitem)
+                    print ljobs
                     res = jto_ins.get_final_cpath(qitem)
                     results.append(res)
                 except Exception as c_err:
@@ -238,9 +239,12 @@ class Runner(object):
                     jto_ins._close()
 
         for result in results:
-            print("Builds info: {}".format(result[0]))
-            print("Critical Path: {}".format(result[1]))
-            print("Timeslots : {}".format(result[2]))
+            print "Builds info: "
+            print result[0]
+            print "Critical Path: "
+            print result[1]
+            print "Timeslots : "
+            print result[2]
 
 
 sys.exit(Runner().run())
