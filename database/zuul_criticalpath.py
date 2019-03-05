@@ -40,11 +40,12 @@ class JobTreeOper(object):
             result = cursor.fetchall()
             log.debug("Queueitems:")
             log.debug(result)
-            try:
-                frel = [res['queueitem'].split(',')[0] for res in result]
-            except Exception as rel_err:
-                log.debug(str(rel_err))
-                frel = [res['queueitem'] for res in result]
+            # try:
+            #     frel = [res['queueitem'].split(',')[0] for res in result]
+            # except Exception as rel_err:
+            #     log.debug(str(rel_err))
+            #     frel = [res['queueitem'] for res in result]
+            frel = [res['queueitem'] for res in result]
             return frel
 
     def _get_builds(self, qitem):
