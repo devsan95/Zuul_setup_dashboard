@@ -232,20 +232,18 @@ class Runner(object):
             for qitem in queueitems:
                 try:
                     ljobs = jto_ins.get_layer_jobs(qitem)
-                    print ljobs
+                    log.debug(ljobs)
                     res = jto_ins.get_final_cpath(qitem)
                     results.append(res)
                 except Exception as c_err:
                     log.error(str(c_err))
                     jto_ins._close()
-
-        for result in results:
-            print "Builds info: "
-            print result[0]
-            print "Critical Path: "
-            print result[1]
-            print "Timeslots : "
-            print result[2]
+        print "There are", len(results), "line datas for this change"
+        for i, result in enumerate(results):
+            print "The", i + 1, "line data"
+            print "Builds info: ", result[0]
+            print "Critical Path: ", result[1]
+            print "Timeslots : ", result[2]
 
 
 sys.exit(Runner().run())
