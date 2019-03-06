@@ -345,7 +345,7 @@ def parse_comments_mail(change_id, rest):
                 m = r.match(line)
                 if m:
                     print(line)
-                    mail_list.append(m.group(1))
+                    mail_list.append(line.strip())
     print('Comments of mail parse result:')
     print(mail_list)
     return mail_list
