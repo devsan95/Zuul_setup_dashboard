@@ -433,23 +433,32 @@ def rewrite_knife_json(knife_json_path, gnblist_path):
         data = json.load(f)
         flag = False
         # if knife.json include any gnb component,flag = True
-        for k in data['all'].keys():
-            if k in gnbList:
+        for key, stream_data in data.items():
+            if add_comps_to_knife_json(stream_data, gnbList):
                 flag = True
-                print('Include gnb component:***{}***,need update knife json'.format(k))
-                # get gnb component's repo_ver/protocol/repo_url
-                values = data['all'].get(k)
-                break
-
         if flag:
-            for i in gnbList:
-                # add other gnb components
-                data['all'][i] = values
             content = json.dumps(data, indent=2)
             api.file_api.save_file(content, knife_json_path, False)
             print('Updated gnb components!!')
         else:
             print('No need update knife json!')
+
+
+def add_comps_to_knife_json(data, gnbList):
+    flag = False
+    for k in data.keys():
+        if k in gnbList:
+            flag = True
+            print('Include gnb component:***{}***,need update knife json'.format(k))
+            # get gnb component's repo_ver/protocol/repo_url
+            values = data.get(k)
+            break
+    if flag:
+        for i in gnbList:
+            # add other gnb components
+            data[i] = values
+        return True
+    return False
 
 
 def get_description(rest, change_id):
