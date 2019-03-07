@@ -3,6 +3,7 @@
 import json
 import re
 import shlex
+import time
 from pprint import pprint
 
 import fire
@@ -121,6 +122,11 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         return to_be_replaced, to_replace
     except Exception as e:
         print(e)
+
+
+def getting_env_check_result(rest, change_no, username):
+    change_detail = rest.get_detailed_ticket(change_no)
+    return check_user_label_from_detail(change_detail, username, 'Verified')
 
 
 def run(gerrit_info_path, change_no,
@@ -257,6 +263,24 @@ def run(gerrit_info_path, change_no,
     change_list = get_change_list_from_comments(change_info)
     print('Changes are:')
     pprint(change_list)
+
+    waitting_period = 0
+    while True:
+        if waitting_period >= 1200:
+            raise Exception('Can not get ENV check pipeline result in 20mins, please fix '
+                            'and rerun rebase_ENV')
+        env_verified = getting_env_check_result(rest, change_no, username)
+        if env_verified == 1:
+            print('ENV Verified +1, starting to recheck components')
+            break
+        elif env_verified == -1:
+            raise Exception('EVN check pipeline failed, please check your input content and'
+                            ' rerun rebase_ENV job')
+        else:
+            print('ENV Verified: {0}'.format(env_verified))
+            print("ENV check pipeline result haven't finished yet, will re-verify in 60s")
+            waitting_period += 60
+            time.sleep(60)
 
     if auto_recheck:
         # 5 recheck all changes
