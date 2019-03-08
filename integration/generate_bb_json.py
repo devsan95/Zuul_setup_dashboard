@@ -452,16 +452,12 @@ def rewrite_knife_json(knife_json_path, gnblist_path):
             print('No need update knife json!')
 
 
-def run(zuul_url, zuul_ref, output_path, change_id,
-        gerrit_info_path, zuul_changes, gnb_list_path):
-    rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
-    rest.init_cache(1000)
-    project_branch = parse_zuul_changes(zuul_changes)
-
-    rest_id = ''
-    description = ''
-
+def get_description(rest, change_id):
+    retried = 0
     while True:
+        if retried >= 6:
+            raise Exception('Can not get {} data'.format(change_id))
+        data = ''
         try:
             data = rest.get_ticket(change_id, using_cache=True)
         except Exception as e:
@@ -470,18 +466,33 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
         if data and 'id' in data:
             rest_id = data['id']
+            retried = 0
             break
+        retried += 1
 
     while True:
+        if retried >= 6:
+            raise Exception('Can not get {} commit data'.format(rest_id))
+        commit_data = ''
         try:
-            data = rest.get_commit(rest_id, using_cache=True)
+            commit_data = rest.get_commit(rest_id, using_cache=True)
         except Exception as e:
             print(str(e))
             time.sleep(10)
 
-        if data and 'message' in data:
-            description = data['message']
+        if commit_data and 'message' in commit_data:
+            description = commit_data['message']
             break
+        retried += 1
+    return description, rest_id
+
+
+def run(zuul_url, zuul_ref, output_path, change_id,
+        gerrit_info_path, zuul_changes, gnb_list_path):
+    rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
+    rest.init_cache(1000)
+    project_branch = parse_zuul_changes(zuul_changes)
+
     # path
     knife_path = os.path.join(output_path, 'knife.json')
     base_path = os.path.join(output_path, 'base.json')
@@ -489,6 +500,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     # config
     knife_config = parse_config(rest, change_id)
+
+    description, rest_id = get_description(rest, change_id)
 
     # knife json
     ric_dict, ex_dict = parse_ric_list(
