@@ -4,14 +4,14 @@ import fire
 
 from api import gerrit_rest
 from api import mysql_api
-from update_oam_commit import get_description
+from generate_bb_json import get_description
 
 
 def get_jira_id(integration_change, gerrit_info_path):
     print("Getting JIRA ID from {0} commit message".format(integration_change))
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.init_cache(1000)
-    description = get_description(rest, integration_change)
+    description, rest_id = get_description(rest, integration_change)
     jira_key = ''
     for line in description.split('\n'):
         match = re.findall(r'\%JR=(.*)', line)
