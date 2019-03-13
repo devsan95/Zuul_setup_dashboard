@@ -24,6 +24,8 @@ from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
 from api import config
+from mod import get_component_info
+from scm_tools.wft.api import WftAPI
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -32,6 +34,7 @@ env_repo = 'MN/5G/COMMON/env'
 
 CONF = config.ConfigTool()
 CONF.load('repo')
+WFT = WftAPI(config_path=os.path.join(config.get_config_path(), 'properties/wft.properties'))
 
 
 def load_structure(path):
@@ -223,7 +226,7 @@ class IntegrationChangesCreation(object):
         ret_dict = {filename: '\n'.join(lines)}
         return ret_dict
 
-    def create_ticket_by_node(self, node_obj):
+    def create_ticket_by_node(self, node_obj, integration_mode):
         nodes = self.info_index['nodes']
         graph = self.info_index['graph']
         topic = self.meta['topic']
@@ -236,7 +239,7 @@ class IntegrationChangesCreation(object):
             message = self.make_description_by_node(node_obj)
             if node_obj['repo'] in auto_branch_repos:
                 self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
-            base_commit = self.get_base_commit(node_obj['repo'], node_obj['branch'])
+            base_commit = self.get_base_commit(node_obj, integration_mode)
             change_id, ticket_id, rest_id = self.gerrit_rest.create_ticket(
                 node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
             )
@@ -327,7 +330,7 @@ class IntegrationChangesCreation(object):
 
         for child in graph.successors(node_obj['name']):
             try:
-                self.create_ticket_by_node(nodes[child])
+                self.create_ticket_by_node(nodes[child], integration_mode)
             except Exception:
                 print("[Error] create changes failed!Trying to abandon gerrit changes and close jira!")
                 nodes = self.info_index['nodes']
@@ -605,19 +608,36 @@ class IntegrationChangesCreation(object):
             list2 = item1.split(':')
             self.base_commits_info[list2[0]] = list2[1]
 
-    def get_base_commit(self, project, branch):
+    def get_base_commit(self, node_obj, integration_mode):
+        project = node_obj['repo']
+        branch = node_obj['branch']
         key = '{},{}'.format(project, branch)
-        commit = self.base_commits_info.get(key)
-        print('Get commit [{}] from key [{}]'.format(commit, key))
-        if not commit:
+        print('[Info] Integration mode is: {}'.format(integration_mode))
+        if 'Head' in integration_mode:
             commit_info = self.gerrit_rest.get_latest_commit_from_branch(project, branch)
             commit_hash = commit_info['revision']
+        elif 'Fixed_base' in integration_mode:
+            if 'MN/SCMTA/zuul/inte_ric' in project or 'MN/SCMTA/zuul/inte_mn' in project:
+                commit_info = self.gerrit_rest.get_latest_commit_from_branch(project, branch)
+                commit_hash = commit_info['revision']
+            elif 'MN/SCMTA/zuul/inte_root' in project:
+                commit_info = self.gerrit_rest.get_latest_commit_from_branch('MN/SCMTA/zuul/inte_root', branch)
+                commit_hash = commit_info['revision']
+            else:
+                commit_hash = self.base_commits_info.get(node_obj['name'])
+                if not commit_hash and 'ric' in node_obj:
+                    commit_hash = self.base_commits_info.get(node_obj['ric'][0])
+        print('[Info] Get commit_hash [{}] for component [{}]'.format(commit_hash, node_obj['name']))
+        commit = ''
+        if commit_hash:
             change_info = self.gerrit_rest.query_ticket('commit:{}'.format(commit_hash), count=1)
             if change_info:
                 change_info = change_info[0]
                 commit = change_info['_number']
                 self.base_commits_info[key] = commit
-                print('Set commit [{}] to key [{}]'.format(commit, key))
+                print('[Info] Get change number [{}] for key [{}]'.format(commit, key))
+        else:
+            raise Exception('[Error] Failed to get commit hash for component {}'.format(node_obj['name']))
         return commit
 
     def update_oam_description(self):
@@ -657,13 +677,80 @@ class IntegrationChangesCreation(object):
         path = os.path.join(job_tool.get_workspace(), 'result')
         job_tool.write_dict_to_properties(result_dict, path, False)
 
+    def parse_base_load(self, base_load):
+        base_commits = {}
+        inte_repo = get_component_info.init_integration(base_load)
+        node_list = self.info_index['nodes'].values()
+        print("[Info] Start to parse base load")
+        for node in node_list:
+            print("[Info] Parse component: {}".format(node['name']))
+            if 'type' in node and 'root' in node['type']:
+                if 'MN/5G/COMMON/env' in node['repo']:
+                    com_ver = get_component_info.get_comp_hash(inte_repo, 'env')
+                    base_commits['env'] = com_ver
+                    print("[Info] Base commit for env is: {}".format(com_ver))
+            if 'type' in node and 'integration' in node['type']:
+                continue
+            if 'type' in node and 'external' in node['type']:
+                if 'ric' in node and node['ric']:
+                    for ric_com in node['ric']:
+                        com_ver = get_component_info.get_comp_hash(inte_repo, ric_com)
+                        base_commits[ric_com] = com_ver
+                        print("[Info] Base commit for component {} is {}".format(ric_com, com_ver))
+            else:
+                if 'ric' in node and node['ric']:
+                    com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
+                    base_commits[node['name']] = com_ver
+                    print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
+        if base_commits.values():
+            print("[Info] value for base_commits is: {}".format(base_commits))
+            return base_commits
+        print("[Error] Failed to parse base_commits!")
+        return None
+
+    def insert_integration_mode(self, integration_mode, base_load, base_commits):
+        if not integration_mode:
+            raise Exception('[Error] No integration mode specified!')
+        if 'Fixed_base' in integration_mode:
+            if not base_load:
+                raise Exception('[Error] do integration on fixed mode but base_load not specified!')
+            int_mode = '<without-zuul-rebase>'
+            stream = base_load.split('.')[0] + '.' + base_load.split('.')[1]
+        else:
+            int_mode = '<with-zuul-rebase>'
+        for node in self.info_index['nodes'].values():
+            if 'remark' in node:
+                self.info_index['nodes'][node['name']]['remark'].append(int_mode)
+            else:
+                self.info_index['nodes'][node['name']]['remark'] = [int_mode]
+            if int_mode == '<without-zuul-rebase>':
+                if 'MN/5G/NB/gnb' in node['repo']:
+                    if 'title_replace' not in node:
+                        raise Exception('[Error] No title_replace keyword in gnb node')
+                    else:
+                        self.info_index['nodes'][node['name']]['title_replace'] = '[none] [NOREBASE] {node[name]} {meta[version_name]} {meta[branch]}'
+                if 'type' in node and 'integration' in node['type'] and 'all' not in node['type']:
+                    if 'comments' in node:
+                        self.info_index['nodes'][node['name']]['comments'].append('update_base:{},{}'.format(stream, base_load))
+                    else:
+                        self.info_index['nodes'][node['name']]['comments'] = ['update_base:{},{}'.format(stream, base_load)]
+                if 'MN/SCMTA/zuul/inte_ric' in node['repo']:
+                    if node['name'] in base_commits:
+                        if 'remark' in node:
+                            self.info_index['nodes'][node['name']]['remark'].append('base_commit:{}'.format(base_commits[node['name']]))
+                        else:
+                            self.info_index['nodes'][node['name']]['remark'] = ['base_commit:{}'.format(base_commits[node['name']])]
+            if int_mode == '<with-zuul-rebase>':
+                if 'type' in node and 'integration' in node['type'] and 'all' not in node['type']:
+                    if 'comments' in node:
+                        self.info_index['nodes'][node['name']]['comments'].append('use_default_base')
+                    else:
+                        self.info_index['nodes'][node['name']]['comments'] = ['use_default_base']
+
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
-            if_restore=False, base_commits=None, env_change=None,
+            if_restore=False, integration_mode=None, base_load=None, env_change=None,
             force_feature_id=False, open_jira=False, skip_jira=False):
-
-        if base_commits:
-            self.parse_base_commits(base_commits)
 
         # handle integration topic
         utc_dt = datetime.utcnow()
@@ -689,6 +776,19 @@ class IntegrationChangesCreation(object):
         self.info_index['mn'] = integration_node
         self.info_index['nodes'] = nodes
         self.info_index['graph'] = graph_obj
+
+        # handle base load
+        base_commits = None
+        if "Fixed_base" in integration_mode:
+            if base_load:
+                base_commits = self.parse_base_load(base_load)
+            else:
+                raise Exception('[Error] Please specify base load in Fixed_base integration mode!')
+            if base_commits:
+                self.base_commits_info = base_commits
+
+        # insert integration mode to changes
+        self.insert_integration_mode(integration_mode, base_load, base_commits)
 
         # restore
         self.meta['backup_topic'] = None
@@ -773,7 +873,7 @@ class IntegrationChangesCreation(object):
                   self.meta.get('jira_key'),
                   self.meta.get('feature_id')))
 
-        self.create_ticket_by_node(root_node)
+        self.create_ticket_by_node(root_node, integration_mode)
         self.add_structure_string()
         self.label_all_tickets()
         self.update_oam_description()
@@ -801,7 +901,8 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--feature-id', default=None, type=unicode)
 @click.option('--feature-owner', default=None, type=unicode)
 @click.option('--if-restore', default=False, type=bool)
-@click.option('--base-commits', default=None, type=unicode)
+@click.option('--integration-mode', default=None, type=unicode)
+@click.option('--base-load', default=None, type=unicode)
 @click.option('--env-change', default=None, type=unicode)
 @click.option('--force-feature-id', default=False, type=bool)
 @click.option('--open-jira', default=False, type=bool)
@@ -810,12 +911,14 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 def create_changes(ctx, version_name=None,
                    topic_prefix=None, streams=None,
                    jira_key=None, feature_id=None, feature_owner=None, if_restore=False,
-                   base_commits=None, env_change=None, force_feature_id=False,
+                   integration_mode=None, base_load=None,
+                   env_change=None, force_feature_id=False,
                    open_jira=False, skip_jira=False):
     icc = ctx.obj['obj']
     icc.run(version_name, topic_prefix, streams, jira_key,
-            feature_id, feature_owner, if_restore, base_commits,
-            env_change, force_feature_id, open_jira, skip_jira)
+            feature_id, feature_owner, if_restore, integration_mode,
+            base_load, env_change,
+            force_feature_id, open_jira, skip_jira)
 
 
 if __name__ == '__main__':

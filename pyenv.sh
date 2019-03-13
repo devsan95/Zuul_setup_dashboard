@@ -120,6 +120,7 @@ pip install jinja2 fire jira python-gitlab jsonschema click mysql-connector
 pip install -U flake8
 pip install -U pylint
 pip install -U git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
+pip install -U git+https://gerrite1.ext.net.nokia.com:443/scm_tools
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
 cd "$OLD_PATH"
 
