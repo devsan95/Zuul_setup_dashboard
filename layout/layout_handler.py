@@ -17,9 +17,7 @@ import traceback
 
 import git
 import voluptuous
-import zuul
 import zuul.layoutvalidator as validator
-import zuul.lib.connections
 from ruamel import yaml
 
 __author__ = "HZ 5G SCM Team"
@@ -54,8 +52,7 @@ class LayoutSnippet(object):
     def get_identity(self):
         if self.path is None:
             return str(self.obj)
-        else:
-            return self.path
+        return self.path
 
 
 def get_project_node(project, projects):
@@ -440,12 +437,25 @@ class LayoutGroup(object):
         self.pipelines = [x.get('name') for x in self._yaml['layout'].obj.get('pipelines')]
         print('Pipelines:', self.pipelines)
         if os.path.exists(self._layout_d_path):
-            file_list = os.listdir(self._layout_d_path)
-            for file_name in file_list:
-                path = os.path.join(self._layout_d_path, file_name)
-                self._yaml['layout.d'].append(
-                    LayoutSnippet(path, yaml.round_trip_load(open(path),
-                                  version='1.1')))
+            # file_list = os.listdir(self._layout_d_path)
+            # for file_name in file_list:
+            #     path = os.path.join(self._layout_d_path, file_name)
+            #     self._yaml['layout.d'].append(
+            #         LayoutSnippet(path, yaml.round_trip_load(open(path),
+            #                       version='1.1')))
+            list_dirs = os.walk(self._layout_d_path)
+            for root, dirs, files in list_dirs:
+                for f in files:
+                    if f.endswith('.yaml') or f.endswith('.yml'):
+                        file_path = os.path.join(root, f)
+                        if os.path.islink(file_path):
+                            fp = os.readlink(file_path)
+                        else:
+                            fp = open(file_path)
+                        self._yaml['layout.d'].append(
+                            LayoutSnippet(file_path, yaml.round_trip_load(fp,
+                                                                          version='1.1')))
+                        fp.close()
 
     def _set_head_comments(self, snippet):
         obj = snippet.obj
@@ -541,6 +551,52 @@ def _parse_args():
     return vars(args)
 
 
+class FakeConnection(object):
+    def __init__(self, driver_name):
+        self.driver_name = driver_name
+
+
+def configure_connections(config):
+    connections = {}
+
+    for section_name in config.sections():
+        con_match = re.match(r'^connection ([\'\"]?)(.*)(\1)$',
+                             section_name, re.I)
+        if not con_match:
+            continue
+        con_name = con_match.group(2)
+        con_config = dict(config.items(section_name))
+
+        if 'driver' not in con_config:
+            raise Exception("No driver specified for connection %s."
+                            % con_name)
+
+        con_driver = con_config['driver']
+
+        if con_driver == 'gerrit':
+            connections[con_name] = FakeConnection("gerrit")
+        elif con_driver == 'smtp':
+            connections[con_name] = FakeConnection('smtp')
+        elif con_driver == 'sql':
+            connections[con_name] = FakeConnection('sql')
+        else:
+            raise Exception("Unknown driver, %s, for connection %s"
+                            % (con_config['driver'], con_name))
+
+    # If the [gerrit] or [smtp] sections still exist, load them in as a
+    # connection named 'gerrit' or 'smtp' respectfully
+
+    if 'gerrit' in config.sections():
+        if 'gerrit' not in connections:
+            connections['gerrit'] = FakeConnection("gerrit")
+
+    if 'smtp' in config.sections():
+        if 'smtp' not in connections:
+            connections['smtp'] = FakeConnection('smtp')
+
+    return connections
+
+
 def _main():
     args = _parse_args()
     inpath = args['input_file']
@@ -559,7 +615,7 @@ def _main():
     if zuulconf:
         config = ConfigParser.ConfigParser()
         config.read(os.path.expanduser(zuulconf))
-        connections = zuul.lib.connections.configure_connections(config)
+        connections = configure_connections(config)
 
     op = args['operation']
 
