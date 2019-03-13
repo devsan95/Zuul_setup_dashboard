@@ -227,9 +227,9 @@ class JobTreeOper(object):
             if not cpath:
                 continue
 
-            if cpath and cpath[0].count(r'MASTER_PROD/UPLANE'):
+            if cpath and (cpath[0].count(r'MASTER_PROD/UPLANE') or cpath[0].count(r'MASTER/GNB/UPLANE')):
                 subs = 'UPLANE'
-            elif cpath and cpath[0].count(r'MASTER_PROD/CPLANE'):
+            elif cpath and (cpath[0].count(r'MASTER_PROD/CPLANE') or cpath[0].count(r'MASTER/GNB/CPLANE')):
                 subs = 'CPLANE'
             else:
                 subs = 'Reserved'
