@@ -26,6 +26,7 @@ def _parse_args():
 
 
 def update_message(message, with_zuul_rebase):
+    new_mes = ""
     if "with-zuul-rebase" in with_zuul_rebase:
         if "<with-zuul-rebase>" in message:
             if "<without-zuul-rebase>" not in message:
@@ -33,17 +34,13 @@ def update_message(message, with_zuul_rebase):
                 return False
             else:
                 new_mes = re.sub("<without-zuul-rebase>", "", message)
-                return new_mes
         elif "<without-zuul-rebase>" in message:
             new_mes = re.sub("<without-zuul-rebase>", "<with-zuul-rebase>", message)
-            return new_mes
         else:
             if "Remarks:" in message:
                 new_mes = re.sub("Remarks:", "<with-zuul-rebase>\nRemarks:", message)
-                return new_mes
             else:
                 new_mes = re.sub("Change-Id:", "<with-zuul-rebase>\nChange-Id:", message)
-                return new_mes
     if "without-zuul-rebase" in with_zuul_rebase:
         if "<without-zuul-rebase>" in message:
             if "<with-zuul-rebase>" not in message:
@@ -51,17 +48,14 @@ def update_message(message, with_zuul_rebase):
                 return False
             else:
                 new_mes = re.sub("<with-zuul-rebase>", "", message)
-                return new_mes
         elif "<with-zuul-rebase>" in message:
             new_mes = re.sub("<with-zuul-rebase>", "<without-zuul-rebase>", message)
-            return new_mes
         else:
             if "Remarks:" in message:
                 new_mes = re.sub("Remarks:", "<without-zuul-rebase>\nRemarks:", message)
-                return new_mes
             else:
                 new_mes = re.sub("Change-Id:", "<without-zuul-rebase>\nChange-Id:", message)
-                return new_mes
+    return new_mes
 
 
 def _main(change_id, with_zuul_rebase, rest_url, rest_user, rest_pwd, auth_type):
@@ -72,20 +66,27 @@ def _main(change_id, with_zuul_rebase, rest_url, rest_user, rest_pwd, auth_type)
         rest.change_to_digest_auth()
     changes = parse_comments(change_id, rest)
 
-    for change_id in changes:
-        print('Updating {}'.format(change_id))
+    exception_list = []
+    for change in changes:
+        print('Updating {}'.format(change))
         try:
             mess = retry.retry_func(
-                retry.cfn(rest.get_commit, change_id),
+                retry.cfn(rest.get_commit, change),
                 max_retry=10, interval=3
             )
             new_message = update_message(mess['message'], with_zuul_rebase)
             if not new_message:
                 continue
-            rest.change_commit_msg_to_edit(change_id, new_message)
-            rest.publish_edit(change_id)
-        except Exception as e:
-            print(e)
+            rest.change_commit_msg_to_edit(change, new_message)
+            rest.publish_edit(change)
+        except Exception as err:
+            exception_list.append(err)
+            print(err)
+
+    if exception_list:
+        raise Exception("[Error] some tickets update failed, reasons as below: {}".format(exception_list))
+    else:
+        print("[Info] all tickets updated successfully!")
 
 
 if __name__ == '__main__':
