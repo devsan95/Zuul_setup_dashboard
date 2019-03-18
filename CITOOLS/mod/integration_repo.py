@@ -84,7 +84,7 @@ class INTEGRATION_REPO(object):
         os.chdir(old_wkdir)
         return bash_output
 
-    def get_comp_info_by_bitbake(self, int_bb_target, comp_name, comp_ver):
+    def get_comp_info_by_bitbake(self, int_bb_target, comp_name, comp_ver, bb_file):
         comp_name_with_ver = '{}-{}'.format(comp_name, comp_ver)
         regex_repo = r'^(GIT_URI|GIT_REPO|SRC_URI)="([^"]+)"'
         regex_ver = r'^(REVISION|SVNTAG|SVNREV|SRCREV)="([^"]+)"'
@@ -101,7 +101,8 @@ class INTEGRATION_REPO(object):
                 int_bb_target,
                 int_bb_target,
                 '-e',
-                comp_name_with_ver,
+                '-b',
+                bb_file,
                 '>',
                 env_file_path)
         except Exception:
@@ -471,7 +472,9 @@ class INTEGRATION_REPO(object):
                 '$' in bb_dict['repo_ver']):
             repo_url, repo_ver = self.get_comp_info_by_bitbake(
                 int_bb_target,
-                bb_pn, bb_pv)
+                bb_pn,
+                bb_pv,
+                bb_file)
             if repo_url and repo_ver:
                 bb_dict['repo_url'] = repo_url
                 bb_dict['repo_ver'] = repo_ver
