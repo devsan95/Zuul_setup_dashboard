@@ -99,26 +99,39 @@ class IntegrationChange(object):
     def get_type(self):
         if 'ROOT CHANGE' in self.commit_info.get('message'):
             return 'root'
-        elif 'MANAGER CHANGE' in self.commit_info.get('message'):
+        if 'MANAGER CHANGE' in self.commit_info.get('message'):
             return 'integration'
-        elif self.get_info().get('project') == 'MN/SCMTA/zuul/inte_ric':
+        if self.get_info().get('project') == 'MN/SCMTA/zuul/inte_ric':
             return 'external'
-        else:
-            return 'component'
+        return 'component'
 
     def get_project(self):
         project = self.rest.get_ticket(self.change_no)['project']
         return project
+
+    def get_branch(self):
+        branch = self.rest.get_ticket(self.change_no)['branch']
+        return branch
 
     def get_change_name(self):
         msg = self.commit_info.get('message')
         change_name = comp_name_reg.search(msg).groups()[0]
         return change_name
 
+    def get_mr_repo_and_branch(self):
+        mr_re = re.compile(r'Patch Set .*\n.*\nMR created in (.*)\n.*title:(.*)\n.*branch:(.*)')
+        mr_repo = ''
+        mr_branch = ''
+        for msg in reversed(self.detailed_info['messages']):
+            msg = msg['message']
+            m = mr_re.match(msg)
+            if m:
+                mr_repo = m.group(1).strip()
+                mr_branch = m.group(3).strip()
+        return mr_repo, mr_branch
+
 
 class RootChange(IntegrationChange):
-    def __init__(self, rest, change_no):
-        super(RootChange, self).__init__(rest, change_no)
 
     def get_all_changes_by_comments(self, with_root=False):
         root_change = self.change_no
@@ -165,8 +178,6 @@ class RootChange(IntegrationChange):
 
 
 class ManageChange(IntegrationChange):
-    def __init__(self, rest, change_no):
-        super(ManageChange, self).__init__(rest, change_no)
 
     def get_all_components(self):
         components = set()
@@ -217,9 +228,10 @@ class IntegrationCommitMessage(object):
         project = change.get_project()
         components = change.get_components()
         change_no = str(change.change_no)
-        type = change.get_type()
+        change_type = change.get_type()
         for comp in components:
-            line_value = '  - RIC <{}> <{}> <{}> <t:{}>'.format(comp, project, change_no, type)
+            line_value = '  - RIC <{}> <{}> <{}> <t:{}>'.format(
+                comp, project, change_no, change_type)
             if begin_line > -1:
                 self.msg_lines.insert(begin_line, line_value)
 
@@ -256,9 +268,10 @@ class IntegrationCommitMessage(object):
                 begin_line = i + 1
         change_name = change.get_change_name()
         change_no = str(change.change_no)
-        type = change.get_type()
+        change_type = change.get_type()
         if begin_line > -1:
-            line_value = '  - Project:<{}> Change:<{}> Type:<{}>'.format(change_name, change_no, type)
+            line_value = '  - Project:<{}> Change:<{}> Type:<{}>'.format(
+                change_name, change_no, change_type)
             self.msg_lines.insert(begin_line, line_value)
 
     def find_depends(self):

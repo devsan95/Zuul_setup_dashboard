@@ -80,6 +80,10 @@ def _main(change_id, with_zuul_rebase, rest_url, rest_user, rest_pwd, auth_type)
         rest.change_to_basic_auth()
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
+    update_with_rebase_info(rest, change_id, with_zuul_rebase)
+
+
+def update_with_rebase_info(rest, change_id, with_zuul_rebase):
     changes = parse_comments(change_id, rest)
 
     exception_list = []
