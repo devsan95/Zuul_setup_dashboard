@@ -76,6 +76,8 @@ class MysqlConnector(object):
         :type val: tuple
         :param commit: commit to database or not
         :type commit: bool
+        :param output: return sql output message or not
+        :type output: bool
         :return:
         """
         mycursor = self.mydb.cursor()
