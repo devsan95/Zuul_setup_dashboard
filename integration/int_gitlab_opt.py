@@ -30,7 +30,9 @@ def get_int_info(ticket, rest_obj):
     regex_dict = {
         'fifi': r'(%FIFI=.*)$',
         'comp': r'\s+- COMP <(\S+)>',
-        'title_comp': r'<(.*)> on .*'}
+        'title_comp': r'<(.*)> on .*',
+        'base_commit': r'base_commit:(.*)'
+    }
     match_dict = {}
     for key, regex_str in regex_dict.items():
         commit_msg = get_int_msg(ticket, rest_obj)
@@ -48,7 +50,8 @@ def get_int_info(ticket, rest_obj):
         mr_comp = match_dict['comp']
     if not mr_comp:
         mr_comp = match_dict['title_comp']
-    return mr_title, mr_comp
+    base_commit = match_dict['base_commit'] if 'base_commit' in match_dict else ''
+    return mr_title, mr_comp, base_commit
 
 
 def get_int_msg(ticket, rest_obj):
@@ -74,20 +77,20 @@ def _main(ticket, conf_path, action, branch):
     rest_obj = gerrit_rest.init_from_yaml(
         conf_path.replace('/ext_gitlab',
                           '/ext_gerrit'))
-    mr_title, mr_comp = get_int_info(ticket, rest_obj)
+    mr_title, mr_comp, base_commit = get_int_info(ticket, rest_obj)
     comp_branch, comp_repo_srv, project = get_branch_and_srv(mr_comp, branch)
     new_branch = 'int_{}'.format(mr_title)
-    params = {
+    parameters = {
         'title': mr_title,
         'project': project,
-        'ref': comp_branch,
+        'ref': base_commit if base_commit else comp_branch,
         'branch': new_branch}
     gitlab_obj = gitlab_tools.Gitlab_Tools(path=conf_path, repo=comp_repo_srv)
     print('Info: set project {}'.format(project))
     gitlab_obj.gitlab_client.set_project(project)
     if hasattr(gitlab_obj, action):
         print('Info: start action {}'.format(action))
-        getattr(gitlab_obj, action)(params)
+        getattr(gitlab_obj, action)(parameters)
         rest_obj.review_ticket(
             ticket,
             'MR created in {}/{}\n title:{}\n branch:{}\n'.format(
@@ -96,7 +99,7 @@ def _main(ticket, conf_path, action, branch):
                 mr_title,
                 new_branch))
     else:
-        print('Error action:{} is not supported yet'.format(params['action']))
+        print('Error action:{} is not supported yet'.format(action))
         sys.exit(2)
 
 
