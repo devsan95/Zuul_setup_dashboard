@@ -31,7 +31,7 @@ def update_message(message, with_zuul_rebase):
         if "<with-zuul-rebase>" in message:
             if "<without-zuul-rebase>" not in message:
                 print "Already in with-zuul-rebase mode, no need to update."
-                return False
+                return message
             else:
                 new_mes = re.sub("<without-zuul-rebase>", "", message)
         elif "<without-zuul-rebase>" in message:
@@ -45,7 +45,7 @@ def update_message(message, with_zuul_rebase):
         if "<without-zuul-rebase>" in message:
             if "<with-zuul-rebase>" not in message:
                 print "Already in without-zuul-rebase mode, no need to update."
-                return False
+                return message
             else:
                 new_mes = re.sub("<with-zuul-rebase>", "", message)
         elif "<with-zuul-rebase>" in message:
@@ -56,6 +56,23 @@ def update_message(message, with_zuul_rebase):
             else:
                 new_mes = re.sub("Change-Id:", "<without-zuul-rebase>\nChange-Id:", message)
     return new_mes
+
+
+def update_message_title(message, with_zuul_rebase):
+    mes = ""
+    if "with-zuul-rebase" in with_zuul_rebase:
+        if "[NOREBASE]" in message:
+            mes = re.sub("[NOREBASE]", "", message)
+        else:
+            print "[NOREBASE] not exist, no need to update."
+            return False
+    if "without-zuul-rebase" in with_zuul_rebase:
+        if "[NOREBASE]" in message:
+            print "[NOREBASE] exist, no need to update."
+            return False
+        else:
+            mes = re.sub("[none]", "[none] [NOREBASE]", message)
+    return mes
 
 
 def _main(change_id, with_zuul_rebase, rest_url, rest_user, rest_pwd, auth_type):
@@ -74,7 +91,8 @@ def _main(change_id, with_zuul_rebase, rest_url, rest_user, rest_pwd, auth_type)
                 retry.cfn(rest.get_commit, change),
                 max_retry=10, interval=3
             )
-            new_message = update_message(mess['message'], with_zuul_rebase)
+            message = update_message(mess['message'], with_zuul_rebase)
+            new_message = update_message_title(message, with_zuul_rebase)
             if not new_message:
                 continue
             rest.change_commit_msg_to_edit(change, new_message)
