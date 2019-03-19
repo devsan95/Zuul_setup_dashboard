@@ -12,7 +12,6 @@ import logging
 import tarfile
 import subprocess
 
-from api import config
 from mod import utils
 
 ERR_MSG_LIST = [
@@ -32,23 +31,15 @@ RESERVED_KEYS = ['repo_ver',
                  'parent']
 
 logging.basicConfig(level=logging.INFO)
-conf = config.ConfigTool()
-conf.load('package_name_pipeline')
-conf.load('branch')
-REPO_CONF = conf.load("repo")
+GIT_USER = 'CA 5GCV'
+GIT_EMAIL = 'I_5GCI@internal.nsn.com'
 
 
 class INTEGRATION_REPO(object):
 
-    def __init__(
-            self,
-            repo_url,
-            repo_ver,
-            version_pattern='',
-            work_dir=os.path.join(
-                os.getcwd(),
-                'Integration'),
-            add_if_no=False):
+    def __init__(self, repo_url, repo_ver, version_pattern='',
+                 work_dir=os.path.join(os.getcwd(), 'Integration'),
+                 add_if_no=False):
         self.repo_url = repo_url
         self.repo_ver = repo_ver
         self.work_dir = work_dir
@@ -61,8 +52,8 @@ class INTEGRATION_REPO(object):
         self.add_if_no = add_if_no
         self.dep_file_list = []
         self.dep_env_list = []
-        self.git_user = REPO_CONF.get('5G_Integration', 'git_user')
-        self.git_email = REPO_CONF.get('5G_Integration', 'git_email')
+        self.git_user = GIT_USER
+        self.git_email = GIT_EMAIL
 
     def run_bitbake_cmd(self, build_dir, prefix_path,
                         int_bb_target, *bitbake_args):
@@ -96,15 +87,8 @@ class INTEGRATION_REPO(object):
             int_bb_target,
             '{}.env'.format(comp_name_with_ver))
         try:
-            self.run_bitbake_cmd(
-                'build',
-                int_bb_target,
-                int_bb_target,
-                '-e',
-                '-b',
-                bb_file,
-                '>',
-                env_file_path)
+            self.run_bitbake_cmd('build', int_bb_target, int_bb_target,
+                                 '-e', '-b', bb_file, '>', env_file_path)
         except Exception:
             return repo_url, repo_ver
         with open(env_file_path, 'r') as fr:
@@ -122,11 +106,8 @@ class INTEGRATION_REPO(object):
     def run_dep_cmd(self, director, int_bb_target=''):
         if not int_bb_target:
             int_bb_target = director
-        self.run_bitbake_cmd('build',
-                             director,
-                             int_bb_target,
-                             '-g',
-                             int_bb_target)
+        self.run_bitbake_cmd('build', director, int_bb_target,
+                             '-g', int_bb_target)
         env_file_path = os.path.join(
             self.work_dir,
             'build',
@@ -283,8 +264,9 @@ class INTEGRATION_REPO(object):
     def push_to_branch(self, repo_hash):
         logging.info("Push change of %s to Integarion repo", repo_hash)
         g = git.Git(self.work_dir)
-        branch_pattern = self.pipeline.split('_')[0]
-        branch = conf.get('5G_CB_Integration', branch_pattern)
+        # branch_pattern = self.pipeline.split('_')[0]
+        # branch = conf.get('5G_CB_Integration', branch_pattern)
+        branch = g.branch().split()[1]
         g.fetch('--all')
         g.pull('origin', branch, '--rebase')
         if g.diff('env'):
@@ -344,10 +326,10 @@ class INTEGRATION_REPO(object):
                             idx = idx_list[0]
                             comp_bb_list.append(m.group(idx))
                         else:
-                            ret_tup = ()
+                            ret_list = []
                             for idx in idx_list:
-                                ret_tup = ret_tup + m.group(idx)
-                            comp_bb_list.append(ret_tup)
+                                ret_list.append(m.group(idx))
+                            comp_bb_list.append(ret_list)
         return comp_bb_list
 
     def get_comp_info(self, comp_name, platform=''):
@@ -391,8 +373,18 @@ class INTEGRATION_REPO(object):
         return deped_comp_bb_list
 
     def get_version_for_comp(self, comp_name, platform=''):
+        possible_subpath = os.path.join(self.work_dir, comp_name)
+        if os.path.exists(possible_subpath):
+            g = git.Git(self.work_dir)
+            repo_msg = g.remote('-v')
+            sub_g = git.Git(possible_subpath)
+            sub_repo_msg = sub_g.remote('-v')
+            if sub_repo_msg != repo_msg:
+                return sub_g.log('-1' '--pretty=format:"%H"')
         comp_info = self.get_comp_info(comp_name, platform)
-        return self.get_version_from_bb(comp_info[1], comp_name, comp_info[0])
+        comp_dict = self.get_version_from_bb(
+            comp_info[0][1], comp_name, comp_info[0][0])
+        return comp_dict.values()[0]
 
     def get_version_from_bb(
             self,
@@ -465,6 +457,7 @@ class INTEGRATION_REPO(object):
                 self.replace_var_in_bb(bb_dict, bb_pn, bb_pv)
             if 'repo_url' not in bb_dict or '$' in bb_dict['repo_url']:
                 bb_dict['repo_url'] = bb_dict['srcuri']
+        self.replace_var_in_bb(bb_dict, bb_pn, bb_pv)
         if int_bb_target and (
             'repo_url' not in bb_dict or
             '$' in bb_dict['repo_url'] or
@@ -479,7 +472,6 @@ class INTEGRATION_REPO(object):
                 bb_dict['repo_url'] = repo_url
                 bb_dict['repo_ver'] = repo_ver
         logging.info('repo info is %s', bb_dict)
-        self.replace_var_in_bb(bb_dict, bb_pn, bb_pv)
         if 'repo_ver' in bb_dict and 'repo_url' in bb_dict:
             return {'{}_{}'.format(bb_pn, bb_pv): bb_dict}
         logging.warn('Not Find Full repo info from %s', bb_file)
@@ -744,13 +736,8 @@ class INTEGRATION_REPO(object):
             skip_nomatch=True)
         self.replace_file_by_key(bbfile, 'SVNREV', repo_ver, skip_nomatch=True)
 
-    def replace_file_by_key(
-            self,
-            filename,
-            key,
-            value,
-            dst_file=None,
-            skip_nomatch=False):
+    def replace_file_by_key(self, filename, key, value,
+                            dst_file=None, skip_nomatch=False):
         content = ''
         replace_file = filename
         logging.info('replace bbfile: %s by key: %s', replace_file, key)
@@ -953,7 +940,7 @@ class INTEGRATION_REPO(object):
             raise Exception(
                 'Cannot find config file for  {}'.format(
                     self.version_pattern))
-        raise Exception('Cannot find config file for')
+        raise Exception('Cannot find config file')
 
     def get_pipeline(self, pipeline=''):
         if pipeline:
