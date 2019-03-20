@@ -77,7 +77,7 @@ def clean_build_info(integration_change, gerrit_info_path, database_info_path, d
         print('entity_build, entity_build_status and entity_test_status will be cleanup')
         return
     if mydb.executor(
-        sql='SELECT * FROM t_issue WHERE issue_key = {0}'.format(jira_key),
+        sql='SELECT * FROM t_issue WHERE issue_key = "{0}"'.format(jira_key),
         output=True
     ):
         mydb.update_info(
