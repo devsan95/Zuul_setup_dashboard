@@ -2,7 +2,6 @@
 # -*- coding:utf-8 -*-
 
 import argparse
-import re
 import sys
 import traceback
 
@@ -33,28 +32,28 @@ def update_message(message, with_zuul_rebase):
                 print "Already in with-zuul-rebase mode, no need to update."
                 return message
             else:
-                new_mes = re.sub("<without-zuul-rebase>", "", message)
+                new_mes = message.replace("<without-zuul-rebase>", "")
         elif "<without-zuul-rebase>" in message:
-            new_mes = re.sub("<without-zuul-rebase>", "<with-zuul-rebase>", message)
+            new_mes = message.replace("<without-zuul-rebase>", "<with-zuul-rebase>")
         else:
             if "Remarks:" in message:
-                new_mes = re.sub("Remarks:", "<with-zuul-rebase>\nRemarks:", message)
+                new_mes = message.replace("Remarks:", "<with-zuul-rebase>\nRemarks:")
             else:
-                new_mes = re.sub("Change-Id:", "<with-zuul-rebase>\nChange-Id:", message)
+                new_mes = message.replace("Change-Id:", "<with-zuul-rebase>\nChange-Id:")
     if "without-zuul-rebase" in with_zuul_rebase:
         if "<without-zuul-rebase>" in message:
             if "<with-zuul-rebase>" not in message:
                 print "Already in without-zuul-rebase mode, no need to update."
                 return message
             else:
-                new_mes = re.sub("<with-zuul-rebase>", "", message)
+                new_mes = message.replace("<with-zuul-rebase>", "")
         elif "<with-zuul-rebase>" in message:
-            new_mes = re.sub("<with-zuul-rebase>", "<without-zuul-rebase>", message)
+            new_mes = message.replace("<with-zuul-rebase>", "<without-zuul-rebase>")
         else:
             if "Remarks:" in message:
-                new_mes = re.sub("Remarks:", "<without-zuul-rebase>\nRemarks:", message)
+                new_mes = message.replace("Remarks:", "<without-zuul-rebase>\nRemarks:")
             else:
-                new_mes = re.sub("Change-Id:", "<without-zuul-rebase>\nChange-Id:", message)
+                new_mes = message.replace("Change-Id:", "<without-zuul-rebase>\nChange-Id:")
     return new_mes
 
 
@@ -62,7 +61,7 @@ def update_message_title(message, with_zuul_rebase):
     mes = ""
     if "with-zuul-rebase" in with_zuul_rebase:
         if "[NOREBASE]" in message:
-            mes = re.sub("[NOREBASE]", "", message)
+            mes = message.replace("[NOREBASE]", "")
         else:
             print "[NOREBASE] not exist, no need to update."
             return False
@@ -71,7 +70,7 @@ def update_message_title(message, with_zuul_rebase):
             print "[NOREBASE] exist, no need to update."
             return False
         else:
-            mes = re.sub("[none]", "[none] [NOREBASE]", message)
+            mes = message.replace("[none]", "[none] [NOREBASE]")
     return mes
 
 
