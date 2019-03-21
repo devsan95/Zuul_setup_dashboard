@@ -64,11 +64,11 @@ def update_message_title(message, with_zuul_rebase):
             mes = message.replace("[NOREBASE]", "")
         else:
             print "[NOREBASE] not exist, no need to update."
-            return False
+            return message
     if "without-zuul-rebase" in with_zuul_rebase:
         if "[NOREBASE]" in message:
             print "[NOREBASE] exist, no need to update."
-            return False
+            return message
         else:
             mes = message.replace("[none]", "[none] [NOREBASE]")
     return mes
@@ -92,7 +92,7 @@ def _main(change_id, with_zuul_rebase, rest_url, rest_user, rest_pwd, auth_type)
             )
             message = update_message(mess['message'], with_zuul_rebase)
             new_message = update_message_title(message, with_zuul_rebase)
-            if not new_message:
+            if mess['message'] == new_message:
                 continue
             rest.change_commit_msg_to_edit(change, new_message)
             rest.publish_edit(change)
