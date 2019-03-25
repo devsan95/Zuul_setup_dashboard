@@ -7,8 +7,10 @@ import os
 import re
 import sys
 import time
+import shutil
 import traceback
 
+import git
 import fire
 import urllib3
 from slugify import slugify
@@ -153,7 +155,7 @@ def get_env_commit(msg, rest):
     return retd
 
 
-def parse_comments(change_id, rest):
+def parse_comments(change_id, rest, zuul_url='', zuul_ref=''):
     retd = {}
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
     for msg in comment_list['messages']:
@@ -161,7 +163,8 @@ def parse_comments(change_id, rest):
         if 'update_knife_json:' in msg_str:
             update_yaml = msg_str[msg_str.find('update_knife_json:'):]
             try:
-                parse_update_yaml(update_yaml, retd, rest, change_id)
+                parse_update_yaml(update_yaml, retd, rest, change_id,
+                                  zuul_url=zuul_url, zuul_ref=zuul_ref)
             except Exception as e:
                 print(e)
                 traceback.print_exc()
@@ -174,7 +177,7 @@ def parse_comments(change_id, rest):
     return retd
 
 
-def parse_ex_comments(ex_dict, rest):
+def parse_ex_comments(ex_dict, rest, zuul_url='', zuul_ref=''):
     print('ex dict is:')
     print(ex_dict)
     retd = {}
@@ -185,7 +188,10 @@ def parse_ex_comments(ex_dict, rest):
             if 'update_knife_json:' in msg_str:
                 update_yaml = msg_str[msg_str.find('update_knife_json:'):]
                 try:
-                    parse_update_yaml(update_yaml, retd, rest, change_id, comp_list)
+                    parse_update_yaml(update_yaml, retd, rest, change_id,
+                                      component_list=comp_list,
+                                      zuul_url=zuul_url,
+                                      zuul_ref=zuul_ref)
                 except Exception as e:
                     print(e)
                     traceback.print_exc()
@@ -221,7 +227,8 @@ def parse_config_yaml(yaml_str, result):
             raise Exception('Unsupported type {}'.format(atype))
 
 
-def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_list=None):
+def parse_update_yaml(yaml_str, result, rest=None, change_no=None,
+                      component_list=None, zuul_url='', zuul_ref=''):
     yaml_obj = yaml.load(yaml_str, Loader=yaml.Loader)
     action_list = yaml_obj['update_knife_json']
     for action in action_list:
@@ -255,7 +262,10 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
         elif atype == 'component-from-property':
             if not rest or not change_no:
                 raise Exception('No gerrit rest or change no')
-            file_content = rest.get_file_content(action['file_name'], change_no)
+            prop_change = rest.get_change(change_no, using_cache=True)
+            prop_project = prop_change['project']
+            file_content = get_ref_file_content(
+                action['file_name'], zuul_url, prop_project, zuul_ref)
             key_value = {}
             for line in file_content.split('\n'):
                 m = re.match(r'\s*#', line)
@@ -278,6 +288,21 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, component_lis
                         result[stream][component] = cparam
         else:
             raise Exception('Unsupported type {}'.format(atype))
+
+
+def get_ref_file_content(file_name, zuul_url, project, zuul_ref):
+    proj_wk = os.path.join(os.getcwd(), 'zuul_repos', project)
+    repo_url = os.path.join(zuul_url, project)
+    if os.path.exists(proj_wk):
+        shutil.rmtree(proj_wk)
+    os.makedirs(proj_wk)
+    g = git.Git(proj_wk)
+    g.init()
+    print('Get zuul repo {}:{}'.format(repo_url, zuul_ref))
+    g.fetch(repo_url, zuul_ref)
+    g.checkout('FETCH_HEAD')
+    with open(os.path.join(proj_wk, file_name), 'r') as fr:
+        return fr.read()
 
 
 def parse_update_bb(line, result, component_list=None):
@@ -518,8 +543,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         knife_config)
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
-    comment_dict = parse_comments(change_id, rest)
-    ex_comment_dict = parse_ex_comments(ex_dict, rest)
+    comment_dict = parse_comments(change_id, rest, zuul_url, zuul_ref)
+    ex_comment_dict = parse_ex_comments(ex_dict, rest, zuul_url, zuul_ref)
     save_json_file(knife_path,
                    [combine_knife_json([
                        {'all': ric_dict},
