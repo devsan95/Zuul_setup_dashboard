@@ -17,7 +17,7 @@ fifi_reg = re.compile(r'%FIFI=(.*)')
 ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
 depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
 depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
-comp_name_reg = re.compile(r'<(.*?)> on <(.*?)> of <(.*?)> topic')
+comp_name_reg = re.compile(r'<(.*?)>\s+on\s+<(.*?)>\s+of\s+<(.*?)>\s+topic', re.DOTALL)
 
 
 class IntegrationChange(object):
