@@ -81,6 +81,8 @@ class JobTreeOper(object):
             cpath = ''
             subsystem = ''
             timeslots = ''
+            pipelineWaiting = ''
+            firstJobLaunch = ''
             self.datas[':'.join([chps, qit])] = dict(pipeline=pipeline,
                                                      change=chps,
                                                      queueitem=qit,
@@ -90,6 +92,8 @@ class JobTreeOper(object):
                                                      branch=branch,
                                                      cpath=cpath,
                                                      subsystem=subsystem,
+                                                     pipelineWaiting=pipelineWaiting,
+                                                     firstJobLaunch=firstJobLaunch,
                                                      timeslots=timeslots)
 
     def _get_longest_build(self, builds):
@@ -197,27 +201,33 @@ class JobTreeOper(object):
             timeslots = list()
             try:
                 total = int(buildsinfo[fcpath[-1]][3] - buildsinfo[fcpath[0]][1])
+                firstJobLaunch = buildsinfo[fcpath[0]][1]
             except Exception as t_err:
                 total = 'N/A'
+                firstJobLaunch = 'N/A'
                 log.debug(str(t_err))
             timeslots.append(total)
             for n, fcp in enumerate(fcpath):
                 try:
                     if not n:
+                        t0 = 0
                         t1 = int(buildsinfo[fcp][2] - buildsinfo[fcp][1])
                         t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
                     else:
-                        t1 = int(buildsinfo[fcp][2] - buildsinfo[fcpath[n - 1]][3])
+                        t0 = int(buildsinfo[fcp][1] - buildsinfo[fcpath[n - 1]][3])
+                        t1 = int(buildsinfo[fcp][2] - buildsinfo[fcp][1])
                         t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
                 except Exception as t_err:
+                    t0 = 'N/A'
                     t1 = 'N/A'
                     t2 = 'N/A'
                     log.debug(str(t_err))
+                timeslots.append(t0)
                 timeslots.append(t1)
                 timeslots.append(t2)
             fcpath = ' -> '.join(fcpath)
             tlstr = ','.join([str(tls) for tls in timeslots])
-            return fcpath, tlstr
+            return fcpath, firstJobLaunch, tlstr
 
         for k, v in self.datas.items():
             dbuilds = v['builds']
@@ -235,17 +245,19 @@ class JobTreeOper(object):
                 subs = 'Reserved'
             v['subsystem'] = subs
 
-            fcpath, tlstr = _get_final_cpath(cpath[0], ljobs, dbuilds)
+            fcpath, firstJobLaunch, tlstr = _get_final_cpath(cpath[0], ljobs, dbuilds)
             v['cpath'] = fcpath
             v['timeslots'] = tlstr
+            v['firstJobLaunch'] = firstJobLaunch
 
     def update_skytrack(self, sdata):
         try:
             self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
                 sql = "INSERT INTO t_critical_path " \
-                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem,c_project,c_branch,end_time)" \
-                      " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}',{8})".format(*sdata)
+                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem,c_project,c_branch,end_time," \
+                      "pipeline_waiting_time,first_job_launch_time_in_zuul)" \
+                      " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}',{8},{9},{10})".format(*sdata)
                 log.debug(sql)
                 cursor.execute(sql)
             self.connection.commit()
@@ -288,9 +300,15 @@ class Runner(object):
             sky_ins = JobTreeOper(SDB_HOST, SDB_USER, SDB_PASS, SDB_TEST)
             for k, v in jto_ins.datas.items():
                 if v['cpath']:
-                    log.debug(v.items())
+                    pipeline, enqueuetime = v['pipeline'].split(',')
                     try:
-                        sky_ins.update_skytrack((v['pipeline'],
+                        v['pipelineWaiting'] = v['firstJobLaunch'] - float(enqueuetime)
+                    except Exception as time_err:
+                        log.debug(time_err)
+                        continue
+                    fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch']).strftime('%Y-%m-%d %H:%M:%S')
+                    try:
+                        sky_ins.update_skytrack((pipeline,
                                                 v['queueitem'],
                                                 v['change'],
                                                 v['timeslots'],
@@ -298,7 +316,9 @@ class Runner(object):
                                                 v['subsystem'],
                                                 v['project'],
                                                 v['branch'],
-                                                "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)))
+                                                "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate),
+                                                 v['pipelineWaiting'],
+                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
                     except Exception as sky_err:
                         log.debug(sky_err)
                         continue
