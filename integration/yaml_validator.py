@@ -55,10 +55,11 @@ def main(yaml_path, schema_path, gerrit_info_path=None, change_no=None, check_al
         rest = gerrit_rest.init_from_yaml(gerrit_info_path)
         flist = rest.get_file_list(change_no)
         for f in flist:
-            if ".yaml" in f and "feature_archive" not in f:
+            if ".yaml" in f and "/" not in f:
                 yaml_list.append(os.path.join(yaml_path, f))
     for yaml_file in yaml_list:
-        validate_file(yaml_file, schema_path)
+        if os.path.exists(yaml_file):
+            validate_file(yaml_file, schema_path)
 
     if EXCEPTION_LIST:
         raise Exception("[Error] Yaml validated failed, reasons as below: {}".format(EXCEPTION_LIST))
