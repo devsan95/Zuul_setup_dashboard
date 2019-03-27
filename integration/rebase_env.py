@@ -132,7 +132,7 @@ def getting_env_check_result(rest, change_no, username):
 def run(gerrit_info_path, change_no,
         ssh_gerrit_server=None, ssh_gerrit_port=None,
         ssh_gerrit_user=None, ssh_gerrit_key=None,
-        auto_rebase=False, auto_recheck=True, auto_reexperiment=True,
+        auto_recheck=True, auto_reexperiment=True,
         env_change=None):
     env_change_list = []
     if env_change is not None:
@@ -151,6 +151,8 @@ def run(gerrit_info_path, change_no,
             and ssh_gerrit_server and ssh_gerrit_user:
         use_ssh = True
         print('SSH used')
+    root_msg = get_commit_msg(change_no, rest)
+    auto_rebase = False if re.findall(r'<without-zuul-rebase>', root_msg) else True
     # 1 try rebase env change (if fail then pass)
     if auto_rebase and not env_change:
         print('rebase the change {}'.format(change_no))
@@ -178,12 +180,13 @@ def run(gerrit_info_path, change_no,
             print('clear change failed, reason:')
             print(str(e))
         # rebase change
-        print('rebase the change {}'.format(change_no))
-        try:
-            rest.rebase(change_no)
-        except Exception as e:
-            print('Change cannot be rebased, reason:')
-            print(str(e))
+        if auto_rebase:
+            print('rebase the change {}'.format(change_no))
+            try:
+                rest.rebase(change_no)
+            except Exception as e:
+                print('Change cannot be rebased, reason:')
+                print(str(e))
         # add new env
         print('add new env for change {}'.format(change_no))
         old_env = rest.get_file_content('env-config.d/ENV', change_no)
