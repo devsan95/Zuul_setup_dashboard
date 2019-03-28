@@ -102,7 +102,9 @@ def parse_ric_list(rest, subject, zuul_url,
                 if need_change:
                     print('[Info] For ric key {}, change {} has adaptation'.format(key, change_no))
                 if link_result.get(project):
-                    print('[Info] one component in project {} has adaptation, so the other related components will be added in knife json'.format(project))
+                    print(
+                        '[Info] one component in project {} has adaptation, \
+                    so the other related components will be added in knife json'.format(project))
                     need_change = True
             if need_change:
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
@@ -155,54 +157,57 @@ def get_env_commit(msg, rest):
     return retd
 
 
-def parse_comments(change_id, rest, zuul_url='', zuul_ref=''):
-    retd = {}
-    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
+def parse_commitmsg_and_comments(comment_list, retd, rest, change_id, comp_list=None,
+                                 comp_f_prop=None, zuul_url='', zuul_ref=''):
     for msg in comment_list['messages']:
         msg_str = msg['message']
         if 'update_knife_json:' in msg_str:
             update_yaml = msg_str[msg_str.find('update_knife_json:'):]
             try:
-                parse_update_yaml(update_yaml, retd, rest, change_id,
-                                  zuul_url=zuul_url, zuul_ref=zuul_ref)
+                comp_f_prop = parse_update_yaml(update_yaml, retd, rest, change_id,
+                                                comp_f_prop=comp_f_prop,
+                                                component_list=comp_list,
+                                                zuul_url=zuul_url,
+                                                zuul_ref=zuul_ref)
             except Exception as e:
                 print(e)
                 traceback.print_exc()
                 continue
-        else:
-            for line in msg['message'].split('\n'):
-                parse_update_bb(line, retd)
+
+    print('comp_f_property: {}'.format(comp_f_prop))
+    for msg in comment_list['messages']:
+        for line in msg['message'].split('\n'):
+            parse_update_bb(line, retd, comp_f_prop=comp_f_prop, component_list=comp_list)
+
+    return comp_f_prop
+
+
+def parse_comments(change_id, rest, comp_f_prop=None, zuul_url='', zuul_ref='', ):
+    print('parsing comments!')
+    retd = {}
+    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
+    parse_commitmsg_and_comments(comment_list, retd, rest, change_id, comp_f_prop=comp_f_prop,
+                                 zuul_url=zuul_url, zuul_ref=zuul_ref)
+
     print('Comments of integration parse result:')
     print(retd)
     return retd
 
 
-def parse_ex_comments(ex_dict, rest, zuul_url='', zuul_ref=''):
+def parse_ex_comments(ex_dict, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
+    print('parsing ex comments!')
     print('ex dict is:')
     print(ex_dict)
     retd = {}
     for change_id, comp_list in ex_dict.items():
         comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
-        for msg in comment_list['messages']:
-            msg_str = msg['message']
-            if 'update_knife_json:' in msg_str:
-                update_yaml = msg_str[msg_str.find('update_knife_json:'):]
-                try:
-                    parse_update_yaml(update_yaml, retd, rest, change_id,
-                                      component_list=comp_list,
-                                      zuul_url=zuul_url,
-                                      zuul_ref=zuul_ref)
-                except Exception as e:
-                    print(e)
-                    traceback.print_exc()
-                    continue
-            else:
-                for line in msg['message'].split('\n'):
-                    parse_update_bb(line, retd, comp_list)
+        comp_f_prop = parse_commitmsg_and_comments(comment_list, retd, rest, change_id,
+                                                   comp_f_prop=comp_f_prop, zuul_url=zuul_url,
+                                                   zuul_ref=zuul_ref, comp_list=comp_list)
 
     print('Other change parse result:')
     print(retd)
-    return retd
+    return retd, comp_f_prop
 
 
 def parse_config_yaml(yaml_str, result):
@@ -227,7 +232,7 @@ def parse_config_yaml(yaml_str, result):
             raise Exception('Unsupported type {}'.format(atype))
 
 
-def parse_update_yaml(yaml_str, result, rest=None, change_no=None,
+def parse_update_yaml(yaml_str, result, rest=None, change_no=None, comp_f_prop=None,
                       component_list=None, zuul_url='', zuul_ref=''):
     yaml_obj = yaml.load(yaml_str, Loader=yaml.Loader)
     action_list = yaml_obj['update_knife_json']
@@ -278,6 +283,9 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None,
                 if key in key_value:
                     value = key_value[key]
                     component = param['target_name']
+                    if not comp_f_prop:
+                        comp_f_prop = []
+                    comp_f_prop.append(component)
                     # if component not in component_list:
                     #     print('[{}] not in comp list'.format(component))
                     #     continue
@@ -288,6 +296,8 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None,
                         result[stream][component] = cparam
         else:
             raise Exception('Unsupported type {}'.format(atype))
+
+    return comp_f_prop
 
 
 def get_ref_file_content(file_name, zuul_url, project, zuul_ref):
@@ -305,7 +315,7 @@ def get_ref_file_content(file_name, zuul_url, project, zuul_ref):
         return fr.read()
 
 
-def parse_update_bb(line, result, component_list=None):
+def parse_update_bb(line, result, comp_f_prop=None, component_list=None):
     line_ = line.split('update_bb:')
     if len(line_) > 1:
         values = line_[1]
@@ -320,6 +330,9 @@ def parse_update_bb(line, result, component_list=None):
         component = m[0]
         url = m[1]
         commit = m[2]
+        if comp_f_prop and component in comp_f_prop:
+            print('{} verison should get from env, do not need to update here'.format(component))
+            return
         if value_len >= 4:
             targets = [x.strip().strip('"') for x in m[3].split(';')]
         else:
@@ -543,8 +556,10 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         knife_config)
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
-    comment_dict = parse_comments(change_id, rest, zuul_url, zuul_ref)
-    ex_comment_dict = parse_ex_comments(ex_dict, rest, zuul_url, zuul_ref)
+    ex_comment_dict, comp_f_prop = parse_ex_comments(ex_dict, rest,
+                                                     comp_f_prop=[], zuul_url=zuul_url, zuul_ref=zuul_ref)
+    comment_dict = parse_comments(change_id, rest, comp_f_prop=comp_f_prop,
+                                  zuul_url=zuul_url, zuul_ref=zuul_ref)
     save_json_file(knife_path,
                    [combine_knife_json([
                        {'all': ric_dict},
