@@ -84,6 +84,7 @@ def _main(ticket, conf_path, action, branch):
         'title': mr_title,
         'project': project,
         'ref': base_commit if base_commit else comp_branch,
+        'target_branch': comp_branch,
         'branch': new_branch}
     gitlab_obj = gitlab_tools.Gitlab_Tools(path=conf_path, repo=comp_repo_srv)
     print('Info: set project {}'.format(project))
