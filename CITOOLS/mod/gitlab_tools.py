@@ -19,7 +19,7 @@ CONF = config.ConfigTool()
 CONF.load('repo')
 
 
-class Gitlab_Tools:
+class Gitlab_Tools(object):
 
     def __init__(self, url='', token='', path='', repo='gitlabe1'):
         if not url or not token:
@@ -27,9 +27,10 @@ class Gitlab_Tools:
         else:
             self.gitlab_client = gitlab_api.GitlabClient(url, token)
 
-    def chk_mandatory_params(self, params, mandatory_params):
+    @staticmethod
+    def chk_mandatory_params(params, mandatory_params):
         for m_param in mandatory_params:
-            if m_param not in mandatory_params:
+            if m_param not in params:
                 print('Error: Mandatory params %s is not set',
                       m_param)
                 sys.exit(1)
@@ -49,7 +50,12 @@ class Gitlab_Tools:
         if 'target_branch' in params:
             targe_branch = params['target_branch']
         self.gitlab_client.set_project(project)
-        mr_list = self.gitlab_client.get_mr({'title': title})
+        page = 0
+        while True:
+            page += 1
+            mr_list = self.gitlab_client.get_mr({'title': title}, page=page)
+            if mr_list or page == 5:
+                break
         if mr_list:
             print('MergeRequest Already Exists: %s', mr_list)
             if brk_exists:

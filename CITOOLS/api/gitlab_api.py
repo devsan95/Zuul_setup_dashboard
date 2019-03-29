@@ -55,8 +55,8 @@ class GitlabClient(object):
              'target_branch': target_branch,
              'title': title})
 
-    def get_mr(self, srch_dict, state='all', per_page=1000):
-        mr_list = self.project.mergerequests.list(state=state, per_page=per_page)
+    def get_mr(self, srch_dict, state='all', per_page=100, page=1):
+        mr_list = self.project.mergerequests.list(state=state, per_page=per_page, page=page)
         mr_rets = []
         for mr_obj in mr_list:
             matched = True
