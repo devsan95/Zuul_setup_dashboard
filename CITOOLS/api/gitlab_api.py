@@ -16,11 +16,11 @@ import gitlab
 def init_from_yaml(path, repo):
     with open(path) as f:
         obj = yaml.load(f)
-        gitlab = obj[repo]
-        return GitlabClient(gitlab['url'], gitlab['token'])
+        gitlab_obj = obj[repo]
+        return GitlabClient(gitlab_obj['url'], gitlab_obj['token'])
 
 
-class GitlabClient:
+class GitlabClient(object):
 
     def __init__(self, url, token):
         self.url = url
@@ -55,8 +55,8 @@ class GitlabClient:
              'target_branch': target_branch,
              'title': title})
 
-    def get_mr(self, srch_dict, state='all'):
-        mr_list = self.project.mergerequests.list(state=state)
+    def get_mr(self, srch_dict, state='all', per_page=1000):
+        mr_list = self.project.mergerequests.list(state=state, per_page=per_page)
         mr_rets = []
         for mr_obj in mr_list:
             matched = True
