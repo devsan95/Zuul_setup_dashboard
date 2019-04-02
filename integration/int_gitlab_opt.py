@@ -23,6 +23,26 @@ CONF = config.ConfigTool()
 CONF.load('repo')
 
 
+def get_mr_from_comments(ticket, rest):
+    mr_project = ''
+    mr_title = ''
+    mr_branch = ''
+    mr_re = re.compile(
+        r'Patch Set .*\n.*\nMR created in (.*)\n.*title:(.*)\n.*branch:(.*)')
+    mr_comments = ''
+    change_obj = rest.get_detailed_ticket(ticket)
+    for message in change_obj['messages']:
+        if 'MR created in' in message['message']:
+            mr_comments = message['message']
+    if mr_comments:
+        m = mr_re.match(mr_comments)
+        if m:
+            mr_project = m.group(1).strip()
+            mr_title = m.group(2).strip()
+            mr_branch = m.group(3).strip()
+    return mr_project, mr_title, mr_branch
+
+
 def get_int_info(ticket, rest_obj):
     """
     get integration info from ticket
@@ -78,6 +98,10 @@ def _main(ticket, conf_path, action, branch):
         conf_path.replace('/ext_gitlab',
                           '/ext_gerrit'))
     mr_title, mr_comp, base_commit = get_int_info(ticket, rest_obj)
+    mr_project_comm, mr_title_comm, mr_branch_comm = get_mr_from_comments(
+        ticket, rest_obj)
+    if mr_title_comm:
+        mr_title = mr_title_comm
     comp_branch, comp_repo_srv, project = get_branch_and_srv(mr_comp, branch)
     new_branch = 'int_{}'.format(mr_title)
     parameters = {
@@ -88,6 +112,7 @@ def _main(ticket, conf_path, action, branch):
         'branch': new_branch}
     gitlab_obj = gitlab_tools.Gitlab_Tools(path=conf_path, repo=comp_repo_srv)
     print('Info: set project {}'.format(project))
+    print('Info: parameters {}'.format(parameters))
     gitlab_obj.gitlab_client.set_project(project)
     if hasattr(gitlab_obj, action):
         print('Info: start action {}'.format(action))
