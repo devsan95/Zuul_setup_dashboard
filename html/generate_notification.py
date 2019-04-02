@@ -25,7 +25,7 @@ template = u"""
 
 def generate_html(notification, history_no=None):
     date_id = 'notification_date_span'
-    if history_no:
+    if history_no is not None:
         date_id += str(history_no)
     content_line = '<br />'.join(notification['content'].split('\n'))
     label_template = '<span class="label label-{type}">{label}</span>'
@@ -131,7 +131,7 @@ def update_history(current_dict, rest, change_no, history_path, list_path,
     if history_show > len(list_list):
         history_show = len(list_list)
     for i in range(0, history_show):
-        history_str += generate_html(list_list[i])
+        history_str += generate_html(list_list[i], history_no=i)
     if history_path:
         rest.add_file_to_change(change_no, history_path, history_str)
     # add history list
