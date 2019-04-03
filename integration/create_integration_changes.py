@@ -694,9 +694,13 @@ class IntegrationChangesCreation(object):
             if 'type' in node and 'external' in node['type']:
                 if 'ric' in node and node['ric']:
                     for ric_com in node['ric']:
-                        com_ver = get_component_info.get_comp_hash(inte_repo, ric_com)
-                        base_commits[ric_com] = com_ver
-                        print("[Info] Base commit for component {} is {}".format(ric_com, com_ver))
+                        try:
+                            com_ver = get_component_info.get_comp_hash(inte_repo, ric_com)
+                            base_commits[ric_com] = com_ver
+                            print("[Info] Base commit for component {} is {}".format(ric_com, com_ver))
+                        except Exception as e:
+                            print e
+                            print("[Warning] failed to find commit in base package, will use HEAD instead!")
             else:
                 if 'ric' in node and node['ric']:
                     com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
