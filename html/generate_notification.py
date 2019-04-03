@@ -92,6 +92,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
         # set notification
         output = generate_html(current_notification)
     else:
+        current_notification = None
         output = ""
 
     print("Output is:")
@@ -135,7 +136,8 @@ def update_history(current_dict, rest, change_no, history_path, list_path,
     if history_path:
         rest.add_file_to_change(change_no, history_path, history_str)
     # add history list
-    list_list.insert(0, current_dict)
+    if current_dict:
+        list_list.insert(0, current_dict)
     # archiving
     list_save = list_list[:]
     list_archiving = []
