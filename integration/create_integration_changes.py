@@ -623,6 +623,9 @@ class IntegrationChangesCreation(object):
             elif 'MN/SCMTA/zuul/inte_root' in project:
                 commit_info = self.gerrit_rest.get_latest_commit_from_branch('MN/SCMTA/zuul/inte_root', branch)
                 commit_hash = commit_info['revision']
+            elif 'airphone' in project:
+                commit_info = self.gerrit_rest.get_latest_commit_from_branch('MN/5G/AIRPHONE/airphone', branch)
+                commit_hash = commit_info['revision']
             else:
                 commit_hash = self.base_commits_info.get(node_obj['name'])
                 if not commit_hash and 'ric' in node_obj:
@@ -689,7 +692,17 @@ class IntegrationChangesCreation(object):
                     com_ver = get_component_info.get_comp_hash(inte_repo, 'env')
                     base_commits['env'] = com_ver
                     print("[Info] Base commit for env is: {}".format(com_ver))
+                    continue
             if 'type' in node and 'integration' in node['type']:
+                continue
+            if 'airphone' in node['repo']:
+                try:
+                    com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
+                    base_commits[node['ric'][0]] = com_ver
+                    print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
+                except Exception as e:
+                    print e
+                    print("[Warning] failed to find commit in base package, will use HEAD instead!")
                 continue
             if 'type' in node and 'external' in node['type']:
                 if 'ric' in node and node['ric']:
@@ -701,6 +714,7 @@ class IntegrationChangesCreation(object):
                         except Exception as e:
                             print e
                             print("[Warning] failed to find commit in base package, will use HEAD instead!")
+                    continue
             else:
                 if 'ric' in node and node['ric']:
                     com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
