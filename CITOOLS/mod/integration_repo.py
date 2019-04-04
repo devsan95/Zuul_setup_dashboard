@@ -380,7 +380,7 @@ class INTEGRATION_REPO(object):
             sub_g = git.Git(possible_subpath)
             sub_repo_msg = sub_g.remote('-v')
             if sub_repo_msg != repo_msg:
-                return sub_g.log('-1' '--pretty=format:"%H"')
+                return sub_g.log('-1', '--pretty=format:"%H"')
         comp_info = self.get_comp_info(comp_name, platform)
         comp_dict = self.get_version_from_bb(
             comp_info[0][1], comp_name, comp_info[0][0])
