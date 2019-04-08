@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import os
 import git
+import sys
 import fire
 import shutil
 import traceback
@@ -123,8 +124,8 @@ def rebase_by_load(rest, change_no, base_package, gitlab_info_path=''):
     if rebase_failed:
         for comp, ver in rebase_failed.items():
             print('*** Rebase {} to {} Failed ***'.format(comp, ver))
-        raise Exception(
-            'Not able to rebase all components: {}'.format(rebase_failed))
+        print('Not able to rebase all components: {}'.format(rebase_failed))
+        sys.exit(2)
 
 
 def init_gerrit_rest(gerrit_info_path):
