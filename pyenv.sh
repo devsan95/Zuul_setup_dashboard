@@ -106,7 +106,7 @@ then
   "$VENV_PATH"/bin/conda create --name python2 python=2.7 -y
   source "$VENV_PATH"/bin/activate python2
   conda install pycrypto mysql-connector-python -y
-  conda install -c conda-forge yappi -y
+  conda install -c conda-forge yappi jenkinsapi jenkins -y
   pip install --upgrade pip
   pip install git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
   chmod -R 777 "$VENV_PATH"
@@ -116,7 +116,7 @@ cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
 pip install jenkins-job-builder PyZMQ ruamel.yaml networkx requests configobj
 pip install gitpython arrow sh pyyaml ptpython pydocstyle python-slugify pymysql
-pip install jinja2 fire jira python-gitlab jsonschema click mysql-connector jenkinsapi jenkins
+pip install jinja2 fire jira python-gitlab jsonschema click mysql-connector
 pip install -U flake8
 pip install -U pylint
 pip install -U git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
