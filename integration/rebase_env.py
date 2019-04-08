@@ -187,6 +187,7 @@ def run(gerrit_info_path, change_no,
             except Exception as e:
                 print('Change cannot be rebased, reason:')
                 print(str(e))
+                raise Exception(str(e))
         # add new env
         print('add new env for change {}'.format(change_no))
         old_env = rest.get_file_content('env-config.d/ENV', change_no)

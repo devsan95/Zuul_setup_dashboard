@@ -14,6 +14,8 @@ from mod import get_component_info
 from update_with_zuul_rebase import update_with_rebase_info
 from int_gitlab_opt import get_branch_and_srv
 from mod.integration_change import RootChange, IntegrationChange
+from rebase_env import clear_change, create_file_change_by_env_change
+
 
 CONF = config.ConfigTool()
 CONF.load('repo')
@@ -71,9 +73,11 @@ def rebase_by_load(rest, change_no, base_package, gitlab_info_path=''):
             print('No component info for change: {}'.format(comp_change))
             continue
         comp_name = comp_names[0]
+        if 'env' in comp_names:
+            comp_name = 'env'
         project = comp_change_obj.get_project()
         branch = comp_change_obj.get_branch()
-        comp_name_with_change = '{}-{}'.format(comp_name, comp_change)
+        comp_name_with_change = '{} {}'.format(comp_name, comp_change)
         if base_package != 'HEAD':
             try:
                 comp_hash = get_component_info.get_comp_hash(
@@ -94,7 +98,16 @@ def rebase_by_load(rest, change_no, base_package, gitlab_info_path=''):
                 rebase_succed[comp_name_with_change] = comp_hash
             except Exception:
                 traceback.print_exc()
-                rebase_failed[comp_name_with_change] = comp_hash
+                # if is env:
+                if comp_name == 'env':
+                    try:
+                        clear_and_rebase_file(rest, change_no,
+                                              'env-config.d/ENV', comp_hash)
+                        rebase_succed['env-{}'.format(change_no)] = comp_hash
+                    except Exception:
+                        rebase_failed[comp_name_with_change] = comp_hash
+                else:
+                    rebase_failed[comp_name_with_change] = comp_hash
         else:
             mr_repo, mr_brch = comp_change_obj.get_mr_repo_and_branch()
             if mr_repo:
@@ -126,6 +139,47 @@ def rebase_by_load(rest, change_no, base_package, gitlab_info_path=''):
             print('*** Rebase {} to {} Failed ***'.format(comp, ver))
         print('Not able to rebase all components: {}'.format(rebase_failed))
         sys.exit(2)
+
+
+def clear_and_rebase_file(rest, change_no, file_path, env_hash):
+    env_change = rest.get_file_change(file_path, change_no)
+    print('Env change {}'.format(env_change))
+    # Get current ENV changes
+    if 'new_diff' in env_change and env_change['new_diff']:
+        env_change_list = env_change['new_diff']
+        print('Update env for change {}'.format(change_no))
+        # delete edit
+        print('delete edit for change {}'.format(change_no))
+        try:
+            rest.delete_edit(change_no)
+        except Exception as e:
+            print('delete edit failed, reason:')
+            print(str(e))
+        # clear change
+        print('clear change {}'.format(change_no))
+        try:
+            clear_change(rest, change_no)
+        except Exception as e:
+            print('clear change failed, reason:')
+            print(str(e))
+        # rebase change
+        print('rebase the change {}'.format(change_no))
+        try:
+            if env_hash != 'HEAD':
+                rest.rebase(change_no, env_hash)
+            else:
+                rest.rebase(change_no)
+        except Exception as e:
+            print('Change cannot be rebased, reason: {}')
+            print(str(e))
+            raise Exception(str(e))
+        # add new env
+        print('add new env for change {}'.format(change_no))
+        base_env = rest.get_file_content('env-config.d/ENV', change_no)
+        create_file_change_by_env_change(
+            env_change_list,
+            base_env,
+            file_path)
 
 
 def init_gerrit_rest(gerrit_info_path):
