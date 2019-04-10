@@ -856,7 +856,7 @@ class IntegrationChangesCreation(object):
                     for value in versions:
                         if len(value) <= 35:
                             if version_name:
-                                if len(version_name) + 1 + len(value) <= 60:
+                                if len(version_name) + 1 + len(value) <= 50:
                                     version_name += '/'
                                     version_name += value
                                 else:
