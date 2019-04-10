@@ -45,7 +45,8 @@ def is_adapted(rest, change_no):
 
 def parse_config(rest, change_no):
     retd = {'linked-projects': set()}
-    comment_list = rest.generic_get('/changes/{}/detail'.format(change_no), using_cache=True)
+    comment_list = rest.generic_get(
+        '/changes/{}/detail'.format(change_no), using_cache=True)
     for msg in comment_list['messages']:
         msg_str = msg['message']
         if 'update_knife_json_config:' in msg_str:
@@ -63,7 +64,8 @@ def parse_config(rest, change_no):
 
 def parse_ric_list(rest, subject, zuul_url,
                    zuul_ref, project_branch, config):
-    print("---------------------------parsing integration change to get the ric list-------------------------------")
+    print("---------------------------parsing integration"
+          " change to get the ric list-------------------------------")
     ret_dict = {}
     external_dict = {}
     link_result = {}
@@ -80,7 +82,8 @@ def parse_ric_list(rest, subject, zuul_url,
             type_ = m.group(6)
             change = rest.get_change(change_no, using_cache=True)
             project = change['project']
-            ric.append([key, value, change_no, need_change, type_, change, project])
+            ric.append([key, value, change_no,
+                        need_change, type_, change, project])
             # project is linked
             if project in config['linked-projects']:
                 if project not in link_result:
@@ -90,7 +93,8 @@ def parse_ric_list(rest, subject, zuul_url,
     for item in ric:
         key, value, change_no, need_change, type_, change, project = item
         if type_ != 'integration':
-            print('[Info] for ric key {}, change number is {}, type is {}'.format(key, change_no, type_))
+            print('[Info] for ric key {}, change number is {},'
+                  ' type is {}'.format(key, change_no, type_))
             if change_no:
                 if change_no in external_dict:
                     external_dict[change_no].append(key)
@@ -100,11 +104,13 @@ def parse_ric_list(rest, subject, zuul_url,
             if change_no:
                 need_change = is_adapted(rest, change_no)
                 if need_change:
-                    print('[Info] For ric key {}, change {} has adaptation'.format(key, change_no))
+                    print('[Info] For ric key {},'
+                          ' change {} has adaptation'.format(key, change_no))
                 if link_result.get(project):
                     print(
                         '[Info] one component in project {} has adaptation, \
-                    so the other related components will be added in knife json'.format(project))
+                        so the other related components '
+                        'will be added in knife json'.format(project))
                     need_change = True
             if need_change:
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
@@ -164,11 +170,11 @@ def parse_commitmsg_and_comments(comment_list, retd, rest, change_id, comp_list=
         if 'update_knife_json:' in msg_str:
             update_yaml = msg_str[msg_str.find('update_knife_json:'):]
             try:
-                comp_f_prop = parse_update_yaml(update_yaml, retd, rest, change_id,
-                                                comp_f_prop=comp_f_prop,
-                                                component_list=comp_list,
-                                                zuul_url=zuul_url,
-                                                zuul_ref=zuul_ref)
+                comp_f_prop = parse_comp_from_prop(update_yaml, retd, rest,
+                                                   change_id,
+                                                   comp_f_prop=comp_f_prop,
+                                                   zuul_url=zuul_url,
+                                                   zuul_ref=zuul_ref)
             except Exception as e:
                 print(e)
                 traceback.print_exc()
@@ -176,13 +182,21 @@ def parse_commitmsg_and_comments(comment_list, retd, rest, change_id, comp_list=
 
     print('comp_f_property: {}'.format(comp_f_prop))
     for msg in comment_list['messages']:
+        if 'update_knife_json:' in msg_str:
+            update_yaml = msg_str[msg_str.find('update_knife_json:'):]
+            try:
+                parse_update_yaml(update_yaml, retd, component_list=comp_list)
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                continue
         for line in msg['message'].split('\n'):
-            parse_update_bb(line, retd, comp_f_prop=comp_f_prop, component_list=comp_list)
-
+            parse_update_bb(
+                line, retd, comp_f_prop=comp_f_prop, component_list=comp_list)
     return comp_f_prop
 
 
-def parse_comments(change_id, rest, comp_f_prop=None, zuul_url='', zuul_ref='', ):
+def parse_comments(change_id, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
     print('parsing comments!')
     retd = {}
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
@@ -232,8 +246,53 @@ def parse_config_yaml(yaml_str, result):
             raise Exception('Unsupported type {}'.format(atype))
 
 
-def parse_update_yaml(yaml_str, result, rest=None, change_no=None, comp_f_prop=None,
-                      component_list=None, zuul_url='', zuul_ref=''):
+def parse_comp_from_prop(yaml_str, result,
+                         rest=None, change_no=None, comp_f_prop=None,
+                         zuul_url='', zuul_ref=''):
+    yaml_obj = yaml.load(yaml_str, Loader=yaml.Loader)
+    action_list = yaml_obj['update_knife_json']
+    for action in action_list:
+        atype = action['type']
+        streams = action.get('streams')
+        if not streams:
+            streams = ['all']
+        for stream in streams:
+            if stream not in result:
+                result[stream] = {}
+        if atype == 'component-from-property':
+            if not rest or not change_no:
+                raise Exception('No gerrit rest or change no')
+            prop_change = rest.get_change(change_no, using_cache=True)
+            prop_project = prop_change['project']
+            file_content = get_ref_file_content(
+                action['file_name'], zuul_url, prop_project, zuul_ref)
+            key_value = {}
+            for line in file_content.split('\n'):
+                m = re.match(r'\s*#', line)
+                if m:
+                    continue
+                line_snip = line.split('=', 2)
+                if len(line_snip) > 1:
+                    key_value[line_snip[0].strip()] = line_snip[1].strip()
+            for key, param in action['keys'].items():
+                if key in key_value:
+                    value = key_value[key]
+                    component = param['target_name']
+                    if not comp_f_prop:
+                        comp_f_prop = []
+                    comp_f_prop.append(component)
+                    # if component not in component_list:
+                    #     print('[{}] not in comp list'.format(component))
+                    #     continue
+                    cparam = {}
+                    for k, v in param['target_params'].items():
+                        cparam[k] = v.format(key=key, value=value)
+                    for stream in streams:
+                        result[stream][component] = cparam
+    return comp_f_prop
+
+
+def parse_update_yaml(yaml_str, result, component_list=None):
     yaml_obj = yaml.load(yaml_str, Loader=yaml.Loader)
     action_list = yaml_obj['update_knife_json']
     for action in action_list:
@@ -265,39 +324,10 @@ def parse_update_yaml(yaml_str, result, rest=None, change_no=None, comp_f_prop=N
                     print('delete [{}] from [{}]'.format(
                         component, stream))
         elif atype == 'component-from-property':
-            if not rest or not change_no:
-                raise Exception('No gerrit rest or change no')
-            prop_change = rest.get_change(change_no, using_cache=True)
-            prop_project = prop_change['project']
-            file_content = get_ref_file_content(
-                action['file_name'], zuul_url, prop_project, zuul_ref)
-            key_value = {}
-            for line in file_content.split('\n'):
-                m = re.match(r'\s*#', line)
-                if m:
-                    continue
-                line_snip = line.split('=', 2)
-                if len(line_snip) > 1:
-                    key_value[line_snip[0].strip()] = line_snip[1].strip()
-            for key, param in action['keys'].items():
-                if key in key_value:
-                    value = key_value[key]
-                    component = param['target_name']
-                    if not comp_f_prop:
-                        comp_f_prop = []
-                    comp_f_prop.append(component)
-                    # if component not in component_list:
-                    #     print('[{}] not in comp list'.format(component))
-                    #     continue
-                    cparam = {}
-                    for k, v in param['target_params'].items():
-                        cparam[k] = v.format(key=key, value=value)
-                    for stream in streams:
-                        result[stream][component] = cparam
+            print('Coninue because this should be dealed before')
+            continue
         else:
             raise Exception('Unsupported type {}'.format(atype))
-
-    return comp_f_prop
 
 
 def get_ref_file_content(file_name, zuul_url, project, zuul_ref):
