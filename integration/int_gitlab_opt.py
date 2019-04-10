@@ -48,6 +48,7 @@ def get_int_info(ticket, rest_obj):
     get integration info from ticket
     """
     regex_dict = {
+        'version_name': r'<*?> on <(.*?)> of <.*?> topic <.*?>',
         'fifi': r'(%FIFI=.*)$',
         'comp': r'\s+- COMP <(\S+)>',
         'title_comp': r'<(.*)> on .*',
@@ -65,6 +66,10 @@ def get_int_info(ticket, rest_obj):
         mr_title = '{}_{}'.format(
             mr_title,
             match_dict['fifi'])
+    elif 'version_name' in match_dict:
+        mr_title = '{}_{}'.format(
+            mr_title,
+            match_dict['version_name'])
     mr_comp = ''
     if 'comp' in match_dict:
         mr_comp = match_dict['comp']

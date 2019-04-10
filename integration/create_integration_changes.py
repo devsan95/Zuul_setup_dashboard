@@ -649,7 +649,17 @@ class IntegrationChangesCreation(object):
                 node_dict = CONF.get_dict(node)
             except Exception:
                 continue
-            title = '{}_%FIFI={}'.format(self.info_index['nodes'][node]['ticket_id'], self.meta['feature_id'])
+            title = ''
+            if 'feature_id' in self.meta:
+                title = '{}_%FIFI={}'.format(
+                    self.info_index['nodes'][node]['ticket_id'],
+                    self.meta['feature_id'])
+            elif 'version_name' in self.meta:
+                title = '{}_%FIFI={}'.format(
+                    self.info_index['nodes'][node]['ticket_id'],
+                    self.meta['version_name'])
+            if not title:
+                raise Exception('No feature_id or version_name in meta')
             oam_description = [
                 'MR will be created in {}/{} soon.'.format(node_dict['repo_server'], node_dict['repo_project']),
                 'title: {}'.format(title),
