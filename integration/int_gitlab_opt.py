@@ -17,6 +17,7 @@ import traceback
 from api import config
 from api import gerrit_rest
 from mod import gitlab_tools
+from mod import common_regex
 
 
 CONF = config.ConfigTool()
@@ -48,17 +49,17 @@ def get_int_info(ticket, rest_obj):
     get integration info from ticket
     """
     regex_dict = {
-        'version_name': r'<*?> on <(.*?)> of <.*?> topic <.*?>',
-        'fifi': r'(%FIFI=.*)$',
-        'comp': r'\s+- COMP <(\S+)>',
-        'title_comp': r'<(.*)> on .*',
-        'base_commit': r'base_commit:(.*)'
+        'version_name': common_regex.int_firstline_reg,
+        'fifi': re.compile(r'(%FIFI=.*)$'),
+        'comp': re.compile(r'\s+- COMP <(\S+)>'),
+        'title_comp': re.compile(r'<(.*)> on .*'),
+        'base_commit': re.compile(r'base_commit:(.*)')
     }
     match_dict = {}
-    for key, regex_str in regex_dict.items():
+    for key, regex_obj in regex_dict.items():
         commit_msg = get_int_msg(ticket, rest_obj)
         for line in commit_msg.splitlines():
-            m = re.match(regex_str, line)
+            m = regex_obj.match(line)
             if m:
                 match_dict[key] = m.group(1)
     mr_title = ticket

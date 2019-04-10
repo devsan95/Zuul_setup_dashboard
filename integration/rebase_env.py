@@ -13,6 +13,7 @@ from functools import partial
 
 from api import gerrit_api, retry
 from api import gerrit_rest, jira_api
+from mod import common_regex
 from mod.integration_change import RootChange
 from difflib import SequenceMatcher
 
@@ -94,7 +95,7 @@ def change_message_by_env_change(change_no, env_change_list, rest):
     try:
         origin_msg = get_commit_msg(change_no, rest)
         msg = " ".join(origin_msg.split("\n"))
-        reg = re.compile(r'<(.*?)> on <(.*?)> of <(.*?)> topic')
+        reg = common_regex.int_firstline_reg
         to_be_replaced = reg.search(msg).groups()[1]
         pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))

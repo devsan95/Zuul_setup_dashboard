@@ -3,13 +3,15 @@
 
 import re
 
+from mod import common_regex
+
 
 class IntegrationGerritOperation(object):
     def __init__(self, rest):
         self._rest = rest
 
     def get_ticket_from_topic(self, topic, repo, branch, name):
-        reg = re.compile(r'<(.*?)> on <(.*?)> of <(.*?)> topic <(.*?)>')
+        reg = common_regex.int_firstline_reg
         change_id = None
         rest = self._rest
         changes = rest.query_ticket('is:open project:{} branch:{} topic:{}'.format(
@@ -42,7 +44,7 @@ class IntegrationGerritOperation(object):
         branch = None
         repo = None
         platform = None
-        reg = re.compile(r'<(.*?)> on <(.*?)> of <(.*?)> topic <(.*?)>')
+        reg = common_regex.int_firstline_reg
         reg2 = re.compile(r'Platform ID: <(.*?)>')
         change = rest.get_ticket(change_id)
         commit = rest.get_commit(change_id)
