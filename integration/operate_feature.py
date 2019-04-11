@@ -33,8 +33,7 @@ class OperateFeature(object):
         folder = file_api.get_file_dir(info_path)
         if os.path.isabs(relative_path):
             return relative_path
-        else:
-            return os.path.join(folder, relative_path)
+        return os.path.join(folder, relative_path)
 
     def add_by_path(self, feature_yaml_path):
         new_yaml = yaml.load(open(feature_yaml_path, 'r'), Loader=yaml.Loader)
@@ -79,9 +78,13 @@ class OperateFeature(object):
         comp_set = set()
         for comp_change_no in comp_change_list:
             comp_change = integration_change.IntegrationChange(self.rest, comp_change_no)
-            comp_list = comp_change.get_components()
-            for comp in comp_list:
-                comp_set.add(comp)
+            try:
+                comp_list = comp_change.get_components()
+                for comp in comp_list:
+                    comp_set.add(comp)
+            except Exception as e:
+                print(e)
+                continue
 
         new_yaml_obj = dict()
         new_yaml_obj['feature_id'] = str(root_change.get_feature_id())
