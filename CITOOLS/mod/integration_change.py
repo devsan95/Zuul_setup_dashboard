@@ -115,6 +115,16 @@ class IntegrationChange(object):
         branch = self.rest.get_ticket(self.change_no)['branch']
         return branch
 
+    def get_version(self):
+        msg = self.commit_info.get('message')
+        version = comp_name_reg.search(msg).groups()[1]
+        return version
+
+    def get_title(self):
+        msg = self.commit_info.get('message')
+        title = comp_name_reg.search(msg).groups()[2]
+        return title
+
     def get_change_name(self):
         msg = self.commit_info.get('message')
         change_name = comp_name_reg.search(msg).groups()[0]

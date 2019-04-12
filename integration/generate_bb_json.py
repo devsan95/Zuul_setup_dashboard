@@ -398,10 +398,10 @@ def parse_update_bb(line, result, comp_f_prop=None, component_list=None):
                     rp['repo_ver'] = commit
 
 
-def parse_comments_mail(change_id, rest):
+def parse_comments_mail(change_id, rest, using_cache=True):
     r = re.compile(r'(\S+)@(\S+)')
     mail_key = 'knife recipients:'
-    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
+    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=using_cache)
     mail_list = []
     for msg in comment_list['messages']:
         is_mail_list = False
