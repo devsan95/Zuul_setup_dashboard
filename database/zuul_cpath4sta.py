@@ -1,5 +1,6 @@
 import sys
 import ast
+import pytz
 import logging
 import argparse
 import pymysql
@@ -291,7 +292,7 @@ class Runner(object):
         if self.jto_args.tdate:
             tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
         else:
-            tdate = datetime.datetime.now().strftime("%Y-%m-%d 00:00:00")
+            tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
         jto_ins = JobTreeOper(DB_HOST, DB_USER, DB_PASS, DB_TEST)
         jto_ins.get_records(tdate)
         jto_ins.update_data()
@@ -306,7 +307,7 @@ class Runner(object):
                     except Exception as time_err:
                         log.debug(time_err)
                         continue
-                    fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch']).strftime('%Y-%m-%d %H:%M:%S')
+                    fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'], tz=pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')
                     try:
                         sky_ins.update_skytrack((pipeline,
                                                 v['queueitem'],
