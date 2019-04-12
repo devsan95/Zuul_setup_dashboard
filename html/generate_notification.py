@@ -92,7 +92,16 @@ def main(title, content, author, alert_type, icon, label, label_type,
         # set notification
         output = generate_html(current_notification)
     else:
-        current_notification = None
+        current_notification = {
+            'title': "Clear Notification",
+            'alert_type': "info",
+            'icon': "glyphicon-cog",
+            'label': "Clear",
+            'label_type': "info",
+            'content': "Previous content is cleared.",
+            'author': author,
+            'timestamp': arrow.utcnow().timestamp * 1000,
+        }
         output = ""
 
     print("Output is:")
@@ -103,11 +112,10 @@ def main(title, content, author, alert_type, icon, label, label_type,
         else:
             commit_msg = 'Clear Notification'
         change_id, ticket_id, rest_id = rest.create_ticket(project, None, branch, commit_msg)
-        if output:
-            update_history(current_notification, rest, change_id,
-                           history_path, list_path,
-                           archiving_path, history_count,
-                           archiving_threshold)
+        update_history(current_notification, rest, change_id,
+                       history_path, list_path,
+                       archiving_path, history_count,
+                       archiving_threshold)
         try:
             rest.add_file_to_change(rest_id, file_path, output)
             rest.publish_edit(rest_id)
