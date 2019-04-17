@@ -25,7 +25,7 @@ from api import gerrit_rest
 from api import job_tool
 from api import config
 from mod import get_component_info
-from scm_tools.wft.api import WftAPI
+from mod import wft_tools
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -34,7 +34,6 @@ env_repo = 'MN/5G/COMMON/env'
 
 CONF = config.ConfigTool()
 CONF.load('repo')
-WFT = WftAPI(config_path=os.path.join(config.get_config_path(), 'properties/wft.properties'))
 
 
 def load_structure(path):
@@ -140,6 +139,20 @@ def check_graph_cycling(graph_obj):
     if cycle_num > 0:
         raise Exception('There are cycles in the structure')
     return True
+
+
+def get_latest_qt_load(stream_list):
+    stream_build = dict()
+    for stream in stream_list:
+        stream = 'master_classicalbts_l1r51_tdd' if stream == 'default' \
+            else wft_tools.get_stream_name(stream + '.')
+        build_name, release_date = wft_tools.get_latest_qt_passed_build(stream)
+        if not build_name:
+            build_name, release_date = wft_tools.get_lasted_success_build(stream)
+        stream_build[release_date] = build_name
+    time_stamp = stream_build.keys()
+    time_stamp.sort(reverse=True)
+    return stream_build[time_stamp[0]]
 
 
 class IntegrationChangesCreation(object):
@@ -816,13 +829,20 @@ class IntegrationChangesCreation(object):
         self.info_index['nodes'] = nodes
         self.info_index['graph'] = graph_obj
 
+        if streams:
+            stream_list = [x for x in streams.split(',') if x]
+            if not stream_list:
+                stream_list = ['default']
+        else:
+            stream_list = ['default']
+
+        self.meta['streams'] = stream_list
+
         # handle base load
         base_commits = None
         if "Fixed_base" in integration_mode:
-            if base_load:
-                base_commits = self.parse_base_load(base_load)
-            else:
-                raise Exception('[Error] Please specify base load in Fixed_base integration mode!')
+            base_load = base_load if base_load else get_latest_qt_load(self.meta['streams'])
+            base_commits = self.parse_base_load(base_load)
             if base_commits:
                 self.base_commits_info = base_commits
 
@@ -836,15 +856,6 @@ class IntegrationChangesCreation(object):
             if platform:
                 backup_topic = 'integration_{}_backup'.format(platform)
                 self.meta['backup_topic'] = backup_topic
-
-        if streams:
-            stream_list = [x for x in streams.split(',') if x]
-            if not stream_list:
-                stream_list = ['default']
-        else:
-            stream_list = ['default']
-
-        self.meta['streams'] = stream_list
 
         # handle version name
         if not version_name and env_change:
