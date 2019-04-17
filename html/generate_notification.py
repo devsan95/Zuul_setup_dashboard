@@ -72,6 +72,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
     icon = cgi.escape(icon)
     label = cgi.escape(label)
     label_type = cgi.escape(label_type)
+    show_in_history = False
 
     rest = None
     if gerrit_path:
@@ -103,19 +104,20 @@ def main(title, content, author, alert_type, icon, label, label_type,
             'timestamp': arrow.utcnow().timestamp * 1000,
         }
         output = ""
+        show_in_history = True
 
     print("Output is:")
     print(output)
     if rest:
         if output:
-            commit_msg = u'Update Notification [{}]'.format(title)
+            commit_msg = u'Update Notification [{}] by [{}]'.format(title, author)
         else:
-            commit_msg = 'Clear Notification'
+            commit_msg = 'Clear Notification by [{}]'.format(author)
         change_id, ticket_id, rest_id = rest.create_ticket(project, None, branch, commit_msg)
         update_history(current_notification, rest, change_id,
                        history_path, list_path,
                        archiving_path, history_count,
-                       archiving_threshold)
+                       archiving_threshold, show_in_history)
         try:
             rest.add_file_to_change(rest_id, file_path, output)
             rest.publish_edit(rest_id)
@@ -127,13 +129,18 @@ def main(title, content, author, alert_type, icon, label, label_type,
 
 
 def update_history(current_dict, rest, change_no, history_path, list_path,
-                   archiving_path, history_count, archiving_threshold):
+                   archiving_path, history_count, archiving_threshold,
+                   show_in_history):
     if not list_path:
         print('No list path')
         return
 
     list_yaml = rest.get_file_content(list_path, change_no)
     list_list = yaml.load(list_yaml, Loader=yaml.Loader, version='1.1')
+    # add history list
+    if show_in_history:
+        if current_dict:
+            list_list.insert(0, current_dict)
     # set history
     history_str = ""
     history_show = history_count
@@ -144,8 +151,9 @@ def update_history(current_dict, rest, change_no, history_path, list_path,
     if history_path:
         rest.add_file_to_change(change_no, history_path, history_str)
     # add history list
-    if current_dict:
-        list_list.insert(0, current_dict)
+    if not show_in_history:
+        if current_dict:
+            list_list.insert(0, current_dict)
     # archiving
     list_save = list_list[:]
     list_archiving = []
