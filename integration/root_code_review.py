@@ -6,7 +6,7 @@ import ruamel.yaml as yaml
 from api import gerrit_rest
 
 
-def check_deliver_feature(feature_list_path, rest):
+def check_deliver_feature(feature_list_path, rest, branch, project):
     ok_to_go = False
     with open(feature_list_path, 'r') as f:
         feature_list = yaml.load(f, Loader=yaml.Loader, version='1.1')
@@ -14,7 +14,7 @@ def check_deliver_feature(feature_list_path, rest):
         print "[ERROR] There's feature under deliver and deliver_feature_list yaml file is not empty"
         return ok_to_go
     else:
-        query_string = 'project:MN/SCMTA/zuul/inte_root AND status:open AND label:Code-Review=2'
+        query_string = 'project:{} AND status:open AND label:Code-Review=2 AND branch:{}'.format(project, branch)
         query_result = rest.query_ticket(query_string)
         print query_result
         if query_result:
@@ -32,7 +32,10 @@ def check_deliver_feature(feature_list_path, rest):
 def main(root_change, gerrit_info_path, feature_list_path):
 
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
-    ok_to_go = check_deliver_feature(feature_list_path, rest)
+    result = rest.get_ticket(root_change)
+    branch = result['branch']
+    project = result['project']
+    ok_to_go = check_deliver_feature(feature_list_path, rest, branch, project)
     if not ok_to_go:
         raise Exception("There's other feature under deliver, please contact CB SCM team to handle!")
 

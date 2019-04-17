@@ -57,6 +57,7 @@ confidence=
 disable=print-statement,
         logging-format-interpolation,
         too-many-public-methods,
+        no-else-return,
         parameter-unpacking,
         unpacking-in-except,
         old-raise-syntax,
