@@ -31,6 +31,7 @@ RESERVED_KEYS = ['repo_ver',
                  'parent']
 
 logging.basicConfig(level=logging.INFO)
+VERSION_REGEX = [r'-[a-z0-9]{24,}', r'-[0-9\.\-_]+', r'-[a-zA-Z0-9\.\-_]+', '']
 GIT_USER = 'CA 5GCV'
 GIT_EMAIL = 'I_5GCI@internal.nsn.com'
 
@@ -690,6 +691,18 @@ class INTEGRATION_REPO(object):
         else:
             logging.info('replace no need in file: %s', filepath)
 
+    def replace_dependency_content(self, old_recipe_content, component, version):
+        for ver_regex in VERSION_REGEX:
+            old_regex = r'{}{}[\s"]'.format(component, ver_regex)
+            new_regex = r"{}-{}".format(component, version)
+            match_elems = re.findall(old_regex, old_recipe_content)
+            if len(match_elems) == 1:
+                old_component_str = match_elems[0].rstrip().rstrip('"')
+                return re.sub(old_component_str, new_regex, old_recipe_content)
+            if len(match_elems) > 1:
+                logging.warn('Get multi match elems %s for %s', match_elems, old_regex)
+        raise Exception('No match elem for {} {}'.format(component, VERSION_REGEX))
+
     def replace_bbfile_dep(self, bbfile, comp_name, bb_ver):
         dep_file = bbfile
         if os.path.basename(bbfile).startswith('integration-'):
@@ -703,17 +716,12 @@ class INTEGRATION_REPO(object):
         logging.info('find dep file: %s', dep_file)
         with open(dep_file, 'r') as fr:
             dep_content = fr.read()
-        new_dep_content = re.sub(
-            r'%s-[a-z0-9]{24,}|%s-[vV]?[0-9\.-]+' %
-            (comp_name, comp_name),
-            r'%s-%s' %
-            (comp_name, bb_ver),
-            dep_content)
+        new_dep_content = self.replace_dependency_content(
+            dep_content, comp_name, bb_ver)
         if comp_name not in dep_content:
             new_dep_content = re.sub(
                 r'(DEPENDS\s*=\s*")',
                 r'\1{}-{} '.format(comp_name, bb_ver))
-
         with open(dep_file, 'w') as fw:
             fw.write(new_dep_content)
 

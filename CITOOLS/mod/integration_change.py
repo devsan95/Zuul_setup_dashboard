@@ -13,8 +13,8 @@ import re
 
 from mod import common_regex
 
-bb_version_reg = re.compile(r'\sbb_version: ')
-commit_ID_reg = re.compile(r'\scommit-D: ')
+bb_version_reg = re.compile(r'\s+bb_version: ')
+commit_ID_reg = re.compile(r'\s+commit-ID: ')
 comp_reg = re.compile(r'  - COMP <(.*?)>')
 fifi_reg = re.compile(r'%FIFI=(.*)')
 ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
@@ -211,23 +211,22 @@ class IntegrationCommitMessage(object):
 
     def update_interface_info(self, bb_version, commit_ID):
         # find bb_version line and commit-ID line to remove
-        for line in self.msg_lines:
-            m = bb_version_reg.search(line)
-            if m:
-                self.msg_lines.remove(line)
-            n = commit_ID_reg.search(line)
-            if n:
-                self.msg_lines.remove(line)
-        # find line to add
-        begin_line = -1
+        begin_line = 0
+        end_line = len(self.msg_lines)
         for i, v in enumerate(self.msg_lines):
             if v.startswith('interface info:'):
-                begin_line = i + 1
-        if begin_line > -1:
-            bb_line_value = '        bb_version: {}'.format(bb_version)
-            commit_line_value = '        commit-ID: {}'.format(commit_ID)
-            self.msg_lines.insert(begin_line, commit_line_value)
-            self.msg_lines.insert(begin_line, bb_line_value)
+                begin_line = i
+                end_line = i + 3
+                continue
+            if begin_line > 0 and i > begin_line and i < end_line:
+                m = bb_version_reg.match(v)
+                if m:
+                    bb_line_value = '        bb_version: {}'.format(bb_version)
+                    self.msg_lines[i] = bb_line_value
+                n = commit_ID_reg.match(v)
+                if n:
+                    commit_line_value = '        commit-ID: {}'.format(commit_ID)
+                    self.msg_lines[i] = commit_line_value
 
     def remove_ric(self, change):
         # judge if there is the need to remove
