@@ -36,3 +36,4 @@ exclude =
     CICONF,
     # Auto-generated files, ignore it
     auto_generated
+
