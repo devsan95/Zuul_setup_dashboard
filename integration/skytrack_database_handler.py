@@ -1,10 +1,16 @@
 import re
-
+import time
+import json
+import requests
 import fire
+import jenkinsapi
 
 from api import gerrit_rest
 from api import mysql_api
 from generate_bb_json import get_description
+
+
+JENKINS_URL = "http://wrlinb147.emea.nsn-net.net:9090"
 
 
 def get_jira_id(integration_change, gerrit_info_path):
@@ -24,10 +30,21 @@ def get_jira_id(integration_change, gerrit_info_path):
     return jira_key
 
 
+def get_job_timestamp(jenkins_url, job_name, build_number):
+    build = jenkinsapi.api.get_build(jenkins_url, job_name, build_number)
+    start_timestamp = build.get_timestamp()
+    duration = build.get_duration()
+    end_timestamp = start_timestamp + duration
+    return int(time.mktime(start_timestamp.timetuple())) * 1000, int(
+        time.mktime(end_timestamp.timetuple())) * 1000
+
+
 def update_build_info(integration_change,
                       pkg_info_file,
                       gerrit_info_path,
                       database_info_path,
+                      job_name=None,
+                      build_number=None,
                       dry_run=False):
     jira_key = get_jira_id(integration_change, gerrit_info_path)
     mydb = mysql_api.init_from_yaml(database_info_path, server_name='skytrack')
@@ -53,18 +70,63 @@ def update_build_info(integration_change,
     if dry_run:
         print('DRY-RUN MODE:')
         print('Will update entity_build: {0}'.format(entity_info))
-        return
-    mydb.update_info(
-        table='t_issue',
-        replacements={
-            'entity_build': entity_info
-        },
-        conditions={
-            'issue_key': jira_key
-        }
+    else:
+        mydb.update_info(
+            table='t_issue',
+            replacements={
+                'entity_build': entity_info
+            },
+            conditions={
+                'issue_key': jira_key
+            }
+        )
+        print('Entity build info updated')
+        print('Entity build: {0}'.format(entity_info))
+
+    # update build info in detailed page
+    start_time, end_time = get_job_timestamp(JENKINS_URL, job_name, build_number)
+    update_build_info_detailed(
+        integration_name=jira_key,
+        product='5G',
+        package_name=knife_id,
+        type_name='Integration Build',
+        status=1,
+        link=knife_link,
+        start_time=start_time,
+        end_time=end_time
     )
-    print('Entity build info updated')
-    print('Entity build: {0}'.format(entity_info))
+
+
+def update_build_info_detailed(integration_name,
+                               product,
+                               package_name,
+                               type_name,
+                               status,
+                               link,
+                               start_time,
+                               end_time):
+    url = "http://skytrack.dynamic.nsn-net.net:8080/integration/add?pretty"
+    package_info = {
+        "integration_name": integration_name,
+        "product": product,
+        "package_name": package_name,
+        "type": type_name,
+        "status": status,
+        "link": link,
+        "start_timestamp": start_time,
+        "end_timestamp": end_time
+    }
+    content = json.dumps({"packages": [package_info]})
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    print "updating build info in detailed page"
+    r = requests.put(url, data=content, headers=headers)
+    print r.text
+    if r.status_code != 200:
+        print r.text
+        raise Exception("knife info updated in detailed failed")
 
 
 def clean_build_info(integration_change, gerrit_info_path, database_info_path, dry_run=False):
