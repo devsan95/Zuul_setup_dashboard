@@ -29,7 +29,7 @@ class OperateCommitMessage(object):
                 print(e)
             self.rest.change_commit_msg_to_edit(change, commit_msg_obj.get_msg())
             self.rest.publish_edit(change)
-            self.rest.review_ticket(change)
+            self.rest.review_ticket(change, 'update interface info')
 
 
 if __name__ == '__main__':
