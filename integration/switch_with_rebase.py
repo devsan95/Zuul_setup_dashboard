@@ -218,17 +218,17 @@ def switch_with_rebase_mod(root_change, rest,
     mail_list = get_mail_list(comp_change_list, int_change, root_change, rest)
     if base_package == 'HEAD':
         update_with_rebase_info(rest, root_change, 'with-zuul-rebase')
+        rest.review_ticket(int_change, 'use_default_base')
         rebase_by_load(rest, root_change, base_package,
                        gitlab_info_path=gitlab_info_path, mail_list=mail_list)
-        rest.review_ticket(int_change, 'use_default_base')
     else:
         update_with_rebase_info(rest, root_change, 'without-zuul-rebase')
-        rebase_by_load(rest, root_change, base_package,
-                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
         ver_partten = '.'.join(base_package.split('.')[0:2])
         rest.review_ticket(
             int_change,
             'update_base:{},{}'.format(ver_partten, base_package))
+        rebase_by_load(rest, root_change, base_package,
+                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
 
 
 def get_mail_list(comp_change_list, int_change, root_change, rest):
