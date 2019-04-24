@@ -579,7 +579,7 @@ class IntegrationChangesCreation(object):
         self.gerrit_rest.review_ticket(integration_node['rest_id'], 'reexperiment')
         for node in nodes.values():
             if node is not root_node and node is not integration_node:
-                if 'auto_code_reveiw' in node and not node['auto_code_reveiw']:
+                if 'auto_code_review' in node and not node['auto_code_review']:
                     pass
                 else:
                     self.gerrit_rest.review_ticket(

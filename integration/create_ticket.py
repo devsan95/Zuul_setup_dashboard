@@ -181,6 +181,7 @@ def check_graph_cycling(graph_obj):
 
 def create_ticket_by_graph(root_node, integration_node, graph_obj, nodes,
                            topic, gerrit_client, info_index):
+    print('pylint unused-argument: {}'.format(integration_node))
     create_ticket_by_node(root_node, topic, graph_obj, nodes, root_node,
                           gerrit_client, info_index)
 
@@ -501,6 +502,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
 
 def add_structure_string(root_node, integration_node, graph_obj,
                          nodes, gerrit_client):
+    print('pylint unused-argument: {}'.format(graph_obj))
     structure_dict = {'root': root_node['ticket_id'],
                       'manager': integration_node['ticket_id'],
                       'tickets': []}
@@ -523,6 +525,7 @@ def add_structure_string(root_node, integration_node, graph_obj,
 def label_all_tickets(root_node, integration_node, graph_obj,
                       nodes, gerrit_client, zuul_user,
                       zuul_server, zuul_port, zuul_key):
+    print('pylint unused-argument: {}'.format(graph_obj))
     gerrit_api.review_patch_set(zuul_user, zuul_server,
                                 root_node['ticket_id'],
                                 ['Integrated=-1'], 'init_label',
@@ -531,7 +534,7 @@ def label_all_tickets(root_node, integration_node, graph_obj,
     gerrit_client.review_ticket(integration_node['rest_id'], 'reexperiment')
     for node in nodes.values():
         if node is not root_node and node is not integration_node:
-            if 'auto_code_reveiw' in node and not node['auto_code_reveiw']:
+            if 'auto_code_review' in node and not node['auto_code_review']:
                 pass
             else:
                 gerrit_client.review_ticket(node['rest_id'],
@@ -562,6 +565,7 @@ def read_ric(ric_path):
 
 def print_result(root_node, integration_node, graph_obj,
                  nodes, gerrit_server):
+    print('pylint unused-argument: {}'.format(graph_obj))
     root_change = root_node['ticket_id']
     print('Root change: {}'.format('{}/#/c/{}/'.format(
         gerrit_server, root_change)))
@@ -850,8 +854,8 @@ def create_temp_branch(rest, project_name,
     change_id, ticket_id, rest_id = rest.create_ticket(
         project_name, None, target_branch, 'for temp submodule')
 
-    for file, content in file_changes.items():
-        rest.add_file_to_change(rest_id, file, content)
+    for file_path, content in file_changes.items():
+        rest.add_file_to_change(rest_id, file_path, content)
     rest.publish_edit(rest_id)
 
     rest.review_ticket(rest_id,
