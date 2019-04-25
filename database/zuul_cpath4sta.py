@@ -169,6 +169,38 @@ class JobTreeOper(object):
         """
 
         def _get_final_cpath(cpath, ljobs, buildsinfo):
+            def _reform_final_path(o_path, c_path, ljobs):
+                def _item_index_in_o_path(path, job):
+                    for i, item in enumerate(path.split(' -> ')):
+                        if item == job:
+                            return i
+                    return 0
+
+                def _item_first_run_layer(job, layerjobs):
+                    ljobitems = layerjobs.items()
+                    sorted_ljobsitems = sorted(ljobitems, key=lambda x: x[0])
+                    for titem in sorted_ljobsitems:
+                        if job in titem[1]:
+                            return titem[0]
+                    return 0
+
+                opath = o_path.split(' -> ')
+                cpath = c_path.split(' -> ')
+                fpath = c_path.split(' -> ')
+                for i, cj in enumerate(cpath):
+                    if i:
+                        preJob = cpath[i - 1]
+                        preJobIndex = _item_index_in_o_path(o_path, preJob)
+                        curJobIndex = _item_index_in_o_path(o_path, cj)
+                        curJobIndexInCPath = _item_index_in_o_path(c_path, cj)
+                        if (curJobIndex - preJobIndex) == 1:
+                            continue
+                        firstRunJobLayer = _item_first_run_layer(cj, ljobs)
+                        if firstRunJobLayer > i:
+                            for j in range(firstRunJobLayer - i):
+                                fpath.insert(curJobIndexInCPath, opath[preJobIndex + j + 1])
+                return fpath
+
             fcpath = list()
             cpath_ls = cpath.split(' -> ')
             for i, p in enumerate(cpath_ls):
@@ -199,23 +231,25 @@ class JobTreeOper(object):
                                     except Exception as re_err:
                                         log.debug(str(re_err))
                                         log.debug("Maybe already removed.")
+            c_path = ' -> '.join(fcpath)
+            f_cpath = _reform_final_path(cpath, c_path, ljobs)
             timeslots = list()
             try:
-                total = int(buildsinfo[fcpath[-1]][3] - buildsinfo[fcpath[0]][1])
-                firstJobLaunch = buildsinfo[fcpath[0]][1]
+                total = int(buildsinfo[f_cpath[-1]][3] - buildsinfo[f_cpath[0]][1])
+                firstJobLaunch = buildsinfo[f_cpath[0]][1]
             except Exception as t_err:
                 total = 'N/A'
                 firstJobLaunch = 'N/A'
                 log.debug(str(t_err))
             timeslots.append(total)
-            for n, fcp in enumerate(fcpath):
+            for n, fcp in enumerate(f_cpath):
                 try:
                     if not n:
                         t0 = 0
                         t1 = int(buildsinfo[fcp][2] - buildsinfo[fcp][1])
                         t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
                     else:
-                        t0 = int(buildsinfo[fcp][1] - buildsinfo[fcpath[n - 1]][3])
+                        t0 = int(buildsinfo[fcp][1] - buildsinfo[f_cpath[n - 1]][3])
                         t1 = int(buildsinfo[fcp][2] - buildsinfo[fcp][1])
                         t2 = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
                 except Exception as t_err:
@@ -226,9 +260,9 @@ class JobTreeOper(object):
                 timeslots.append(t0)
                 timeslots.append(t1)
                 timeslots.append(t2)
-            fcpath = ' -> '.join(fcpath)
+            dyn_path = ' -> '.join(f_cpath)
             tlstr = ','.join([str(tls) for tls in timeslots])
-            return fcpath, firstJobLaunch, tlstr
+            return dyn_path, firstJobLaunch, tlstr
 
         for k, v in self.datas.items():
             dbuilds = v['builds']
@@ -246,8 +280,8 @@ class JobTreeOper(object):
                 subs = 'Reserved'
             v['subsystem'] = subs
 
-            fcpath, firstJobLaunch, tlstr = _get_final_cpath(cpath[0], ljobs, dbuilds)
-            v['cpath'] = fcpath
+            dynamic_path, firstJobLaunch, tlstr = _get_final_cpath(cpath[0], ljobs, dbuilds)
+            v['cpath'] = dynamic_path
             v['timeslots'] = tlstr
             v['firstJobLaunch'] = firstJobLaunch
 
