@@ -44,6 +44,7 @@ def rebase_gitlab_branch(repo, branch, org_branch, comp_hash, token):
         print('repo_path: {}'.format(repo_path))
         git.Repo.clone_from(repo_url, repo_path)
         g = git.Git(repo_path)
+        g.checkout(org_branch)
         g.checkout(branch)
         g.pull()
         adapt_commits = get_branch_out_commits(g, org_branch)
@@ -86,6 +87,7 @@ def rebase_by_load(rest, change_no, base_package,
         project = comp_change_obj.get_project()
         branch = comp_change_obj.get_branch()
         comp_name_with_change = '{} {}'.format(comp_name, comp_change)
+        comp_hash = 'HEAD'
         if base_package != 'HEAD':
             try:
                 comp_hash = get_component_info.get_comp_hash(
@@ -95,8 +97,14 @@ def rebase_by_load(rest, change_no, base_package,
                 traceback.print_exc()
                 rebase_failed[comp_name_with_change] = 'NONE'
                 continue
-        else:
-            comp_hash = 'HEAD'
+        parent_hash = rest.get_parent(comp_change)
+        print('Parent for [{}] now is [{}]'.format(comp_change, parent_hash))
+        print('need to rebase to [{}]'.format(comp_hash))
+        if parent_hash == comp_hash:
+            print('{} parent is already {},'
+                  ' no need rebase'.format(comp_change, parent_hash))
+            rebase_succeed[comp_name_with_change] = comp_hash
+            continue
         if not project == 'MN/SCMTA/zuul/inte_ric':
             try:
                 if comp_hash == 'HEAD':

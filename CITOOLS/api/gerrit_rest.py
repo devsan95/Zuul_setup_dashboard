@@ -656,3 +656,14 @@ class GerritRestClient(object):
 
         result = self.parse_rest_response(commit)
         return result
+
+    def get_parent(self, change_no, revision_id='current'):
+        revision = self.get_commit(change_no, revision_id=revision_id)
+        parents = revision.get('parents')
+        parent = None
+        if parents:
+            parent = parents[0].get('commit')
+        else:
+            raise Exception(
+                'Cannot get parents for [{}]:[{}]'.format(change_no, revision_id))
+        return parent
