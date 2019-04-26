@@ -56,21 +56,20 @@ def get_int_info(ticket, rest_obj):
         'base_commit': re.compile(r'base_commit:(.*)')
     }
     match_dict = {}
+    commit_msg = get_int_msg(ticket, rest_obj)
     for key, regex_obj in regex_dict.items():
-        commit_msg = get_int_msg(ticket, rest_obj)
-        for line in commit_msg.splitlines():
-            m = regex_obj.match(line)
-            if m:
-                match_dict[key] = m.group(1)
+        m_list = regex_obj.findall(commit_msg)
+        if len(m_list) > 0:
+            match_dict[key] = m_list[0]
     mr_title = ticket
     if 'fifi' in match_dict:
         mr_title = '{}_{}'.format(
             mr_title,
             match_dict['fifi'])
     elif 'version_name' in match_dict:
-        mr_title = '{}_{}'.format(
+        mr_title = '{}_%FIFI={}'.format(
             mr_title,
-            match_dict['version_name'])
+            match_dict['version_name'][1])
     mr_comp = ''
     if 'comp' in match_dict:
         mr_comp = match_dict['comp']
