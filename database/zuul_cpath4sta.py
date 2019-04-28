@@ -198,7 +198,10 @@ class JobTreeOper(object):
                         firstRunJobLayer = _item_first_run_layer(cj, ljobs)
                         if firstRunJobLayer > i:
                             for j in range(firstRunJobLayer - i):
-                                fpath.insert(curJobIndexInCPath, opath[preJobIndex + j + 1])
+                                if (preJobIndex + j + 1) < len(opath) - 1:
+                                    addJob = opath[preJobIndex + j + 1]
+                                    if addJob not in fpath:
+                                        fpath.insert(curJobIndexInCPath, addJob)
                 return fpath
 
             fcpath = list()
