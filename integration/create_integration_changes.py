@@ -226,7 +226,7 @@ class IntegrationChangesCreation(object):
         ret_dict = {filename: '\n'.join(lines)}
         return ret_dict
 
-    def create_ticket_by_node(self, node_obj, integration_mode):
+    def create_ticket_by_node(self, node_obj, integration_mode, ext_commit_msg=None):
         nodes = self.info_index['nodes']
         graph = self.info_index['graph']
         topic = self.meta['topic']
@@ -236,7 +236,7 @@ class IntegrationChangesCreation(object):
                 if 'change_id' not in nodes[depend] or \
                         not nodes[depend]['change_id']:
                     return
-            message = self.make_description_by_node(node_obj)
+            message = self.make_description_by_node(node_obj, ext_commit_msg)
             if node_obj['repo'] in auto_branch_repos:
                 self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
             base_commit = self.get_base_commit(node_obj, integration_mode)
@@ -330,7 +330,7 @@ class IntegrationChangesCreation(object):
 
         for child in graph.successors(node_obj['name']):
             try:
-                self.create_ticket_by_node(nodes[child], integration_mode)
+                self.create_ticket_by_node(nodes[child], integration_mode, ext_commit_msg)
             except Exception:
                 print("[Error] create changes failed!Trying to abandon gerrit changes and close jira!")
                 nodes = self.info_index['nodes']
@@ -342,7 +342,8 @@ class IntegrationChangesCreation(object):
                         print ('ticket {} is abandoned'.format(node['ticket_id']))
                 raise Exception
 
-    def make_description_by_node(self, node_obj):
+    def make_description_by_node(self, node_obj, ext_commit_msg=None):
+        print('ext_commit_msg: {}'.format(ext_commit_msg))
         topic = self.meta['topic']
         graph_obj = self.info_index['graph']
         nodes = self.info_index['nodes']
@@ -378,6 +379,15 @@ class IntegrationChangesCreation(object):
 
         if 'feature_id' in self.info_index['meta'] and self.info_index['meta']['feature_id']:
             lines.append('%FIFI={}'.format(self.info_index['meta']['feature_id']))
+            section_showed = True
+
+        if section_showed:
+            lines.append('  ')
+            lines.append('  ')
+
+        section_showed = False
+        if ext_commit_msg:
+            lines.append(ext_commit_msg)
             section_showed = True
 
         if section_showed:
@@ -777,8 +787,9 @@ class IntegrationChangesCreation(object):
 
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
-            if_restore=False, integration_mode=None, base_load=None, env_change=None,
-            force_feature_id=False, open_jira=False, skip_jira=False):
+            if_restore=False, integration_mode=None, base_load=None,
+            env_change=None, ext_commit_msg=None, force_feature_id=False,
+            open_jira=False, skip_jira=False):
 
         # handle integration topic
         utc_dt = datetime.utcnow()
@@ -901,7 +912,7 @@ class IntegrationChangesCreation(object):
                   self.meta.get('jira_key'),
                   self.meta.get('feature_id')))
 
-        self.create_ticket_by_node(root_node, integration_mode)
+        self.create_ticket_by_node(root_node, integration_mode, ext_commit_msg)
         self.add_structure_string()
         self.label_all_tickets()
         self.update_oam_description()
@@ -932,6 +943,7 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--integration-mode', default=None, type=unicode)
 @click.option('--base-load', default=None, type=unicode)
 @click.option('--env-change', default=None, type=unicode)
+@click.option('--ext_commit_msg', default=None, type=unicode)
 @click.option('--force-feature-id', default=False, type=bool)
 @click.option('--open-jira', default=False, type=bool)
 @click.option('--skip-jira', default=False, type=bool)
@@ -939,14 +951,17 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 def create_changes(ctx, version_name=None,
                    topic_prefix=None, streams=None,
                    jira_key=None, feature_id=None, feature_owner=None, if_restore=False,
-                   integration_mode=None, base_load=None,
+                   integration_mode=None, base_load=None, ext_commit_msg=None,
                    env_change=None, force_feature_id=False,
                    open_jira=False, skip_jira=False):
     icc = ctx.obj['obj']
-    icc.run(version_name, topic_prefix, streams, jira_key,
-            feature_id, feature_owner, if_restore, integration_mode,
-            base_load, env_change,
-            force_feature_id, open_jira, skip_jira)
+    icc.run(version_name=version_name, topic_prefix=topic_prefix,
+            streams=streams, jira_key=jira_key,
+            feature_id=feature_id, feature_owner=feature_owner,
+            if_restore=if_restore, integration_mode=integration_mode,
+            base_load=base_load, env_change=env_change,
+            ext_commit_msg=ext_commit_msg, force_feature_id=force_feature_id,
+            open_jira=open_jira, skip_jira=skip_jira)
 
 
 if __name__ == '__main__':
