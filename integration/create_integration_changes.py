@@ -432,7 +432,7 @@ class IntegrationChangesCreation(object):
                         if len(ric_list) > 0:
                             if not ric_title:
                                 lines.append('This integration contains '
-                                             'following ric conponent(s):')
+                                             'following ric component(s):')
                                 ric_title = True
                             section_showed = True
                             for ric in ric_list:

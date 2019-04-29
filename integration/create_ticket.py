@@ -361,7 +361,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
                     if len(ric_list) > 0:
                         if not ric_title:
                             lines.append('This integration contains '
-                                         'following ric conponent(s):')
+                                         'following ric component(s):')
                             ric_title = True
                         section_showed = True
                         for ric in ric_list:
@@ -377,7 +377,7 @@ def make_description_by_node(node_obj, nodes, graph_obj, topic, info_index):
         if info_index['etc']['heat_template']:
             if not ric_title:
                 lines.append('This integration contains '
-                             'following ric conponent(s):')
+                             'following ric component(s):')
 
             lines.append('  - RICCOMMIT <{}> <{}>'.format(
                 'open-stack-heat-templates',
