@@ -43,6 +43,7 @@ def parse_comments(change_id, rest):
         result_list = json_re.findall(msg)
         if len(result_list) > 0:
             change_list = json.loads(result_list[0])
+            break
 
     submodule_list = get_submodule_list_from_comments(comment_list)
 
@@ -92,10 +93,10 @@ def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):
         abandon_jira(change_id, rest)
     except Exception as e:
         print('Abandon jira failed, because {}'.format(e))
-    for change_id in changes:
-        print('Abandoning {}'.format(change_id))
+    for change in changes:
+        print('Abandoning {}'.format(change))
         try:
-            rest.abandon_change(change_id)
+            rest.abandon_change(change)
         except Exception as e:
             print(e)
 
