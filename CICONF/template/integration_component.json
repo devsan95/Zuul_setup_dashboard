@@ -1,0 +1,31 @@
+{  
+         "auto_code_reveiw":false,
+         "depends":[  
+            "root_monitor"
+         ],
+         "repo":"{{repo}}",
+         "name":"{{comp_name}}",
+         "title_replace":"[none] {node[name]} {meta[version_name]} {meta[branch]}",
+         "description":[  
+            "This change is for trigger testing of cp-nrt",
+            "If any adaption applied to this change, the placeholder file can be removed."
+         ],
+         "remark":[  
+            "If this change fails in check or gate pipeline, there should be adaption applied to it.",
+            "To apply adaption, you need to:",
+            "1.Copy the PULL command of the patchset from gerrit to download it to your workspace;",
+            "2.Modify files to do adaption and add them using git;",
+            "3.Run command git commit --amend --author \\\"your_username <your_email>\\\" to commit change;",
+            "4.Push the commit to ref/for/<branch> to create new patchset.",
+            "Reminders:",
+            "1.You can remove placeholder files while applying adaption.",
+            "2.After adaption is done, you need to give the change a Code-Review +2 to make the procedure go forward.",
+            "3.If no adaption is applied, only submodule change will be merged.",
+            "4.Do not modify existing commit messages. Please append new lines instead."
+         ],
+         "title":"Adaption for ${{comp_name}}",
+         "branch":"{{branch}}",
+         "ric":[  
+            "{{comp_name}}"
+         ]
+}

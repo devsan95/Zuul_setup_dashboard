@@ -1,0 +1,34 @@
+{  
+      "template":"rcp_integration.html",
+      "title":"{{branch}}",
+      "branch":"{{branch}}",
+      "platform":"feature",
+      "email":{  
+         "description":"",
+         "to":[  
+            "I_5G_HZ_SCM@internal.nsn.com"
+         ]
+      },
+      "jira":{  
+         "summary":"{title}-{version} Integration",
+         "issuetype":{  
+            "name":"Task"
+         },
+         "components":[  
+            {  
+               "name":"5G_HZSCM_WORK"
+            }
+         ],
+         "description":"Jira ticket for feature integration process monitor",
+         "project":{  
+            "key":"SCMHGH"
+         },
+         "assignee": null,
+         "priority":{  
+            "name":"Major"
+         },
+         "labels":[  
+            "5g_integration"
+         ]
+      }
+}

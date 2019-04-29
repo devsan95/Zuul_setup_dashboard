@@ -65,16 +65,11 @@ def run(gerrit_info_path, change_no,
     if 'bb_version' in change_info_dict:
         comp_name = change_info_dict['bb_version'].split('_', 1)[0]
     if comp_name == 'env':
-        rebase_env.run(gerrit_info_path, change_no, change_info=change_info)
+        rebase_env.run(
+            gerrit_info_path, change_no, change_info=change_info)
     else:
-        rebase_interface.run(gerrit_info_path, change_no,
-                             ssh_gerrit_server=ssh_gerrit_server,
-                             ssh_gerrit_port=ssh_gerrit_port,
-                             ssh_gerrit_user=ssh_gerrit_user,
-                             ssh_gerrit_key=ssh_gerrit_key,
-                             auto_recheck=auto_recheck,
-                             auto_reexperiment=auto_reexperiment,
-                             change_info=change_info_dict)
+        rebase_interface.run(
+            gerrit_info_path, change_no, change_info=change_info_dict)
 
     change_detail = rest.get_detailed_ticket(change_no)
     # 2 detect integration label. if label is ok then quit.
@@ -129,18 +124,21 @@ def run(gerrit_info_path, change_no,
     waitting_period = 0
     while True:
         if waitting_period >= 1200:
-            raise Exception('Can not get ENV check pipeline result in 20mins, please fix '
-                            'and rerun rebase_ENV')
+            raise Exception(
+                'Can not get ENV check pipeline result in 20mins, '
+                'please fix and rerun rebase_ENV')
         env_verified = getting_env_check_result(rest, change_no, username)
         if env_verified == 1:
             print('ENV Verified +1, starting to recheck components')
             break
         elif env_verified == -1:
-            raise Exception('EVN check pipeline failed, please check your input content and'
-                            ' rerun rebase_ENV job')
+            raise Exception(
+                'EVN check pipeline failed, please check your input content '
+                'and rerun rebase_ENV job')
         else:
             print('ENV Verified: {0}'.format(env_verified))
-            print("ENV check pipeline result haven't finished yet, will re-verify in 60s")
+            print("ENV check pipeline result haven't finished yet, "
+                  "will re-verify in 60s")
             waitting_period += 60
             time.sleep(60)
 

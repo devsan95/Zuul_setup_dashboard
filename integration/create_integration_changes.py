@@ -344,7 +344,7 @@ class IntegrationChangesCreation(object):
         for child in graph.successors(node_obj['name']):
             try:
                 self.create_ticket_by_node(nodes[child], integration_mode, ext_commit_msg)
-            except Exception:
+            except Exception as e:
                 print("[Error] create changes failed!Trying to abandon gerrit changes and close jira!")
                 nodes = self.info_index['nodes']
                 if 'jira_key' in self.meta:
@@ -353,7 +353,7 @@ class IntegrationChangesCreation(object):
                     if 'ticket_id' in node:
                         self.gerrit_rest.abandon_change(node['ticket_id'])
                         print ('ticket {} is abandoned'.format(node['ticket_id']))
-                raise Exception
+                raise Exception(str(e))
 
     def make_description_by_node(self, node_obj, ext_commit_msg=None):
         print('ext_commit_msg: {}'.format(ext_commit_msg))

@@ -236,13 +236,13 @@ class IntegrationCommitMessage(object):
                     if n:
                         self.msg_lines[i] = commit_line_value
                     break
-            if not find_comp:
-                if begin_line == 0:
-                    self.msg_lines.append('interface info:')
-                    begin_line = len(self.msg_lines)
-                self.msg_lines.insert(begin_line, comp_line_value)
-                self.msg_lines.insert(begin_line + 1, bb_line_value)
-                self.msg_lines.insert(begin_line + 2, commit_line_value)
+        if not find_comp:
+            if begin_line == 0:
+                self.msg_lines.append('interface info:')
+                begin_line = len(self.msg_lines)
+            self.msg_lines.insert(begin_line, comp_line_value)
+            self.msg_lines.insert(begin_line + 1, bb_line_value)
+            self.msg_lines.insert(begin_line + 2, commit_line_value)
 
     def remove_ric(self, change):
         # judge if there is the need to remove

@@ -1,0 +1,34 @@
+[
+{  
+         "repo":"MN/SCMTA/zuul/inte_root",
+         "name":"root_monitor",
+         "description":[  
+            "This change is the root change of this process.",
+            "All changes depend on it and it monitor the whole process."
+         ],
+         "title":"Root Change",
+         "type":"root",
+         "branch":"{{branch}}"
+},
+{  
+     "comments":[  
+        "\nknife recipients:\nI_5G_HZ_SCM@internal.nsn.com\nyang-mark.zhang@nokia-sbell.com\n"
+     ],
+     "repo":"MN/SCMTA/zuul/inte_mn",
+     "name":"integration",
+     "description":[  
+        "This change is the integration change of this process, and it depends on all changes.",
+        "A gNB package will be built under this change and follow that there will be tests.",
+        "If there are any adaptions, write down them at gerrit change comments and formatting as update_bb:COMPONENT_NAME,REPO_URL,REPO_VER",
+        "If you want to specify a base for a stream, write down them at gerrit change comments and formatting as update_base:STREAM,BASE"
+     ],
+     "remark":[  
+        "To make adaption, comment update_bb:COMPONENT_NAME,REPO_URL,REPO_VER",
+        "To specify bitbake version, comment update_bb:COMPONENT_NAME,bb,REPO_VER",
+        "To change base, comment update_base:STREAM,BASE"
+     ],
+     "title":"Integration Manager",
+     "type":"integration",
+     "branch":"{{branch}}"
+}
+]
