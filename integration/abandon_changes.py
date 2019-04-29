@@ -33,8 +33,8 @@ def strip_begin(text, prefix):
 
 
 def parse_comments(change_id, rest):
-    change_list = None
-    submodule_list = None
+    change_list = []
+    submodule_list = []
     change_set = set()
     json_re = re.compile(r'Tickets-List: ({.*})')
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id))
