@@ -9,26 +9,6 @@ import datetime
 
 log = logging.getLogger(__file__)
 
-# DB_HOST = '10.157.165.0'
-# DB_USER = 'root'
-# DB_PASS = 'zuul_common'
-# DB_TEST = 'zuul_test'
-
-DB_HOST = '10.159.10.111'
-DB_USER = 'root'
-DB_PASS = 'hzscmzuul'
-DB_TEST = 'zuul'
-
-SDB_HOST = '10.157.163.176'
-SDB_USER = 'skytrack_dev'
-SDB_PASS = 'dev_666'
-SDB_TEST = 'skytrack'
-
-
-# SDB_HOST = '10.157.165.0'
-# SDB_USER = 'root'
-# SDB_PASS = 'zuul_common'
-# SDB_TEST = 'zuul-test-common'
 
 class JobTreeOper(object):
     def __init__(self, host, username, password, test_db):
@@ -190,6 +170,8 @@ class JobTreeOper(object):
                 for i, cj in enumerate(cpath):
                     if i:
                         preJob = cpath[i - 1]
+                        preJobinFpath = fpath[fpath.index(cj) - 1]
+                        preJobinFpathFirstRun = _item_first_run_layer(preJobinFpath, ljobs)
                         preJobIndex = _item_index_in_o_path(o_path, preJob)
                         curJobIndex = _item_index_in_o_path(o_path, cj)
                         curJobIndexInCPath = _item_index_in_o_path(c_path, cj)
@@ -200,7 +182,8 @@ class JobTreeOper(object):
                             for j in range(firstRunJobLayer - i):
                                 if (preJobIndex + j + 1) < len(opath) - 1:
                                     addJob = opath[preJobIndex + j + 1]
-                                    if addJob not in fpath:
+                                    addJobIndex = _item_first_run_layer(addJob, ljobs)
+                                    if addJob not in fpath and addJobIndex > preJobinFpathFirstRun:
                                         fpath.insert(curJobIndexInCPath, addJob)
                 return fpath
 
@@ -315,6 +298,14 @@ class Runner(object):
     def get_parser(self):
         parser = argparse.ArgumentParser(description='Used for job find critical path')
         parser.add_argument('-t', '--tdate', dest='tdate', help="time date")
+        parser.add_argument('-o', '--zuul-host', dest='zuul_host', help='ZUUL DB host')
+        parser.add_argument('-u', '--zuul-username', dest='zuul_usr', help='ZUUL DB username')
+        parser.add_argument('-p', '--zuul-password', dest='zuul_passwd', help='ZUUL DB password')
+        parser.add_argument('-q', '--zuul-table', dest='zuul_table', help='ZUUL DB test table')
+        parser.add_argument('-s', '--sky-host', dest='sky_host', help='ZUUL DB host')
+        parser.add_argument('-l', '--sky-username', dest='sky_usr', help='SKY DB username')
+        parser.add_argument('-m', '--sky-password', dest='sky_passwd', help='SKY DB password')
+        parser.add_argument('-n', '--sky-table', dest='sky_table', help='SKY DB test table')
         parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="logging level")
         return parser
 
@@ -330,12 +321,18 @@ class Runner(object):
             tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
         else:
             tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
-        jto_ins = JobTreeOper(DB_HOST, DB_USER, DB_PASS, DB_TEST)
+        jto_ins = JobTreeOper(self.jto_args.zuul_host,
+                              self.jto_args.zuul_usr,
+                              self.jto_args.zuul_passwd,
+                              self.jto_args.zuul_table)
         jto_ins.get_records(tdate)
         jto_ins.update_data()
         log.debug(jto_ins.datas)
         try:
-            sky_ins = JobTreeOper(SDB_HOST, SDB_USER, SDB_PASS, SDB_TEST)
+            sky_ins = JobTreeOper(self.jto_args.sky_host,
+                                  self.jto_args.sky_usr,
+                                  self.jto_args.sky_passwd,
+                                  self.jto_args.sky_table)
             for k, v in jto_ins.datas.items():
                 if v['cpath']:
                     pipeline, enqueuetime = v['pipeline'].split(',')
