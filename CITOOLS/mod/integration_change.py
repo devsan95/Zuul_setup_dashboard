@@ -354,3 +354,12 @@ class IntegrationCommitMessage(object):
                     end = index - 1
                     break
         return begin, end
+
+    def add_depends_on_root(self, root_change_id):
+        begin_line = -1
+        for i, v in enumerate(self.msg_lines):
+            if v.startswith('Change-Id:'):
+                begin_line = i - 1
+        if begin_line > -1:
+            line_value = 'Depends-on: {}'.format(root_change_id)
+            self.msg_lines.insert(begin_line, line_value)
