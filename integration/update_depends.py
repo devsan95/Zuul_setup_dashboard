@@ -1,0 +1,158 @@
+import re
+import fire
+import logging
+
+from api import gerrit_rest
+from mod import common_regex
+from mod.integration_change import RootChange
+
+
+def update_depends(rest, change_id, dep_file_list,
+                   dep_submodule_dict):
+    # check if there is interfaces info in commit-msg
+    commit_msg = rest.get_commit(change_id).get('message')
+    commit_lines = commit_msg.splitlines()
+    find_interfaces = False
+    interface_infos = []
+    for idx, commit_line in enumerate(commit_lines):
+        if commit_line.startswith('interface info:'):
+            component = ''
+            comp_version = ''
+            repo_version = ''
+            comp_line = commit_lines[idx + 1]
+            bb_ver_line = commit_lines[idx + 2]
+            version_line = commit_lines[idx + 3]
+            m = re.match(r'[\s]+comp_name:\s+(\S+)', comp_line)
+            if not m:
+                logging.warn(
+                    'not find comp_name for interfaces in %s', comp_line)
+                continue
+            else:
+                component = m.group(1)
+            m = re.match(r'[\s]+bb_version:\s+(\S+)', bb_ver_line)
+            if not m:
+                logging.warn(
+                    'not find bb_version for interfaces in %s', bb_ver_line)
+                continue
+            else:
+                comp_version = m.group(1).split(component)[1].lstrip('-')
+            m = re.match(r'[\s]+commit-ID:\s+(\S+)', version_line)
+            if not m:
+                logging.warn(
+                    'not find commit-ID for interfaces in %s', version_line)
+                continue
+            else:
+                repo_version = m.group(1)
+            find_interfaces = True
+            interface_infos.append({"component": component,
+                                    "comp_version": comp_version,
+                                    "repo_version": repo_version})
+
+    if not find_interfaces:
+        logging.warn('Not find interfaces in commit-msg')
+        return
+
+    op = RootChange(rest, change_id)
+    comp_change_list, int_change = op.get_components_changes_by_comments()
+
+    for interface_info in interface_infos:
+        component = interface_info['component']
+        comp_version = interface_info['comp_version']
+        repo_version = interface_info['repo_version']
+        for dep_file in dep_file_list:
+            for comp_change in comp_change_list:
+                replace_depdends_file(rest, comp_change,
+                                      dep_file, component, comp_version)
+                if component in dep_submodule_dict:
+                    replace_submodule_content(
+                        rest, comp_change,
+                        dep_submodule_dict[component], repo_version)
+                else:
+                    logging.warn('%s not in dep submodule dict %s',
+                                 component, dep_submodule_dict)
+                try:
+                    rest.publish_edit(comp_change)
+                except Exception as e:
+                    logging.warn('Publish edit is failed')
+                    print(str(e))
+
+
+def replace_depdends_file(rest, change_id, file_path, component, version):
+    # get file content from change_id
+    try:
+        recipe_content = rest.get_file_content(file_path, change_id)
+    except Exception as e:
+        logging.warn('Not able to find file %s in %s', file_path, change_id)
+        logging.warn(str(e))
+        return
+    new_recipe_content = replace_depdends_content(recipe_content,
+                                                  component, version)
+    if new_recipe_content != recipe_content:
+        rest.add_file_to_change(change_id, file_path, new_recipe_content)
+
+
+def replace_depdends_content(old_recipe_content, component, version):
+    # find matched list
+    # list == 1 , replace
+    # list == 0 , skip
+    # list > 1, raise Exception
+    matched = False
+    for ver_regex in common_regex.COMP_VERSION_REGEX:
+        prefer_regex = re.compile(r'{}{}[\s"]'.format(component, ver_regex))
+        last_regex = re.compile(r'{}{}'.format(component, ver_regex))
+        new_regex = r"{}-{}".format(component, version)
+        for cur_regex in [prefer_regex, last_regex]:
+            match_elems = re.findall(cur_regex, old_recipe_content)
+            if len(match_elems) == 1:
+                old_component_str = match_elems[0].rstrip().rstrip('"')
+                return re.sub(old_component_str, new_regex, old_recipe_content)
+            if len(match_elems) > 1:
+                logging.warn('Get multi match elems %s for %s',
+                             match_elems, cur_regex)
+                matched = True
+            if len(match_elems) == 0:
+                continue
+    if not matched:
+        logging.warn('No match elem for %s %s',
+                     component, common_regex.COMP_VERSION_REGEX)
+    else:
+        logging.warn('Get multi match elems for %s %s',
+                     component, common_regex.COMP_VERSION_REGEX)
+    return old_recipe_content
+
+
+def replace_submodule_content(rest, change_id, file_path, version):
+    # get submodule content
+    try:
+        submodule_content = rest.get_file_content(file_path, change_id)
+    except Exception as e:
+        logging.warn('Not able to find file %s in %s', file_path, change_id)
+        logging.warn(str(e))
+        return
+    submodule_regex = re.compile(r'^([0-9a-z]+)$')
+    print('Submodule content: {}'.format(submodule_content))
+    m = submodule_regex.match(submodule_content)
+    if m:
+        rest.add_file_to_change(change_id, file_path, version)
+    else:
+        raise Exception(
+            'Cannot find matched submodule format for {}'.format(file_path))
+    # find 'Subproject commit xxxxx' and replaced
+
+
+def run(gerrit_info_path, change_id, dep_files, dep_submodules):
+    rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    dep_file_list = dep_files.splitlines()
+    dep_submodule_dict = {}
+    for dep_submodule_line in dep_submodules.splitlines():
+        if ':' in dep_submodule_line:
+            component = dep_submodule_line.split(':', 1)[0].strip()
+            submodule_path = dep_submodule_line.split(':', 1)[1].strip()
+            dep_submodule_dict[component] = submodule_path
+        else:
+            logging.warn('Cannot find ":" in line: %s', dep_submodule_line)
+    update_depends(rest, change_id, dep_file_list, dep_submodule_dict)
+
+
+if __name__ == '__main__':
+    fire.Fire()

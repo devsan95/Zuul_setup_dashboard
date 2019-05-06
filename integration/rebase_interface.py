@@ -41,7 +41,8 @@ def run(gerrit_info_path, change_no,
             change_info['comp_name'], change_info['commit_id']))
     op_commit_msg = OperateCommitMessage(gerrit_info_path, change_no)
     op_commit_msg.update_interface_information(
-        '{}-{}'.format(comp_name, comp_ver), change_info['commit_id'])
+        '{}-{}'.format(comp_name, comp_ver),
+        change_info['commit_id'], comp_name)
     if auto_recheck:
         # recheck
         print('not supported yet')

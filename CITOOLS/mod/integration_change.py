@@ -13,6 +13,7 @@ import re
 
 from mod import common_regex
 
+comp_name_reg = re.compile(r'\s+comp_name: ')
 bb_version_reg = re.compile(r'\s+bb_version: ')
 commit_ID_reg = re.compile(r'\s+commit-ID: ')
 comp_reg = re.compile(r'  - COMP <(.*?)>')
@@ -209,24 +210,39 @@ class IntegrationCommitMessage(object):
     def get_msg(self):
         return '\n'.join(self.msg_lines)
 
-    def update_interface_info(self, bb_version, commit_ID):
+    def update_interface_info(self, bb_version, commit_ID, comp_name):
         # find bb_version line and commit-ID line to remove
         begin_line = 0
         end_line = len(self.msg_lines)
+        find_comp = False
+        comp_line_value = '        comp_name: {}'.format(comp_name)
+        bb_line_value = '        bb_version: {}'.format(bb_version)
+        commit_line_value = '        commit-ID: {}'.format(commit_ID)
         for i, v in enumerate(self.msg_lines):
             if v.startswith('interface info:'):
                 begin_line = i
-                end_line = i + 3
+                end_line = i + 4
                 continue
             if begin_line > 0 and i > begin_line and i < end_line:
-                m = bb_version_reg.match(v)
-                if m:
-                    bb_line_value = '        bb_version: {}'.format(bb_version)
-                    self.msg_lines[i] = bb_line_value
-                n = commit_ID_reg.match(v)
-                if n:
-                    commit_line_value = '        commit-ID: {}'.format(commit_ID)
-                    self.msg_lines[i] = commit_line_value
+                m = comp_name_reg.match(v)
+                if m and m.group(0) == comp_name:
+                    find_comp = True
+                    bb_line = self.msg_lines[i + 1]
+                    commit_line = self.msg_lines[i + 2]
+                    m = bb_version_reg.match(bb_line)
+                    if m:
+                        self.msg_lines[i] = bb_line_value
+                    n = commit_ID_reg.match(commit_line)
+                    if n:
+                        self.msg_lines[i] = commit_line_value
+                    break
+            if not find_comp:
+                if begin_line == 0:
+                    self.msg_lines.append('interface info:')
+                    begin_line = len(self.msg_lines)
+                self.msg_lines.insert(begin_line, comp_line_value)
+                self.msg_lines.insert(begin_line + 1, bb_line_value)
+                self.msg_lines.insert(begin_line + 2, commit_line_value)
 
     def remove_ric(self, change):
         # judge if there is the need to remove

@@ -17,12 +17,12 @@ class OperateCommitMessage(object):
         self.root_change_no = root_change
         self.all_changes = self.root_change.get_all_changes_by_comments(with_root=True)
 
-    def update_interface_information(self, bb_version, commit_ID):
+    def update_interface_information(self, bb_version, commit_ID, comp_name):
         for change in self.all_changes:
             print('[Info] Going to update interface info for change: [{}]'.format(change))
             change_obj = inte_change.IntegrationChange(self.rest, change)
             commit_msg_obj = inte_change.IntegrationCommitMessage(change_obj)
-            commit_msg_obj.update_interface_info(bb_version, commit_ID)
+            commit_msg_obj.update_interface_info(bb_version, commit_ID, comp_name)
             try:
                 self.rest.delete_edit(change)
             except Exception as e:
