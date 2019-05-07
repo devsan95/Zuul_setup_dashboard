@@ -50,5 +50,5 @@ do
 done < used.list
 rm -f used.list
 if [ -f "servername_$hostname" ];then
-    scp servername_$hostname root@10.157.164.206:/ephemeral/workspace/workspace/SERVERS_DISK_MONITOR/
+    scp servername_$hostname root@10.157.164.203:/root/workspace/workspace/SERVERS_DISK_MONITOR/
 fi
