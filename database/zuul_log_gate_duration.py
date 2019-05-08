@@ -132,6 +132,9 @@ class DbHandler(object):
             # merge
             if item['type'] == 'prepare ref':
                 merge_time = item['datetime']
+                launch_job_time = None
+                launched_job_time = None
+                complete_job_time = None
                 if waiting_for_window:
                     waiting_for_window = False
                     waiting_for_window_time = merge_time
@@ -140,6 +143,7 @@ class DbHandler(object):
                 merged_time = item['datetime']
                 launch_job_time = None
                 launched_job_time = None
+                complete_job_time = None
             # launch
             if item['type'] == 'launch job' and not launch_job_time:
                 launch_job_time = item['datetime']
@@ -236,7 +240,8 @@ class DbHandler(object):
 
                 window_waiting_duration = (waiting_for_window_time - start_time).total_seconds() * 1000
             if not waiting_for_window_time:
-                window_waiting_duration = (finish_time - start_time).total_seconds() * 1000
+                log.debug('error, no waiting_for_window_time')
+                dequeue_duration = (finish_time - start_time).total_seconds() * 1000
             if merge_time:
                 if merged_time:
                     merge_duration = (merged_time - merge_time).total_seconds() * 1000
@@ -254,13 +259,17 @@ class DbHandler(object):
                                 job_running_duration = (complete_job_time - launched_job_time).total_seconds() * 1000
                                 dequeue_duration = (finish_time - complete_job_time).total_seconds() * 1000
                             else:
+                                log.debug('error, no complete_job_time')
                                 job_running_duration = (finish_time - launched_job_time).total_seconds() * 1000
                         else:
-                            first_launch_duration = (finish_time - launch_job_time).total_seconds() * 1000
+                            log.debug('error, no launched job time')
+                            dequeue_duration = (finish_time - launch_job_time).total_seconds() * 1000
                     else:
-                        pre_launch_duration = (finish_time - merged_time).total_seconds() * 1000
+                        log.debug('no launch time, status is %s', status_str)
+                        dequeue_duration = (finish_time - merged_time).total_seconds() * 1000
                 else:
-                    merge_duration = (finish_time - merge_time).total_seconds() * 1000
+                    log.debug('error, no merged time')
+                    dequeue_duration = (finish_time - merge_time).total_seconds() * 1000
         total_duration = (finish_time - start_time).total_seconds() * 1000
         obj = self.GateStatistics(
             changeset=changeset,
@@ -314,7 +323,7 @@ def main(db_str, db_str_dest='', table_name='t_gate_statistics', entry_num=5000,
                 log.debug('Process %s', end_item)
                 op_list = db.get_op_list_from_end(end_item)
                 db2.save_op_list(op_list)
-                log.debug('\n------', end_item)
+                log.debug('\n------')
 
             log.debug('committing...')
             db2.commit()
