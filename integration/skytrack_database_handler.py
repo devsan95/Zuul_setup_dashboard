@@ -7,6 +7,7 @@ import jenkinsapi
 
 from api import gerrit_rest
 from api import mysql_api
+from mod import wft_tools
 from generate_bb_json import get_description
 
 
@@ -85,10 +86,12 @@ def update_build_info(integration_change,
 
     # update build info in detailed page
     start_time, end_time = get_job_timestamp(JENKINS_URL, job_name, build_number)
+    stream = wft_tools.get_stream_name('{0}.'.format(knife_id.rsplit('.', 1)[0]))
     update_build_info_detailed(
         integration_name=jira_key,
         product='5G',
         package_name=knife_id,
+        mini_branch=stream,
         type_name='Integration Build',
         status=1,
         link=knife_link,
@@ -100,6 +103,7 @@ def update_build_info(integration_change,
 def update_build_info_detailed(integration_name,
                                product,
                                package_name,
+                               mini_branch,
                                type_name,
                                status,
                                link,
@@ -110,6 +114,7 @@ def update_build_info_detailed(integration_name,
         "integration_name": integration_name,
         "product": product,
         "package_name": package_name,
+        "mini_branch": mini_branch,
         "type": type_name,
         "status": status,
         "link": link,
