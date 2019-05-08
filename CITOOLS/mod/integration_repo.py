@@ -79,7 +79,7 @@ class INTEGRATION_REPO(object):
     def get_comp_info_by_bitbake(self, int_bb_target, comp_name, comp_ver, bb_file):
         comp_name_with_ver = '{}-{}'.format(comp_name, comp_ver)
         regex_repo = r'^(GIT_URI|GIT_REPO|SRC_URI)="([^"]+)"'
-        regex_ver = r'^(REVISION|SVNTAG|SVNREV|SRCREV)="([^"]+)"'
+        regex_ver = r'^(REVISION|SVNTAG|SVNREV|SRCREV|BIN_VER)="([^"]+)"'
         repo_url = ''
         repo_ver = ''
         env_file_path = os.path.join(
@@ -383,9 +383,10 @@ class INTEGRATION_REPO(object):
             if sub_repo_msg != repo_msg:
                 comp_hash = sub_g.log('-1', '--pretty=format:%H').strip('"')
                 return {'repo_ver': comp_hash}
+        bb_target = 'integration-%s' % platform if platform else ''
         comp_info = self.get_comp_info(comp_name, platform)
         comp_dict = self.get_version_from_bb(
-            comp_info[0][1], comp_name, comp_info[0][0])
+            comp_info[0][1], comp_name, comp_info[0][0], bb_target)
         return comp_dict.values()[0]
 
     def get_version_from_bb(
