@@ -147,9 +147,12 @@ class DbHandler(object):
             # launch
             if item['type'] == 'launch job' and not launch_job_time:
                 launch_job_time = item['datetime']
+                launched_job_time = None
+                complete_job_time = None
             # launched
             if item['type'] == 'job started' and not launched_job_time:
                 launched_job_time = item['datetime']
+                complete_job_time = None
             # complete
             if item['type'] in \
                     ['job started', 'job completed', 'job cancelled']:
@@ -227,6 +230,14 @@ class DbHandler(object):
         reschedule_total_time = 0
         if not end_id:
             end_id = list_[-1]['id']
+
+        if merge_time > finish_time:
+            merge_time = None
+            log.debug('merge_time > finish_time, status is %s', status_str)
+        if merged_time > finish_time:
+            merge_time = None
+            merged_time = None
+            log.debug('merged_time > finish_time, status is %s', status_str)
 
         if start_time:
             if waiting_for_window_time:
