@@ -13,16 +13,19 @@ import threading
 from urlparse import urljoin
 
 import requests
-import yaml
+import ruamel.yaml as yaml
+import urllib3
 
 import extra_api
 
 cachetools = extra_api.try_import('cachetools')
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 def init_from_yaml(path):
     with open(path) as f:
-        obj = yaml.load(f)
+        obj = yaml.load(f, Loader=yaml.Loader, version='1.1')
         gerrit = obj['gerrit']
         rest = GerritRestClient(gerrit['url'], gerrit['user'], gerrit['pwd'])
         if 'auth' in gerrit:
