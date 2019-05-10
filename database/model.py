@@ -29,7 +29,7 @@ class LogAction(ModelBase):
 def get_log_duration_model(table_name):
     DynamicBase = declarative_base(class_registry=dict())
 
-    class LogDuration(DynamicBase):
+    class LogDurationAlt(DynamicBase):
         __tablename__ = table_name
         id = sa.Column(sa.Integer, primary_key=True)
         changeset = sa.Column(sa.String(50), index=True)
@@ -50,7 +50,7 @@ def get_log_duration_model(table_name):
         queue_item = sa.Column(sa.String(50), index=True)
         result = sa.Column(TINYINT, index=True)
 
-    return LogDuration
+    return LogDurationAlt
 
 
 def get_gate_statistics_model(table_name='t_gate_statistics'):
@@ -176,3 +176,26 @@ class ZuulBuildset(ModelBase):
     score = sa.Column(sa.String(255), nullable=True)
     message = sa.Column(sa.String(255), nullable=True)
     datetime = sa.Column(sa.String(255), nullable=True)
+
+
+def get_loop_action_model(table_name='LoopAction'):
+    DynamicBase = declarative_base(class_registry=dict())
+
+    class LoopAction(DynamicBase):
+        __tablename__ = table_name
+        id = sa.Column(sa.Integer, primary_key=True)
+
+        begintime = sa.Column(DATETIME(fsp=3), index=True)
+        endtime = sa.Column(DATETIME(fsp=3), index=True)
+        duration = sa.Column(sa.Integer, index=False)
+        thread_id = sa.Column(sa.String(50), index=False)
+        logger = sa.Column(sa.String(255), index=True)
+        pipeline = sa.Column(sa.String(50), index=True)
+        project = sa.Column(sa.String(255), index=True)
+        action = sa.Column(sa.String(50), index=True)
+        detail = sa.Column(sa.Text(), index=False)
+        queue_item = sa.Column(sa.String(50), index=True)
+        location = sa.Column(sa.BIGINT, index=False)
+        prefix = sa.Column(sa.String(12), index=False)
+
+    return LoopAction

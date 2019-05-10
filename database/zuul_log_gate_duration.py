@@ -231,10 +231,10 @@ class DbHandler(object):
         if not end_id:
             end_id = list_[-1]['id']
 
-        if merge_time > finish_time:
+        if merge_time and merge_time > finish_time:
             merge_time = None
             log.debug('merge_time > finish_time, status is %s', status_str)
-        if merged_time > finish_time:
+        if merged_time and merged_time > finish_time:
             merge_time = None
             merged_time = None
             log.debug('merged_time > finish_time, status is %s', status_str)
