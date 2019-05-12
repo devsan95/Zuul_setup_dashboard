@@ -1,6 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
 import os
+import re
 import git
 import sys
 import copy
@@ -8,6 +9,7 @@ import fire
 import shutil
 import traceback
 
+import skytrack_database_handler
 from api import config
 from api import gitlab_api
 from api import gerrit_rest
@@ -276,9 +278,22 @@ def send_rebase_results(mail_list, mail_params, rebase_succeed, rebase_failed):
 
 
 def run(root_change, gerrit_info_path,
-        gitlab_info_path='', base_package='HEAD'):
+        gitlab_info_path='', base_package='HEAD', database_info_path=None):
     rest = init_gerrit_rest(gerrit_info_path)
     switch_with_rebase_mod(root_change, rest, base_package, gitlab_info_path)
+    origin_msg = rest.get_commit(root_change)['message']
+    msg = " ".join(origin_msg.split("\n"))
+    reg = re.compile(r'%JR=(\w+-\d+)')
+    jira_ticket = reg.search(msg).groups()[0]
+    if database_info_path:
+        skytrack_database_handler.update_events(
+            database_info_path=database_info_path,
+            integration_name=jira_ticket,
+            description='Integration mode switch to {0}'.format(base_package) if
+            base_package == "HEAD" else 'Integration mode switch to fixed base mode, base load: {0}'
+            .format(base_package),
+            highlight=True
+        )
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ import fire
 import urllib3
 from functools import partial
 
+import skytrack_database_handler
 from api import retry
 from api import gerrit_rest, jira_api
 from mod import common_regex
@@ -98,7 +99,7 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         print(e)
 
 
-def run(gerrit_info_path, change_no, change_info=None):
+def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     env_change_list = []
     env_change = change_info
     if env_change is not None:
@@ -172,6 +173,13 @@ def run(gerrit_info_path, change_no, change_info=None):
             jira_op.replace_issue_title(jira_ticket, old_str, new_str)
         except Exception as e:
             print('Jira update error')
+        if database_info_path:
+            skytrack_database_handler.update_events(
+                database_info_path=database_info_path,
+                integration_name=jira_ticket,
+                description="Integration Version Change To {0}".format(new_str),
+                highlight=True
+            )
 
         for key, value in change_map.items():
             rest.add_file_to_change(change_no, key, value)

@@ -100,13 +100,13 @@ class MysqlConnector(object):
         :type values: dict
         :return:
         """
+        columns = values.keys()
         sql = "INSERT INTO {table} ({column}) VALUE ({extend})".format(
             table=table,
-            column=','.join(values.keys),
-            extend=','.join(['%s' for i in range(len(values.keys))])
+            column=','.join(columns),
+            extend=','.join(['"{0}"'.format(str(values[column])) for column in columns])
         )
-        value = (values[column] for column in values.keys)
-        self.executor(sql, val=value, commit=True)
+        self.executor(sql, commit=True)
 
     def update_info(self, table, replacements, conditions):
         """

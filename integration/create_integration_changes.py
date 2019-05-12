@@ -19,6 +19,7 @@ from slugify import slugify
 import create_jira_ticket
 import gerrit_int_op
 import send_result_email
+import skytrack_database_handler
 from api import collection_api
 from api import gerrit_api
 from api import gerrit_rest
@@ -809,7 +810,7 @@ class IntegrationChangesCreation(object):
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
             if_restore=False, integration_mode=None, base_load=None,
-            env_change=None, ext_commit_msg=None, force_feature_id=False,
+            env_change=None, ext_commit_msg=None, mysql_info=None, force_feature_id=False,
             open_jira=False, skip_jira=False):
 
         # handle integration topic
@@ -937,6 +938,12 @@ class IntegrationChangesCreation(object):
         self.update_oam_description()
         self.print_result()
         send_result_email.run(self.info_index)
+        if mysql_info:
+            skytrack_database_handler.update_events(
+                database_info_path=mysql_info,
+                integration_name=self.info_index['meta']['jira_key'],
+                description="Integration Topic created"
+            )
 
 
 @click.group()
@@ -963,6 +970,7 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--base-load', default=None, type=unicode)
 @click.option('--env-change', default=None, type=unicode)
 @click.option('--ext_commit_msg', default=None, type=unicode)
+@click.option('--mysql_info', default=None, type=unicode)
 @click.option('--force-feature-id', default=False, type=bool)
 @click.option('--open-jira', default=False, type=bool)
 @click.option('--skip-jira', default=False, type=bool)
@@ -971,7 +979,7 @@ def create_changes(ctx, version_name=None,
                    topic_prefix=None, streams=None,
                    jira_key=None, feature_id=None, feature_owner=None, if_restore=False,
                    integration_mode=None, base_load=None, ext_commit_msg=None,
-                   env_change=None, force_feature_id=False,
+                   mysql_info=None, env_change=None, force_feature_id=False,
                    open_jira=False, skip_jira=False):
     icc = ctx.obj['obj']
     icc.run(version_name=version_name, topic_prefix=topic_prefix,
@@ -979,7 +987,7 @@ def create_changes(ctx, version_name=None,
             feature_id=feature_id, feature_owner=feature_owner,
             if_restore=if_restore, integration_mode=integration_mode,
             base_load=base_load, env_change=env_change,
-            ext_commit_msg=ext_commit_msg, force_feature_id=force_feature_id,
+            ext_commit_msg=ext_commit_msg, mysql_info=mysql_info, force_feature_id=force_feature_id,
             open_jira=open_jira, skip_jira=skip_jira)
 
 
