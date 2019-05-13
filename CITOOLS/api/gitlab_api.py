@@ -67,15 +67,14 @@ class GitlabClient(object):
                 mr_rets.append(mr_obj)
         return mr_rets
 
-    def merge_mr(self, srch_dict, state='all', onlyone=True):
+    def merge_mr(self, srch_dict, state='opened', onlyone=True):
         mr_rets = self.get_mr(srch_dict, state)
         if onlyone and len(mr_rets) > 1:
             print('Error: Find multi Merge Requests \
-                   %s, please reset search dict',
-                  mr_rets)
+                   {}, please reset search dict'.format(mr_rets))
             sys.exit(2)
         elif not mr_rets:
-            print('Warnning: No Merge Requests find \
-                   please reset search dict')
+            raise Exception('Error: No Merge Requests found in previous 100\
+                   please handle {} by manually!'.format(srch_dict))
         for mr_ret in mr_rets:
             mr_ret.merge()

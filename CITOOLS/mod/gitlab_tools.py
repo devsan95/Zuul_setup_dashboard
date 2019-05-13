@@ -72,4 +72,11 @@ class Gitlab_Tools(object):
         title = params['title']
         srch_dict = {'title': title}
         self.gitlab_client.set_project(project)
-        self.gitlab_client.merge_mr(srch_dict)
+        try:
+            self.gitlab_client.merge_mr(srch_dict)
+        except Exception as e:
+            if self.gitlab_client.get_mr(srch_dict, 'merged'):
+                print('Merge Request {} already merged!'.format(srch_dict))
+            else:
+                print(e)
+                sys.exit(2)
