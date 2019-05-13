@@ -787,10 +787,18 @@ class IntegrationChangesCreation(object):
                         self.info_index['nodes'][node['name']]['comments'] = ['update_base:{},{}'.format(stream, base_load)]
                 if 'MN/SCMTA/zuul/inte_ric' in node['repo']:
                     if node['name'] in base_commits:
+                        base_commit_info = base_commits[node['name']]
+                    elif node['ric'][0] in base_commits:
+                        base_commit_info = base_commits[node['ric'][0]]
+                    else:
+                        base_commit_info = ''
+                    if base_commit_info:
                         if 'remark' in node:
-                            self.info_index['nodes'][node['name']]['remark'].append('base_commit:{}'.format(base_commits[node['name']]))
+                            self.info_index['nodes'][node['name']]['remark'].append('base_commit:{}'
+                                                                                    .format(base_commit_info))
                         else:
-                            self.info_index['nodes'][node['name']]['remark'] = ['base_commit:{}'.format(base_commits[node['name']])]
+                            self.info_index['nodes'][node['name']]['remark'] = \
+                                ['base_commit:{}'.format(base_commit_info)]
             if int_mode == '<with-zuul-rebase>':
                 if 'type' in node and 'integration' in node['type'] and 'all' not in node['type']:
                     if 'comments' in node:
