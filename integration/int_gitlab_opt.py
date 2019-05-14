@@ -122,13 +122,14 @@ def _main(ticket, conf_path, action, branch):
     if hasattr(gitlab_obj, action):
         print('Info: start action {}'.format(action))
         getattr(gitlab_obj, action)(parameters)
-        rest_obj.review_ticket(
-            ticket,
-            'MR created in {}/{}\n title:{}\n branch:{}\n'.format(
-                comp_repo_srv,
-                project,
-                mr_title,
-                new_branch))
+        if not mr_title_comm and action == 'create_mr':
+            rest_obj.review_ticket(
+                ticket,
+                'MR created in {}/{}\n title:{}\n branch:{}\n'.format(
+                    comp_repo_srv,
+                    project,
+                    mr_title,
+                    new_branch))
     else:
         print('Error action:{} is not supported yet'.format(action))
         sys.exit(2)
