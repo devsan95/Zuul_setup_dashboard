@@ -190,8 +190,9 @@ def trigger(meta_bb, branch, rest,
     if not jira_id and int_change:
         print('Find Jira id from int int_change: {}'.format(int_change))
         int_commit_msg = rest.get_commit(int_change)['message']
+        interface_change_status = rest.get_change(interface_change)['status']
         m_jr = re.search(jr_regex, int_commit_msg)
-        if m_jr:
+        if m_jr and interface_change_status == 'NEW':
             print('Find Jira id: {} int int_change'.format(m_jr.group(0)))
             commit_msg += '\n{}'.format(m_jr.group(0))
             try:
