@@ -183,138 +183,137 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
             }
         )
     print('Starting check if all tickets are done...')
-    while not _if_checklist_all_pass(pass_list):
-        print('Starting a new checking cycle...')
-        try:
-            # update depends list
-            depends_list = update_depends_list(rest, targets['manager'])
-            for item in pass_list:
-                print('\nCheck status of [{}]:'.format(item['ticket']))
-                # update attached:
-                try:
-                    if item['ticket'] not in depends_list:
-                        item['attached'] = False
-                        print('Change {} is a detatched change.'.format(item['ticket']))
-                    else:
-                        item['attached'] = True
-                except Exception as e:
-                    print('Check Attached status failed.')
-                    print('Because [{}]'.format(e))
-                    traceback.print_exc()
-                # update verified
-                verified_new = _check_ticket_checked(
-                    ssh_server, ssh_port, ssh_user, ssh_key, item['ticket'])
-                print('Verified is {}'.format(verified_new))
-                if verified_new != item['verified']:
-                    print('Change {} verified status changed!'.format(
-                        item['ticket']))
-                    if verified_new:
-                        print('Change {} verified became True, '
-                              'need to backup'.format(item['ticket']))
-                        item['need_backup'] = False
-                # check if external component
-                if_external = _check_if_external(rest, item['ticket'])
-                if if_external:
+    try:
+        # update depends list
+        depends_list = update_depends_list(rest, targets['manager'])
+        for item in pass_list:
+            print('\nCheck status of [{}]:'.format(item['ticket']))
+            # update attached:
+            try:
+                if item['ticket'] not in depends_list:
+                    item['attached'] = False
+                    print('Change {} is a detatched change.'.format(item['ticket']))
+                else:
+                    item['attached'] = True
+            except Exception as e:
+                print('Check Attached status failed.')
+                print('Because [{}]'.format(e))
+                traceback.print_exc()
+            # update verified
+            verified_new = _check_ticket_checked(
+                ssh_server, ssh_port, ssh_user, ssh_key, item['ticket'])
+            print('Verified is {}'.format(verified_new))
+            if verified_new != item['verified']:
+                print('Change {} verified status changed!'.format(
+                    item['ticket']))
+                if verified_new:
+                    print('Change {} verified became True, '
+                          'need to backup'.format(item['ticket']))
                     item['need_backup'] = False
-                    print('Ticket {} is external component, no need to backup'.format(item['ticket']))
-                if backup_topic and item['need_backup']:
-                    print('Ticket {} begin to backup to topic {}'.format(
-                        item['ticket'], backup_topic))
+            # check if external component
+            if_external = _check_if_external(rest, item['ticket'])
+            if if_external:
+                item['need_backup'] = False
+                print('Ticket {} is external component, no need to backup'.format(item['ticket']))
+            if backup_topic and item['need_backup']:
+                print('Ticket {} begin to backup to topic {}'.format(
+                    item['ticket'], backup_topic))
+                try:
+                    name, branch, repo, platform = gop.get_info_from_change(
+                        item['ticket'])
+                    backup_id = gop.get_ticket_from_topic(backup_topic, repo,
+                                                          branch, name)
+                    if not backup_id:
+                        backup_id = gop.create_change_by_topic(
+                            backup_topic, repo, branch, name)
+                except Exception as ex:
+                    print('Backup {} failed.'.format(item['ticket']))
+                    print('Because {}'.format(str(ex)))
+                    traceback.print_exc()
+
+                if not backup_id:
+                    print('Can not create or find change for '
+                          '{} {} {}'.format(backup_topic, branch, name))
+                else:
                     try:
-                        name, branch, repo, platform = gop.get_info_from_change(
-                            item['ticket'])
-                        backup_id = gop.get_ticket_from_topic(backup_topic, repo,
-                                                              branch, name)
-                        if not backup_id:
-                            backup_id = gop.create_change_by_topic(
-                                backup_topic, repo, branch, name)
+                        gop.clear_change(backup_id)
+                        gop.copy_change(item['ticket'], backup_id, True)
+                        item['need_backup'] = False
+                        print('Backup {} complete.'.format(item['ticket']))
                     except Exception as ex:
                         print('Backup {} failed.'.format(item['ticket']))
+                        print('Can not copy {} to {}'.format(
+                            item['ticket'], backup_id))
                         print('Because {}'.format(str(ex)))
                         traceback.print_exc()
+            # update status
+            item['verified'] = verified_new
+            ticket_result = rest.get_ticket(item['ticket'])
+            ticket_project = ticket_result['project']
+            item['status'] = _check_ticket_ok(ssh_server, ssh_port,
+                                              ssh_user,
+                                              ssh_key, item['ticket'], ticket_project)
+            print('Ticket {} pass status: {}'.format(
+                item['ticket'], item['status']))
+    except Exception as ex:
+        print('check changes met an exception [{}]'.format(str(ex)))
+    sys.stdout.flush()
+    sys.stderr.flush()
 
-                    if not backup_id:
-                        print('Can not create or find change for '
-                              '{} {} {}'.format(backup_topic, branch, name))
-                    else:
-                        try:
-                            gop.clear_change(backup_id)
-                            gop.copy_change(item['ticket'], backup_id, True)
-                            item['need_backup'] = False
-                            print('Backup {} complete.'.format(item['ticket']))
-                        except Exception as ex:
-                            print('Backup {} failed.'.format(item['ticket']))
-                            print('Can not copy {} to {}'.format(
-                                item['ticket'], backup_id))
-                            print('Because {}'.format(str(ex)))
-                            traceback.print_exc()
-                # update status
-                item['verified'] = verified_new
-                ticket_result = rest.get_ticket(item['ticket'])
-                ticket_project = ticket_result['project']
-                item['status'] = _check_ticket_ok(ssh_server, ssh_port,
-                                                  ssh_user,
-                                                  ssh_key, item['ticket'], ticket_project)
-                print('Ticket {} pass status: {}'.format(
-                    item['ticket'], item['status']))
-        except Exception as ex:
-            print('check changes met an exception [{}]'.format(str(ex)))
-        sys.stdout.flush()
-        sys.stderr.flush()
-        if _if_checklist_all_pass(pass_list):
-            break
-        time.sleep(30)
+    if _if_checklist_all_pass(pass_list):
+        print('All ticket are done. Labeling manager ticket...')
+        retry_time = 10
+        while retry_time > 0:
+            try:
+                api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
+                                                ['Verified=+1', 'Integrated=-1'],
+                                                'Set labels for integration', ssh_key,
+                                                port=ssh_port)
+                api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
+                                                [], 'reintegrate', ssh_key, port=ssh_port)
+                break
+            except Exception as ex:
+                print('Labeling met an execption [{}]'.format(str(ex)))
+                retry_time -= 1
+                time.sleep(10)
+        print('Check if manager ticket is done with integration...')
+        while not _check_manager_ticket_ok(
+                ssh_server, ssh_port, ssh_user, ssh_key, targets['manager']):
+            sys.stdout.flush()
+            sys.stderr.flush()
+            time.sleep(30)
+        print('Integration test done, make root and manager ticket into gating...')
+        # api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
+        #                                 ['Code-Review=+2'], None,
+        #                                 ssh_key, port=ssh_port)
+        # api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
+        #                                 ['Verified=+1', 'Integrated=+2',
+        #                                  'Code-Review=+2'], None,
+        #                                 ssh_key, port=ssh_port)
+        retry_time = 10
+        while retry_time > 0:
+            try:
+                api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
+                                                ['Verified=+1', 'Integrated=+2'], None,
+                                                ssh_key, port=ssh_port)
 
-    print('All ticket are done. Labeling manager ticket...')
-    retry_time = 10
-    while retry_time > 0:
-        try:
-            api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
-                                            ['Verified=+1', 'Integrated=-1'],
-                                            'Set labels for integration', ssh_key,
-                                            port=ssh_port)
-            api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
-                                            [], 'reintegrate', ssh_key, port=ssh_port)
-            break
-        except Exception as ex:
-            print('Labeling met an execption [{}]'.format(str(ex)))
-            retry_time -= 1
-            time.sleep(10)
-    print('Check if manager ticket is done with integration...')
-    while not _check_manager_ticket_ok(
-            ssh_server, ssh_port, ssh_user, ssh_key, targets['manager']):
-        sys.stdout.flush()
-        sys.stderr.flush()
-        time.sleep(30)
-    print('Integration test done, make root and manager ticket into gating...')
-    # api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['manager'],
-    #                                 ['Code-Review=+2'], None,
-    #                                 ssh_key, port=ssh_port)
-    # api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
-    #                                 ['Verified=+1', 'Integrated=+2',
-    #                                  'Code-Review=+2'], None,
-    #                                 ssh_key, port=ssh_port)
-    retry_time = 10
-    while retry_time > 0:
-        try:
-            api.gerrit_api.review_patch_set(ssh_user, ssh_server, targets['root'],
-                                            ['Verified=+1', 'Integrated=+2'], None,
-                                            ssh_key, port=ssh_port)
+                if auth_type == 'basic':
+                    rest.change_to_basic_auth()
+                elif auth_type == 'digest':
+                    rest.change_to_digest_auth()
 
-            if auth_type == 'basic':
-                rest.change_to_basic_auth()
-            elif auth_type == 'digest':
-                rest.change_to_digest_auth()
-
-            rest_id = rest.get_ticket(targets['manager'])['id']
-            rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
-            break
-            # rest_id = rest.get_ticket(targets['root'])['id']
-            # rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
-        except Exception as ex:
-            print('Labeling met an execption [{}]'.format(str(ex)))
-            retry_time -= 1
-            time.sleep(10)
+                rest_id = rest.get_ticket(targets['manager'])['id']
+                rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
+                break
+                # rest_id = rest.get_ticket(targets['root'])['id']
+                # rest.review_ticket(rest_id, 'Make into gate', {'Code-Review': 2})
+            except Exception as ex:
+                print('Labeling met an execption [{}]'.format(str(ex)))
+                retry_time -= 1
+                time.sleep(10)
+    else:
+        print('please check the tickets listed above, make sure the requirement achieved, then retry')
+        sys.exit(1)
 
 
 if __name__ == '__main__':
