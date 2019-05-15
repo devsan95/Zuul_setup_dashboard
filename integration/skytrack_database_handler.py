@@ -103,7 +103,7 @@ def auto_update_build_info(integration_change,
                            build_number=None,
                            dry_run=False):
     jira_key = get_jira_id(integration_change, gerrit_info_path)
-    mydb = mysql_connector(database_info_path, 'skytrack', 'stytrack')
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
     knife_link_temp = 'http://5g-cb.es-si-s3-z4.eecloud.nsn-net.net' \
                       '/BucketList/index.html?prefix=knife/{knife}/'
     with open(pkg_info_file) as pkg_info:
@@ -215,7 +215,7 @@ def update_qt_result(database_info_path, jira_key, package_name, type_name, resu
         start_time=start_time,
         end_time=end_time
     )
-    mydb = mysql_connector(database_info_path, 'skytrack', 'skytack')
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
     mydb.update_info(
         table='t_issue',
         replacements={
