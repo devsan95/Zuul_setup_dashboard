@@ -100,10 +100,10 @@ class OperateIntegrationChange(object):
     def add_ticket_list(self, root_change, comp_change, action):
         root_change_obj = inte_change.RootChange(self.rest, root_change)
         comp_change_list, int_change = root_change_obj.get_components_changes_by_comments()
-        if action == 'add':
+        if action == 'add' and comp_change not in comp_change_list:
             comp_change_list.append(comp_change)
         if action == 'remove':
-            comp_change_list.remove(comp_change)
+            comp_change_list = [e for e in comp_change_list if e != comp_change]
         comps_dict = {
             'tickets': comp_change_list,
             'manager': int_change,
