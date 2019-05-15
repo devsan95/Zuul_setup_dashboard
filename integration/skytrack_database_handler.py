@@ -195,12 +195,14 @@ def update_qt_result(database_info_path, jira_key, package_name, type_name, resu
         'not_released': -1,
         'released_with_restrictions': 1
     }
+    formated_start_time = start_time.replace('/', '-') if start_time else start_time
+    formated_end_time = end_time.replace('/', '-') if end_time else end_time
     start_time = int(time.mktime(datetime.datetime.strptime(
-        start_time, "%Y[-/]%m[-/]%d %H:%M:%S").timetuple())) * 1000 \
-        if start_time and string_time_format_validator(start_time) else int(time.time()) * 1000
+        formated_start_time, "%Y-%m-%d %H:%M:%S").timetuple())) * 1000 \
+        if formated_start_time and string_time_format_validator(formated_start_time) else int(time.time()) * 1000
     end_time = int(time.mktime(datetime.datetime.strptime(
-        end_time, "%Y[-/]%m[-/]%d %H:%M:%S").timetuple())) * 1000 \
-        if end_time and string_time_format_validator(end_time) else int(time.time()) * 1000
+        formated_end_time, "%Y-%m-%d %H:%M:%S").timetuple())) * 1000 \
+        if formated_end_time and string_time_format_validator(formated_end_time) else int(time.time()) * 1000
     regex_match = re.match(r'(.*_)?(\d+\.\d+).*', package_name)
     if not regex_match:
         raise Exception('Wrong package name given: {0}'.format(package_name))
