@@ -74,7 +74,8 @@ def generate_int_json(comp_name, branch, comp_config):
 def get_comp_obj(comp_name, comp_config):
     for component in comp_config['components']:
         if component['name'] == comp_name \
-                or component['ric'] == comp_name:
+                or 'ric' in component \
+                and component['ric'] == comp_name:
             return component
     raise Exception(
         'Cannot get info for {} from {}'.format(comp_name, comp_config))
@@ -106,10 +107,10 @@ def get_version_from_bb(bb_file):
     with open(bb_file, 'r') as fr:
         file_content = fr.read()
         revision_regex = REV_REGEX
-        m_uri_rev = re.match(SRC_URI_REV_REGEX, file_content)
+        m_uri_rev = re.search(SRC_URI_REV_REGEX, file_content)
         if m_uri_rev:
-            revision_regex = r'({})\s*=\s*"([^"]+)"'.format(m_uri_rev.group(1))
-        m_rev = re.match(revision_regex, file_content)
+            revision_regex = r'^({})\s*=\s*"([^"]+)"'.format(m_uri_rev.group(1))
+        m_rev = re.search(revision_regex, file_content, re.MULTILINE)
         if m_rev:
             return m_rev.group(2)
         raise Exception('Cannot find revision in {}'.format(bb_file))
@@ -206,7 +207,7 @@ def trigger(meta_bb, branch, rest,
         params_int['jira_key'] = interface_change
         params_int['gerrit_info'] = 'ext_gerrit.yaml'
         params_int['yaml'] = generate_int_json(comp_name, branch, comp_config)
-        params_int['interface_version'] = '{}-{}'.format(comp_name, bb_ver)
+        params_int['interface_version'] = meta_bb
         print('create_integration: {},{}'.format(comp_name, bb_ver))
         job_tool.write_dict_to_properties(
             params_int, 'create_integration.prop', with_quotes=False)

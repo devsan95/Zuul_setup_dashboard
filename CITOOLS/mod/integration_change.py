@@ -240,9 +240,9 @@ class IntegrationCommitMessage(object):
             if begin_line == 0:
                 self.msg_lines.append('interface info:')
                 begin_line = len(self.msg_lines)
-            self.msg_lines.insert(begin_line, comp_line_value)
-            self.msg_lines.insert(begin_line + 1, bb_line_value)
-            self.msg_lines.insert(begin_line + 2, commit_line_value)
+            self.msg_lines.insert(begin_line + 1, comp_line_value)
+            self.msg_lines.insert(begin_line + 2, bb_line_value)
+            self.msg_lines.insert(begin_line + 3, commit_line_value)
 
     def remove_ric(self, change):
         # judge if there is the need to remove
