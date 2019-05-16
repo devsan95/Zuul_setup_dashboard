@@ -21,7 +21,7 @@ fifi_reg = re.compile(r'%FIFI=(.*)')
 ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
 depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
 depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
-comp_name_reg = common_regex.int_firstline_reg
+firstline_reg = common_regex.int_firstline_reg
 
 
 class IntegrationChange(object):
@@ -119,17 +119,17 @@ class IntegrationChange(object):
 
     def get_version(self):
         msg = self.commit_info.get('message')
-        version = comp_name_reg.search(msg).groups()[1]
+        version = firstline_reg.search(msg).groups()[1]
         return version
 
     def get_title(self):
         msg = self.commit_info.get('message')
-        title = comp_name_reg.search(msg).groups()[2]
+        title = firstline_reg.search(msg).groups()[2]
         return title
 
     def get_change_name(self):
         msg = self.commit_info.get('message')
-        change_name = comp_name_reg.search(msg).groups()[0]
+        change_name = firstline_reg.search(msg).groups()[0]
         return change_name
 
     def get_mr_repo_and_branch(self):
