@@ -3,7 +3,7 @@ set -e
 
 # if interface_version is set, add ext_commit_msg parameter
 if [[ -n "${interface_version}" ]];then
-    bb_file=$(find ${WORKSPACE}/meta-5g -name "${interface_version/-/[-_]}.bb")
+    bb_file=$(find ${WORKSPACE}/meta-5g -name "${interface_version}.bb")
     if [[ -z "${bb_file}" ]];then
         echo "**** Not find bb_file for ${interface_version} ****"
         exit 2
@@ -14,19 +14,20 @@ if [[ -n "${interface_version}" ]];then
         echo "**** result: ${bb_file} ****"
         exit 2
     fi
-    comp_name=${bb_file//_*/}
+    bb_file_name=$(basename ${bb_file})
+    comp_name=${bb_file_name//_*/}
     if [[ -z "${comp_name}" ]];then
         echo "**** Not find comp_name from ${bb_file} ****"
         exit 2
     fi
-    commit_id=$(grep '^REVISION = "' ${bb_file} |sed "s/ *= */=/g"|awk -F"=" '{print $2}'|sed 's/"//g')
+    commit_id=$(egrep '^(REVISION|SRCREV) = "'  ${bb_file} |sed "s/ *= */=/g"|awk -F"=" '{print $2}'|sed 's/"//g')
     if [[ -z "${commit_id}" ]];then
         echo "**** Not find commit_id from ${bb_file} ****"
         exit 2
     fi
     ext_msg_param="""interface info:
         comp_name: ${comp_name}
-        bb_version: ${interface_version}
+        bb_version: ${interface_version/_/-}
         commit-ID: ${commit_id}"""
 fi
 
@@ -60,6 +61,7 @@ else
 fi
 
 GERRIT_INFO="${WORKSPACE}/gerritt_info/${gerrit_info}"
+MYSQL_INFO="${WORKSPACE}/gerritt_info/ext_mysql.yaml"
 ZUUL_USER="scmtaci"
 ZUUL_KEY="${WORKSPACE}/gerritt_info/keys/scmtaci.rsa"
 STREAMS="${streams}"
@@ -80,4 +82,5 @@ python ${WORKSPACE}/script/integration/create_integration_changes.py \
                                       --env-change """${ENV_CHANGE}""" \
                                       --force-feature-id "${FORCE_FEATURE_ID}" \
                                       --open-jira True \
-                                      --ext_commit_msg """${ext_msg_param}"""
+                                      --ext_commit_msg """${ext_msg_param}""" \
+                                      --mysql_info "${MYSQL_INFO}"
