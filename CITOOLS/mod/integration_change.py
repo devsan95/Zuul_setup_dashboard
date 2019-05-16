@@ -13,7 +13,7 @@ import re
 
 from mod import common_regex
 
-comp_name_reg = re.compile(r'\s+comp_name: ')
+com_name_reg = re.compile(r'\s+comp_name: ')
 bb_version_reg = re.compile(r'\s+bb_version: ')
 commit_ID_reg = re.compile(r'\s+commit-ID: ')
 comp_reg = re.compile(r'  - COMP <(.*?)>')
@@ -22,6 +22,8 @@ ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)
 depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
 depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
 firstline_reg = common_regex.int_firstline_reg
+jira_id_reg = re.compile(r'%JR=(.*)')
+platform_id_reg = re.compile(r'Platform ID: <(.*?)>')
 
 
 class IntegrationChange(object):
@@ -94,7 +96,7 @@ class IntegrationChange(object):
         msg = self.commit_info.get('message')
         m = fifi_reg.search(msg)
         if m:
-            return m.group(1)
+            return m.groups()[0]
         return None
 
     def review(self, comment, label_dict=None):
@@ -132,6 +134,16 @@ class IntegrationChange(object):
         change_name = firstline_reg.search(msg).groups()[0]
         return change_name
 
+    def get_topic(self):
+        msg = self.commit_info.get('message')
+        topic = firstline_reg.search(msg).groups()[3]
+        return topic
+
+    def get_platform_id(self):
+        msg = self.commit_info.get('message')
+        platform_id = platform_id_reg.search(msg).groups()[0]
+        return platform_id
+
     def get_mr_repo_and_branch(self):
         mr_re = re.compile(r'Patch Set .*\n.*\nMR created in (.*)\n.*title:(.*)\n.*branch:(.*)')
         mr_repo = ''
@@ -143,6 +155,17 @@ class IntegrationChange(object):
                 mr_repo = m.group(1).strip()
                 mr_branch = m.group(3).strip()
         return mr_repo, mr_branch
+
+    def get_jira_id(self):
+        msg = self.commit_info.get('message')
+        jira_id = jira_id_reg.search(msg).groups()[0]
+        return jira_id
+
+    def get_with_without(self):
+        msg = self.commit_info.get('message')
+        if 'without-zuul-rebase' in msg:
+            return '<without-zuul-rebase>'
+        return '<with-zuul-rebase>'
 
 
 class RootChange(IntegrationChange):
@@ -224,7 +247,7 @@ class IntegrationCommitMessage(object):
                 end_line = i + 4
                 continue
             if begin_line > 0 and i > begin_line and i < end_line:
-                m = comp_name_reg.match(v)
+                m = com_name_reg.match(v)
                 if m and m.group(0) == comp_name:
                     find_comp = True
                     bb_line = self.msg_lines[i + 1]
