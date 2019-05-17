@@ -199,10 +199,13 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
         # add new env
         print('add new env for change {}'.format(change_no))
         base_env = rest.get_file_content('env-config.d/ENV', change_no)
-        create_file_change_by_env_change(
+        change_map = create_file_change_by_env_change(
             env_change_list,
             base_env,
             file_path)
+        for key, value in change_map.items():
+            rest.add_file_to_change(change_no, key, value)
+        rest.publish_edit(change_no)
 
 
 def init_gerrit_rest(gerrit_info_path):
@@ -257,6 +260,8 @@ def send_rebase_results(mail_list, mail_params, rebase_succeed, rebase_failed):
     dt = CONF.get_dict('integration_rebase')
     dt.update(mail_params)
     rebase_result = []
+    print('rebase_succeed info: {}'.format(rebase_succeed))
+    print('rebase_failed info: {}'.format(rebase_failed))
     for comp_name_with_change, comp_hash in rebase_succeed.items():
         comp_name = comp_name_with_change.split()[0]
         change_id = comp_name_with_change.split()[1]
