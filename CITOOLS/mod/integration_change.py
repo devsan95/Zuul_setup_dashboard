@@ -280,7 +280,7 @@ class IntegrationCommitMessage(object):
         for comp in components:
             line_value = '  - RIC <{}> <{}> <{}> <t:{}>'.format(
                 comp, project, change_no, change_type)
-            if begin_line > -1:
+            if begin_line > -1 and line_value not in self.msg_lines:
                 self.msg_lines.insert(begin_line, line_value)
 
     def find_ric(self):
@@ -320,7 +320,8 @@ class IntegrationCommitMessage(object):
         if begin_line > -1:
             line_value = '  - Project:<{}> Change:<{}> Type:<{}>'.format(
                 change_name, change_no, change_type)
-            self.msg_lines.insert(begin_line, line_value)
+            if line_value not in self.msg_lines:
+                self.msg_lines.insert(begin_line, line_value)
 
     def find_depends(self):
         begin = -1
@@ -343,7 +344,8 @@ class IntegrationCommitMessage(object):
         change_id = str(change.get_info().get('change_id'))
         if begin_line > -1:
             line_value = 'Depends-on: {}'.format(change_id)
-            self.msg_lines.insert(begin_line, line_value)
+            if line_value not in self.msg_lines:
+                self.msg_lines.insert(begin_line, line_value)
 
     def remove_depends_on(self, change):
         # find where to remove
