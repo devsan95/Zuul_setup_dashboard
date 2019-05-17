@@ -380,4 +380,5 @@ class IntegrationCommitMessage(object):
                 begin_line = i - 1
         if begin_line > -1:
             line_value = 'Depends-on: {}'.format(root_change_id)
-            self.msg_lines.insert(begin_line, line_value)
+            if line_value not in self.msg_lines:
+                self.msg_lines.insert(begin_line, line_value)

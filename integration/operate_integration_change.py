@@ -22,19 +22,23 @@ class OperateIntegrationChange(object):
     def remove(self, component_change):
         commit_msg_obj = inte_change.IntegrationCommitMessage(self.inte_change)
         to_remove = inte_change.IntegrationChange(self.rest, component_change)
-
+        old_msg = commit_msg_obj.get_msg()
         commit_msg_obj.remove_depends(to_remove)
         commit_msg_obj.remove_ric(to_remove)
         commit_msg_obj.remove_depends_on(to_remove)
+        new_msg = commit_msg_obj.get_msg()
+        if new_msg == old_msg:
+            print('New commit message is the same as existing commit message,no need to remove!')
+        else:
+            try:
+                self.rest.delete_edit(self.inte_change_no)
+            except Exception as e:
+                print(e)
 
-        try:
-            self.rest.delete_edit(self.inte_change_no)
-        except Exception as e:
-            print(e)
+            self.rest.change_commit_msg_to_edit(
+                self.inte_change_no, commit_msg_obj.get_msg())
+            self.rest.publish_edit(self.inte_change_no)
 
-        self.rest.change_commit_msg_to_edit(
-            self.inte_change_no, commit_msg_obj.get_msg())
-        self.rest.publish_edit(self.inte_change_no)
         self.rest.review_ticket(component_change, 'detached')
         self.mysql.update_info(
             table='t_commit_component',
@@ -48,19 +52,23 @@ class OperateIntegrationChange(object):
     def add(self, component_change):
         commit_msg_obj = inte_change.IntegrationCommitMessage(self.inte_change)
         to_add = inte_change.IntegrationChange(self.rest, component_change)
-
+        old_msg = commit_msg_obj.get_msg()
         commit_msg_obj.add_depends(to_add)
         commit_msg_obj.add_ric(to_add)
         commit_msg_obj.add_depends_on(to_add)
+        new_msg = commit_msg_obj.get_msg()
+        if new_msg == old_msg:
+            print('New commit message is the same as existing commit message,no need to add!')
+        else:
+            try:
+                self.rest.delete_edit(self.inte_change_no)
+            except Exception as e:
+                print(e)
 
-        try:
-            self.rest.delete_edit(self.inte_change_no)
-        except Exception as e:
-            print(e)
+            self.rest.change_commit_msg_to_edit(
+                self.inte_change_no, commit_msg_obj.get_msg())
+            self.rest.publish_edit(self.inte_change_no)
 
-        self.rest.change_commit_msg_to_edit(
-            self.inte_change_no, commit_msg_obj.get_msg())
-        self.rest.publish_edit(self.inte_change_no)
         if self.mysql.executor(
                 'SELECT * FROM t_commit_component where `change` = {0}'.format(
                     component_change),
