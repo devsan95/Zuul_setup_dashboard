@@ -23,6 +23,7 @@ import submodule_handle
 import ruamel.yaml as yaml
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+MAIL_REGEX = r'^[^@]+@(nokia|nokia-sbell|internal\.nsn|groups\.nokia)\.com'
 
 
 def strip_begin(text, prefix):
@@ -399,7 +400,6 @@ def parse_update_bb(line, result, comp_f_prop=None, component_list=None):
 
 
 def parse_comments_mail(change_id, rest, using_cache=True):
-    r = re.compile(r'(\S+)@(\S+)')
     mail_key = 'knife recipients:'
     comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=using_cache)
     mail_list = []
@@ -410,7 +410,7 @@ def parse_comments_mail(change_id, rest, using_cache=True):
                 is_mail_list = True
                 continue
             if is_mail_list:
-                m = r.match(line)
+                m = re.match(MAIL_REGEX, line.strip())
                 if m:
                     print(line)
                     mail_list.append(line.strip())
