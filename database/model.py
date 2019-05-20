@@ -2,7 +2,6 @@ import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.mysql import DATETIME, TINYINT
 
-
 ModelBase = declarative_base()
 
 
@@ -199,3 +198,14 @@ def get_loop_action_model(table_name='LoopAction'):
         prefix = sa.Column(sa.String(12), index=False)
 
     return LoopAction
+
+
+class IntegrationRefs(ModelBase):
+    __tablename__ = 't_integration_refs'
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    zuul_ref = sa.Column(sa.String(255), nullable=True)
+    commit_id = sa.Column(sa.String(255), nullable=True)
+    project = sa.Column(sa.String(255), nullable=True)
+    zuul_url = sa.Column(sa.String(255), nullable=True)
+    date = sa.Column(sa.String(255), nullable=True)
