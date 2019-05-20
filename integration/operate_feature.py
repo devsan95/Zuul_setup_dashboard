@@ -50,6 +50,8 @@ class OperateFeature(object):
                 open_content = '[]'
             open_yaml = yaml.load(open_content, Loader=yaml.Loader)
 
+            if not open_yaml:
+                open_yaml = []
             for feature in open_yaml:
                 if feature_id == feature['feature_id']:
                     raise Exception('Feature id {} exists!'.format(feature_id))
