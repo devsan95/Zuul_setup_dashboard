@@ -85,7 +85,7 @@ if __name__ == '__main__':
                             help='do not delete references')
         parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                             help='set log level from info to debug')
-        parser.add_argument('--db-str', dest='db_str', type=str,
+        parser.add_argument('--db-str', dest='db_str', type=str, required=True,
                             help='set the str of database, e.g. mysql+mysqlconnector://$USER:$PASSWD@$IP/zuul')
         parser.add_argument('gitrepo', help='path to a Zuul git repository')
 
