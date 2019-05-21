@@ -194,6 +194,8 @@ def parse_commitmsg_and_comments(comment_list, retd, rest, change_id, comp_list=
         for line in msg['message'].split('\n'):
             parse_update_bb(
                 line, retd, comp_f_prop=comp_f_prop, component_list=comp_list)
+            parse_update_comp(
+                line, retd, comp_f_prop=comp_f_prop, component_list=comp_list)
     return comp_f_prop
 
 
@@ -344,6 +346,57 @@ def get_ref_file_content(file_name, zuul_url, project, zuul_ref):
     g.checkout('FETCH_HEAD')
     with open(os.path.join(proj_wk, file_name), 'r') as fr:
         return fr.read()
+
+
+def parse_update_comp(line, result, comp_f_prop=None, component_list=None):
+    line_ = line.split('update_component:')
+    if len(line_) > 1:
+        values = line_[1]
+        value_list = values.split(',')
+        value_list = [x.strip().strip('"') for x in value_list]
+        print(line)
+        value_len = len(value_list)
+        if value_len < 3:
+            print('parameters of update_component is not enough.')
+            return
+        m = value_list
+        component = m[0]
+        key = m[1]
+        value = m[2]
+        if comp_f_prop and component in comp_f_prop:
+            print('{} verison should get from env, do not need to update here'.format(component))
+            return
+        if value_len >= 4:
+            targets = [x.strip().strip('"') for x in m[3].split(';')]
+        else:
+            targets = ['all']
+        if component_list:
+            if component not in component_list:
+                print('[{}] not in comp list'.format(line))
+                return
+        for target in targets:
+            if target not in result:
+                result[target] = {}
+                result[target][component] = {}
+            else:
+                if component not in result[target]:
+                    result[target][component] = {}
+            rp = result[target][component]
+            if key == '~':
+                result[target].pop(component, None)
+                print('[{}] delete [{}] from [{}]'.format(
+                    line, component, target))
+                return
+            elif value == '~':
+                rp.pop(key, None)
+                print('[{}] delete [{}] from [{}] in [{}]'.format(
+                    line, key, component, target))
+                return
+            if key and value:
+                rp[key] = value
+            else:
+                print('key: [{}], value: [{}] not in comp list'.format(
+                    key, value))
 
 
 def parse_update_bb(line, result, comp_f_prop=None, component_list=None):
