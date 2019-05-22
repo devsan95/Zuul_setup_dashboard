@@ -142,20 +142,6 @@ def check_graph_cycling(graph_obj):
     return True
 
 
-def get_latest_qt_load(stream_list):
-    stream_build = dict()
-    for stream in stream_list:
-        stream = 'master_classicalbts_l1r51_tdd' if stream == 'default' \
-            else wft_tools.get_stream_name(stream + '.')
-        build_name, release_date = wft_tools.get_latest_qt_passed_build(stream)
-        if not build_name:
-            build_name, release_date = wft_tools.get_lasted_success_build(stream)
-        stream_build[release_date] = build_name
-    time_stamp = stream_build.keys()
-    time_stamp.sort(reverse=True)
-    return stream_build[time_stamp[0]]
-
-
 class IntegrationChangesCreation(object):
     def __init__(self, yaml_path, gerrit_path, zuul_user, zuul_key):
         self.change_info = None
@@ -850,7 +836,11 @@ class IntegrationChangesCreation(object):
         # handle base load
         base_commits = None
         if "Fixed_base" in integration_mode:
-            base_load = base_load if base_load else get_latest_qt_load(self.meta['streams'])
+            if base_load:
+                base_load_list = [x for x in base_load.split(',') if x.strip()]
+                base_load = wft_tools.get_newer_base_load(base_load_list)
+            else:
+                base_load = wft_tools.get_latest_qt_load(self.meta['streams'])
             base_commits = self.parse_base_load(base_load)
             if base_commits:
                 self.base_commits_info = base_commits

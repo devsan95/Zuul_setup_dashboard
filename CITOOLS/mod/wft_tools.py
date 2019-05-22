@@ -66,3 +66,40 @@ def get_stream_name(version):
         stream = build['branch.title']
         break
     return stream
+
+
+def get_release_date(package):
+    package = package.strip()
+    if package.startswith('5.3'):
+        package_name = '5G19_' + package
+    else:
+        package_name = '5G_' + package
+    rs = WFT.get_build_content(package_name)
+    tree = ET.fromstring(rs)
+    for one in tree.findall("delivery_date"):
+        return package, one.text
+
+
+def get_newer_base_load(base_load_list):
+    stream_build = dict()
+    for base_load in base_load_list:
+        build_name, release_date = get_release_date(base_load)
+        if release_date:
+            stream_build[release_date] = build_name
+    release_time = stream_build.keys()
+    release_time.sort(reverse=True)
+    return stream_build[release_time[0]]
+
+
+def get_latest_qt_load(stream_list):
+    stream_build = dict()
+    for stream in stream_list:
+        stream = 'master_classicalbts_l1r51_tdd' if stream == 'default' \
+            else get_stream_name(stream + '.')
+        build_name, release_date = get_latest_qt_passed_build(stream)
+        if not build_name:
+            build_name, release_date = get_lasted_success_build(stream)
+        stream_build[release_date] = build_name
+    time_stamp = stream_build.keys()
+    time_stamp.sort(reverse=True)
+    return stream_build[time_stamp[0]]
