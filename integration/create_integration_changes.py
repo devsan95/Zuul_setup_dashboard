@@ -775,7 +775,7 @@ class IntegrationChangesCreation(object):
                 if 'MN/SCMTA/zuul/inte_ric' in node['repo']:
                     if node['name'] in base_commits:
                         base_commit_info = base_commits[node['name']]
-                    elif node['ric'][0] in base_commits:
+                    elif 'ric' in node and node['ric'][0] in base_commits:
                         base_commit_info = base_commits[node['ric'][0]]
                     else:
                         base_commit_info = ''
@@ -840,7 +840,7 @@ class IntegrationChangesCreation(object):
                 base_load_list = [x for x in base_load.split(',') if x.strip()]
                 base_load = wft_tools.get_newer_base_load(base_load_list)
             else:
-                base_load = wft_tools.get_latest_qt_load(self.meta['streams'])
+                base_load = wft_tools.get_latest_qt_load(self.meta['streams']).lstrip('5G_')
             base_commits = self.parse_base_load(base_load)
             if base_commits:
                 self.base_commits_info = base_commits
