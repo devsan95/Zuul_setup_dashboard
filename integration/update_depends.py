@@ -1,14 +1,17 @@
 import re
 import fire
+import yaml
 import logging
 
 from api import gerrit_rest
 from mod import common_regex
 from mod.integration_change import RootChange
+from mod.integration_change import IntegrationChange
+from integration_trigger import get_comp_obj
 
 
 def update_depends(rest, change_id, dep_file_list,
-                   dep_submodule_dict):
+                   dep_submodule_dict, comp_config):
     # check if there is interfaces info in commit-msg
     commit_msg = rest.get_commit(change_id).get('message')
     commit_lines = commit_msg.splitlines()
@@ -59,10 +62,17 @@ def update_depends(rest, change_id, dep_file_list,
         component = interface_info['component']
         comp_version = interface_info['comp_version']
         repo_version = interface_info['repo_version']
-        for dep_file in dep_file_list:
+        for dep_file_line in dep_file_list:
+            dep_str_list = dep_file_line.split(':')
+            dep_file = dep_str_list[0].strip()
+            dep_file_comps = []
+            if len(dep_str_list) > 1:
+                dep_file_comps = dep_str_list[1].strip().split(',')
+                dep_file_comps.append('gnb')
             for comp_change in comp_change_list:
                 replace_depdends_file(rest, comp_change,
-                                      dep_file, component, comp_version)
+                                      dep_file, component, comp_version,
+                                      comp_config, dep_file_comps)
                 if component in dep_submodule_dict:
                     replace_submodule_content(
                         rest, comp_change,
@@ -77,7 +87,22 @@ def update_depends(rest, change_id, dep_file_list,
                     print(str(e))
 
 
-def replace_depdends_file(rest, change_id, file_path, component, version):
+def replace_depdends_file(rest, change_id, file_path, component, version,
+                          comp_config, dep_file_comps):
+    logging.info('Try to update depends for %s', file_path)
+    # if component is match
+    int_change_obj = IntegrationChange(rest, change_id)
+    ticket_comps = int_change_obj.get_components()
+    comps_for_interfaces = get_comp_obj(component, comp_config)
+    for t_comp in ticket_comps:
+        if t_comp not in comps_for_interfaces:
+            logging.warn(
+                'Not in %s or %s', comps_for_interfaces, dep_file_comps)
+            return
+        if dep_file_comps and t_comp not in dep_file_comps:
+            logging.warn(
+                'Not in %s or %s', comps_for_interfaces, dep_file_comps)
+            return
     # get file content from change_id
     try:
         recipe_content = rest.get_file_content(file_path, change_id)
@@ -140,10 +165,14 @@ def replace_submodule_content(rest, change_id, file_path, version):
     # find 'Subproject commit xxxxx' and replaced
 
 
-def run(gerrit_info_path, change_id, dep_files, dep_submodules):
+def run(gerrit_info_path, change_id, dep_files,
+        dep_submodules, component_yaml_path):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     dep_file_list = dep_files.splitlines()
     dep_submodule_dict = {}
+    comp_config = {}
+    with open(component_yaml_path, 'r') as fr:
+        comp_config = yaml.load(fr.read(), Loader=yaml.Loader)
     for dep_submodule_line in dep_submodules.splitlines():
         if ':' in dep_submodule_line:
             component = dep_submodule_line.split(':', 1)[0].strip()
@@ -151,7 +180,8 @@ def run(gerrit_info_path, change_id, dep_files, dep_submodules):
             dep_submodule_dict[component] = submodule_path
         else:
             logging.warn('Cannot find ":" in line: %s', dep_submodule_line)
-    update_depends(rest, change_id, dep_file_list, dep_submodule_dict)
+    update_depends(rest, change_id, dep_file_list,
+                   dep_submodule_dict, comp_config)
 
 
 if __name__ == '__main__':
