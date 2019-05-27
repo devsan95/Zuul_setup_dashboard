@@ -9,11 +9,13 @@ import sys
 import time
 import shutil
 import traceback
+import datetime
 
 import git
 import fire
 import urllib3
 from slugify import slugify
+from api import mysql_api
 
 import api.file_api
 import api.gerrit_api
@@ -617,8 +619,42 @@ def get_description(rest, change_id):
     return description, rest_id
 
 
+def save_data(knife_path, zuul_db):
+    values = {}
+    date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    r = re.compile(r'gitsm://(.*/p)/(.*)')
+
+    with open(knife_path, 'r') as f:
+        json_obj = json.load(f)
+        for key in json_obj.keys():
+            for comp in json_obj[key].keys():
+                if "repo_ver" in json_obj[key][comp].keys()\
+                        and "refs/zuul" in json_obj[key][comp]["repo_ver"]:
+                    values["zuul_ref"] = json_obj[key][comp]["repo_ver"]
+                    values["date"] = date
+                    m = r.match(json_obj[key][comp]["repo_url"])
+                    if m:
+                        values["zuul_url"] = m.group(1).strip()
+                        values["project"] = m.group(2).strip()
+                    if not zuul_db.executor(
+                        sql='SELECT * FROM t_integration_refs WHERE zuul_ref = "{}" '
+                            'AND zuul_url = "{}" AND project = "{}"'
+                            .format(values["zuul_ref"], values["zuul_url"], values["project"]),
+                            output=True
+                    ):
+                        zuul_db.insert_info('t_integration_refs', values)
+
+
+def save_data_in_zuul_db(knife_path, db_info_path):
+    server_name = "zuul"
+    database_name = "stored_refs"
+    zuul_db = mysql_api.init_from_yaml(db_info_path, server_name=server_name)
+    zuul_db.init_database(database_name)
+    save_data(knife_path, zuul_db)
+
+
 def run(zuul_url, zuul_ref, output_path, change_id,
-        gerrit_info_path, zuul_changes, gnb_list_path):
+        gerrit_info_path, zuul_changes, gnb_list_path, db_info_path):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.init_cache(1000)
     project_branch = parse_zuul_changes(zuul_changes)
@@ -666,6 +702,9 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     # add all gnb components
     rewrite_knife_json(knife_path, gnb_list_path)
+
+    # store zuul_ref in zuul database
+    save_data_in_zuul_db(knife_path, db_info_path)
 
 
 if __name__ == '__main__':
