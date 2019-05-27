@@ -929,6 +929,12 @@ class IntegrationChangesCreation(object):
         self.print_result()
         send_result_email.run(self.info_index)
         if mysql_info:
+            skytrack_database_handler.update_integration_mode(
+                database_info_path=mysql_info,
+                issue_key=self.meta["jira_key"],
+                integration_mode=integration_mode,
+                fixed_build=base_load,
+            )
             skytrack_database_handler.update_events(
                 database_info_path=mysql_info,
                 integration_name=self.info_index['meta']['jira_key'],

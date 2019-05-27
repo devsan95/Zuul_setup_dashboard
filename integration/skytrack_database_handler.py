@@ -244,5 +244,22 @@ def update_events(database_info_path, integration_name, description, highlight=F
     )
 
 
+def update_integration_mode(database_info_path, issue_key, integration_mode, fixed_build=None):
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
+    replacements = {
+        'integration_mode': integration_mode
+    } if not fixed_build else {
+        'integration_mode': integration_mode,
+        'fixed_base': fixed_build
+    }
+    mydb.update_info(
+        table='t_issue',
+        replacements=replacements,
+        conditions={
+            'issue_key': issue_key
+        }
+    )
+
+
 if __name__ == '__main__':
     fire.Fire()

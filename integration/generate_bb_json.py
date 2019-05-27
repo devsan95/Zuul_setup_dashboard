@@ -567,7 +567,7 @@ def rewrite_knife_json(knife_json_path, gnblist_path):
 
 def add_comps_to_knife_json(data, gnbList):
     flag = False
-    for k in data.keys():
+    for k in data:
         if k in gnbList:
             flag = True
             print('Include gnb component:***{}***,need update knife json'.format(k))

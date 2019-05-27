@@ -157,11 +157,12 @@ def rebase_by_load(rest, change_no, base_package,
     if rebase_succeed:
         for comp, ver in rebase_succeed.items():
             print('### Rebase {} to {} Succeed ###'.format(comp, ver))
+        return True
     if rebase_failed:
         for comp, ver in rebase_failed.items():
             print('*** Rebase {} to {} Failed ***'.format(comp, ver))
         print('Not able to rebase all components: {}'.format(rebase_failed))
-        sys.exit(2)
+        return False
 
 
 def clear_and_rebase_file(rest, change_no, file_path, env_hash):
@@ -232,16 +233,17 @@ def switch_with_rebase_mod(root_change, rest,
     if base_package == 'HEAD':
         update_with_rebase_info(rest, root_change, 'with-zuul-rebase')
         rest.review_ticket(int_change, 'use_default_base')
-        rebase_by_load(rest, root_change, base_package,
-                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
+        rebase_result = rebase_by_load(rest, root_change, base_package,
+                                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
     else:
         update_with_rebase_info(rest, root_change, 'without-zuul-rebase')
         ver_partten = '.'.join(base_package.split('.')[0:2])
         rest.review_ticket(
             int_change,
             'update_base:{},{}'.format(ver_partten, base_package))
-        rebase_by_load(rest, root_change, base_package,
-                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
+        rebase_result = rebase_by_load(rest, root_change, base_package,
+                                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
+    return rebase_result
 
 
 def get_mail_list(comp_change_list, int_change, root_change, rest):
@@ -285,12 +287,19 @@ def send_rebase_results(mail_list, mail_params, rebase_succeed, rebase_failed):
 def run(root_change, gerrit_info_path,
         gitlab_info_path='', base_package='HEAD', database_info_path=None):
     rest = init_gerrit_rest(gerrit_info_path)
-    switch_with_rebase_mod(root_change, rest, base_package, gitlab_info_path)
+    rebase_result = switch_with_rebase_mod(root_change, rest, base_package, gitlab_info_path)
     origin_msg = rest.get_commit(root_change)['message']
     msg = " ".join(origin_msg.split("\n"))
     reg = re.compile(r'%JR=(\w+-\d+)')
     jira_ticket = reg.search(msg).groups()[0]
     if database_info_path:
+        skytrack_database_handler.update_integration_mode(
+            database_info_path=database_info_path,
+            issue_key=jira_ticket,
+            integration_mode='HEAD' if base_package == 'HEAD' else 'FIXED_BASE',
+            fixed_build=None if base_package == 'HEAD' else base_package
+
+        )
         skytrack_database_handler.update_events(
             database_info_path=database_info_path,
             integration_name=jira_ticket,
@@ -299,6 +308,8 @@ def run(root_change, gerrit_info_path,
             .format(base_package),
             highlight=True
         )
+    if not rebase_result:
+        sys.exit(2)
 
 
 if __name__ == '__main__':
