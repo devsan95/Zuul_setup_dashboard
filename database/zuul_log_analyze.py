@@ -799,6 +799,9 @@ def main(log_path, db_str):
                     log_line.set(m)
                 else:
                     log_line.append(line)
+            log_line.parse()
+            if log_line.type:
+                db.write_log(log_line)
         db.commit()
     except Exception as ex:
         print('Exception occurs:')

@@ -177,7 +177,7 @@ class ZuulBuildset(ModelBase):
     datetime = sa.Column(sa.String(255), nullable=True)
 
 
-def get_loop_action_model(table_name='LoopAction'):
+def get_loop_action_model(table_name='loop_action'):
     DynamicBase = declarative_base(class_registry=dict())
 
     class LoopAction(DynamicBase):
@@ -189,13 +189,9 @@ def get_loop_action_model(table_name='LoopAction'):
         duration = sa.Column(sa.Integer, index=False)
         thread_id = sa.Column(sa.String(50), index=False)
         logger = sa.Column(sa.String(255), index=True)
-        pipeline = sa.Column(sa.String(50), index=True)
-        project = sa.Column(sa.String(255), index=True)
         action = sa.Column(sa.String(50), index=True)
         detail = sa.Column(sa.Text(), index=False)
-        queue_item = sa.Column(sa.String(50), index=True)
-        location = sa.Column(sa.BIGINT, index=False)
-        prefix = sa.Column(sa.String(12), index=False)
+        result = sa.Column(sa.Text(), index=False)
 
     return LoopAction
 
