@@ -838,7 +838,10 @@ class IntegrationChangesCreation(object):
         if "Fixed_base" in integration_mode:
             if base_load:
                 base_load_list = [x for x in base_load.split(',') if x.strip()]
-                base_load = wft_tools.get_newer_base_load(base_load_list)
+                if base_load_list:
+                    base_load = wft_tools.get_newer_base_load(base_load_list)
+                else:
+                    base_load = wft_tools.get_latest_qt_load(self.meta['streams']).lstrip('5G_')
             else:
                 base_load = wft_tools.get_latest_qt_load(self.meta['streams']).lstrip('5G_')
             base_commits = self.parse_base_load(base_load)
