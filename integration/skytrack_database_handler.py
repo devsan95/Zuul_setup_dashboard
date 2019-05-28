@@ -134,7 +134,7 @@ def auto_update_build_info(integration_change,
         start_time=start_time,
         end_time=end_time
     )
-    knife_info_in_link = '<a href={knife_link}>{knife_id}</a>'.format(knife_link=knife_link, knife_id=knife_id)
+    knife_info_in_link = "<a href='{knife_link}'>{knife_id}</a>".format(knife_link=knife_link, knife_id=knife_id)
     update_events(
         database_info_path=database_info_path,
         integration_name=jira_key,
