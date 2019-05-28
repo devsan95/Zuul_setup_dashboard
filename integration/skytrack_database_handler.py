@@ -103,7 +103,6 @@ def auto_update_build_info(integration_change,
                            build_number=None,
                            dry_run=False):
     jira_key = get_jira_id(integration_change, gerrit_info_path)
-    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
     knife_link_temp = 'http://5g-cb.es-si-s3-z4.eecloud.nsn-net.net' \
                       '/BucketList/index.html?prefix=knife/{knife}/'
     with open(pkg_info_file) as pkg_info:
@@ -112,35 +111,18 @@ def auto_update_build_info(integration_change,
             raise Exception('Knife ID can not be found in {0}'.format(pkg_info_file))
     knife_id = match[0]
     knife_link = knife_link_temp.format(knife=knife_id)
-    search_info = mydb.executor("SELECT entity_build "
-                                "FROM t_issue WHERE issue_key = '{0}'".format(jira_key),
-                                output=True)
-    origin_entity_info = search_info[0][0]
-    entity_info = '{0}*{1}'.format(knife_id.rsplit('.', 1)[0], knife_link)
-    if origin_entity_info:
-        for line in origin_entity_info.split(','):
-            if line.split('*')[0] in knife_id:
-                continue
-            entity_info += ',{0}'.format(line)
-    if dry_run:
-        print('DRY-RUN MODE:')
-        print('Will update entity_build: {0}'.format(entity_info))
-    else:
-        mydb.update_info(
-            table='t_issue',
-            replacements={
-                'entity_build': entity_info
-            },
-            conditions={
-                'issue_key': jira_key
-            }
-        )
-        print('Entity build info updated')
-        print('Entity build: {0}'.format(entity_info))
-
-    # update build info in detailed page
     start_time, end_time = get_job_timestamp(JENKINS_URL, job_name, build_number)
     stream = wft_tools.get_stream_name('{0}.'.format(knife_id.rsplit('.', 1)[0]))
+    print("Update integration package in skytrack: {0}".format(knife_id))
+    if dry_run:
+        print("DRY-RUN MODE:")
+        print("integration_name: {jira_key}".format(jira_key=jira_key))
+        print ("product: 5G")
+        print ("package_name: {knife_id}".format(knife_id=knife_id))
+        print ("mini_branch: {stream}".format(stream=stream))
+        print ("type_name: Integration Build")
+        print ("link: {knife_link}".format(knife_link=knife_link))
+        return
     skytrack_detail_api(
         integration_name=jira_key,
         product='5G',
@@ -152,10 +134,11 @@ def auto_update_build_info(integration_change,
         start_time=start_time,
         end_time=end_time
     )
+    knife_info_in_link = '<a href="{knife_link}">{knife_id}</a>'.format(knife_link=knife_link, knife_id=knife_id)
     update_events(
         database_info_path=database_info_path,
         integration_name=jira_key,
-        description="{0} integration package created: {1}".format(stream, knife_link)
+        description="{0} integration package created: {1}".format(stream, knife_info_in_link)
     )
 
 
