@@ -1,6 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
 
+import copy
 import fire
 import ruamel.yaml as yaml
 import urllib3
@@ -100,25 +101,36 @@ def get_base_commit(rest, comp, root):
     return base_commit
 
 
-def parse_hierarchy(hierarchy):
-    comp_list = {}
-    for key in hierarchy:
-        comp_list['key'] = []
-        if isinstance(key, dict):
-            for sub_key in hierarchy['key']:
-                comp_list['sub_key'] = []
-                if isinstance(sub_key, list):
-                    for e in hierarchy['key']['sub_key']:
-                        comp_list['sub_key'].append(e)
-                        comp_list['key'].append(e)
-                comp_list['sub_key'] = list(set(comp_list['sub_key']))
-                print('[Info] component {} contains sub components {}'.format(sub_key, comp_list['sub_key']))
-        if isinstance(key, list):
-            for e in hierarchy['key']:
-                comp_list['key'].append(e)
-        comp_list['key'] = list(set(comp_list['key']))
-        print('[Info] component {} contains sub components {}'.format(key, comp_list['key']))
-    return comp_list
+def parse_hierarchy(hierarchy, pkey=None):
+    parse_dict = {}
+    if isinstance(hierarchy, dict):
+        for key, value in hierarchy.items():
+            if isinstance(value, (dict, list)):
+                sub_dict = parse_hierarchy(value, key)
+                parse_dict.update(sub_dict)
+                if not pkey:
+                    continue
+                if pkey not in parse_dict:
+                    parse_dict[pkey] = copy.deepcopy(sub_dict.values()[0])
+                else:
+                    parse_dict[pkey].extend(sub_dict.values()[0])
+                    parse_dict[pkey] = list(set(parse_dict[pkey]))
+            else:
+                raise Exception('{} dict and not list'.format(hierarchy))
+    elif isinstance(hierarchy, list):
+        for list_obj in hierarchy:
+            if isinstance(list_obj, basestring):
+                if not pkey:
+                    raise Exception('{} not have key'.format(hierarchy))
+                if pkey not in parse_dict:
+                    parse_dict[pkey] = [list_obj]
+                else:
+                    parse_dict[pkey].append(list_obj)
+            else:
+                parse_dict.update(parse_hierarchy(list_obj, pkey))
+    else:
+        raise Exception('{} dict and not list'.format(hierarchy))
+    return parse_dict
 
 
 def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_path, base_commit=None):
