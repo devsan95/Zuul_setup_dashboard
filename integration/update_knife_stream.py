@@ -78,7 +78,7 @@ def set_stream(change_number, stream_list, rest, commit_message):
     return need_publish
 
 
-def main(change_number, action, stream_number, gerrit_info_path):
+def main(change_number, action, stream_number, gerrit_info_path, auto_reexperiment=True):
     if not change_number:
         print "[Error] Please input change_number!"
         raise ValueError
@@ -124,8 +124,10 @@ def main(change_number, action, stream_number, gerrit_info_path):
     else:
         print('[Error] Invalid action!')
     if need_publish:
-        print("[Info] Submitting change to gerrit and reply reexperiment in gerrit change")
+        print("[Info] Submitting change to gerrit")
         rest.publish_edit(change_number)
+    if auto_reexperiment:
+        print("[Info] Reply reexperiment in gerrit change")
         rest.review_ticket(change_number, 'reexperiment')
 
 
