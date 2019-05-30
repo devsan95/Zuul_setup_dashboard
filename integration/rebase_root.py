@@ -44,7 +44,7 @@ def run(gerrit_info_path, change_no,
         ssh_gerrit_server=None, ssh_gerrit_port=None,
         ssh_gerrit_user=None, ssh_gerrit_key=None,
         auto_recheck=True, auto_reexperiment=True,
-        change_info=None):
+        change_info=None, database_info_path=None):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     use_ssh = False
     if ssh_gerrit_key and ssh_gerrit_port \
@@ -66,10 +66,10 @@ def run(gerrit_info_path, change_no,
         comp_name = change_info_dict['bb_version'].split('_', 1)[0]
     if comp_name == 'env':
         rebase_env.run(
-            gerrit_info_path, change_no, change_info=change_info)
+            gerrit_info_path, change_no, change_info=change_info, database_info_path=database_info_path)
     else:
         rebase_interface.run(
-            gerrit_info_path, change_no, change_info=change_info_dict)
+            gerrit_info_path, change_no, change_info=change_info_dict, database_info_path=database_info_path)
 
     change_detail = rest.get_detailed_ticket(change_no)
     # 2 detect integration label. if label is ok then quit.
@@ -120,7 +120,6 @@ def run(gerrit_info_path, change_no,
     print('Changes are:')
     pprint(change_list)
 
-    waitting_period = 0
     waitting_period = 0
     while True:
         if waitting_period >= 1200:
