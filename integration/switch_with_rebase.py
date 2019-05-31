@@ -19,7 +19,7 @@ from update_with_zuul_rebase import update_with_rebase_info
 from generate_bb_json import parse_comments_mail
 from int_gitlab_opt import get_branch_and_srv
 from rebase_env import clear_change, create_file_change_by_env_change
-from mod.integration_change import RootChange, IntegrationChange
+from mod.integration_change import RootChange, IntegrationChange, IntegrationCommitMessage
 
 
 CONF = config.ConfigTool()
@@ -61,6 +61,38 @@ def rebase_gitlab_branch(repo, branch, org_branch, comp_hash, token):
         traceback.print_exc()
         raise Exception(
             'Failed in rebase {} in {} to {}'.format(branch, repo, comp_hash))
+
+
+def update_base_commit(rest, comp_change, comp_change_obj, comp_hash):
+    commit_msg_obj = IntegrationCommitMessage(comp_change_obj)
+    old_commit_msg = commit_msg_obj.get_msg()
+    if not comp_hash:
+        return
+    elif comp_hash == 'HEAD':
+        for msg_line in commit_msg_obj.msg_lines:
+            if msg_line.startswith('base_commit:'):
+                commit_msg_obj.msg_lines.remove(msg_line)
+                print('[Info]Remove base commit info since it is HEAD mode!')
+    else:
+        begin_line = -1
+        for msg_line in commit_msg_obj.msg_lines:
+            begin_line = begin_line + 1
+            if msg_line.startswith('base_commit:'):
+                commit_msg_obj.msg_lines.remove(msg_line)
+                break
+        if begin_line > -1:
+            line_value = 'base_commit:{}'.format(comp_hash)
+            commit_msg_obj.msg_lines.insert(begin_line, line_value)
+    new_commit_msg = commit_msg_obj.get_msg()
+    if new_commit_msg == old_commit_msg:
+        print('[Info] New commit message is the same as existing commit message,no need to UPDATE!')
+    else:
+        try:
+            rest.delete_edit(comp_change)
+        except Exception as e:
+            print(e)
+        rest.change_commit_msg_to_edit(comp_change, new_commit_msg)
+        rest.publish_edit(comp_change)
 
 
 def rebase_by_load(rest, change_no, base_package,
@@ -127,6 +159,8 @@ def rebase_by_load(rest, change_no, base_package,
                 else:
                     rebase_failed[comp_name_with_change] = comp_hash
         else:
+            update_base_commit(rest, comp_change, comp_change_obj, comp_hash)
+
             mr_repo, mr_brch = comp_change_obj.get_mr_repo_and_branch()
             if mr_repo:
                 try:
@@ -163,6 +197,7 @@ def rebase_by_load(rest, change_no, base_package,
             print('*** Rebase {} to {} Failed ***'.format(comp, ver))
         print('Not able to rebase all components: {}'.format(rebase_failed))
         return False
+    return None
 
 
 def clear_and_rebase_file(rest, change_no, file_path, env_hash):
