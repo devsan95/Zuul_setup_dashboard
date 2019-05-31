@@ -70,7 +70,7 @@ def get_base_load(rest, manager_change):
         comments = comments['message']
         result_list = base_load_re.findall(comments)
         if len(result_list) > 0:
-            base_load = base_load_re.match(comments)[1]
+            base_load = base_load_re.match(comments).groups()[1]
             break
     if not base_load:
         raise Exception('[Error] Failed to get base load info in manager change {}'.format(manager_change))
