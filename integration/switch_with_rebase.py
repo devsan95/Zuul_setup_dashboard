@@ -6,6 +6,7 @@ import git
 import sys
 import copy
 import fire
+import shlex
 import shutil
 import traceback
 
@@ -155,6 +156,7 @@ def rebase_by_load(rest, change_no, base_package,
                                               'env-config.d/ENV', comp_hash)
                         rebase_succeed['env-{}'.format(change_no)] = comp_hash
                     except Exception:
+                        traceback.print_exc()
                         rebase_failed[comp_name_with_change] = comp_hash
                 else:
                     rebase_failed[comp_name_with_change] = comp_hash
@@ -205,7 +207,9 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
     print('Env change {}'.format(env_change))
     # Get current ENV changes
     if 'new_diff' in env_change and env_change['new_diff']:
-        env_change_list = env_change['new_diff']
+        env_change = env_change['new_diff']
+        env_change = env_change.strip()
+        env_change_list = shlex.split(env_change)
         print('Update env for change {}'.format(change_no))
         # delete edit
         print('delete edit for change {}'.format(change_no))
