@@ -154,7 +154,7 @@ def rebase_by_load(rest, change_no, base_package,
                     try:
                         clear_and_rebase_file(rest, change_no,
                                               'env-config.d/ENV', comp_hash)
-                        rebase_succeed['env-{}'.format(change_no)] = comp_hash
+                        rebase_succeed['env {}'.format(change_no)] = comp_hash
                     except Exception:
                         traceback.print_exc()
                         rebase_failed[comp_name_with_change] = comp_hash

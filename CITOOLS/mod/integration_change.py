@@ -236,36 +236,36 @@ class IntegrationCommitMessage(object):
     def update_interface_info(self, bb_version, commit_ID, comp_name):
         # find bb_version line and commit-ID line to remove
         begin_line = 0
-        end_line = len(self.msg_lines)
-        find_comp = False
         comp_line_value = '        comp_name: {}'.format(comp_name)
         bb_line_value = '        bb_version: {}'.format(bb_version)
         commit_line_value = '        commit-ID: {}'.format(commit_ID)
+        old_interfaces_list = []
         for i, v in enumerate(self.msg_lines):
             if v.startswith('interface info:'):
                 begin_line = i
-                end_line = i + 4
                 continue
-            if begin_line > 0 and i > begin_line and i < end_line:
+            if begin_line > 0 and i > begin_line:
                 m = com_name_reg.match(v)
-                if m and m.group(0) == comp_name:
-                    find_comp = True
+                if m and v.split(':')[1].strip() == comp_name:
+                    old_interfaces_list.append(i)
                     bb_line = self.msg_lines[i + 1]
                     commit_line = self.msg_lines[i + 2]
                     m = bb_version_reg.match(bb_line)
                     if m:
+                        old_interfaces_list.append(i + 1)
                         self.msg_lines[i] = bb_line_value
                     n = commit_ID_reg.match(commit_line)
                     if n:
+                        old_interfaces_list.append(i + 2)
                         self.msg_lines[i] = commit_line_value
-                    break
-        if not find_comp:
-            if begin_line == 0:
-                self.msg_lines.append('interface info:')
-                begin_line = len(self.msg_lines)
-            self.msg_lines.insert(begin_line + 1, comp_line_value)
-            self.msg_lines.insert(begin_line + 2, bb_line_value)
-            self.msg_lines.insert(begin_line + 3, commit_line_value)
+        print('Remove old interfaces list: {}'.format(old_interfaces_list))
+        self.msg_lines = [v for i, v in enumerate(self.msg_lines) if i not in old_interfaces_list]
+        if begin_line == 0:
+            self.msg_lines.append('interface info:')
+            begin_line = len(self.msg_lines)
+        self.msg_lines.insert(begin_line + 1, comp_line_value)
+        self.msg_lines.insert(begin_line + 2, bb_line_value)
+        self.msg_lines.insert(begin_line + 3, commit_line_value)
 
     def remove_ric(self, change):
         # judge if there is the need to remove
