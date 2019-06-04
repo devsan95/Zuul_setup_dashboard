@@ -5,7 +5,7 @@ import datetime
 from api import gerrit_rest
 
 
-def get_gerrit_changes(rest, project, start, end, status=None, branch='master'):
+def get_gerrit_changes(rest, project, start, end, status=None, branch='master', count_start=None):
     query_str = 'project:{project} branch:{branch} status:{status} after:{start} before:{end}'.format(
         project=project,
         branch=branch,
@@ -19,7 +19,7 @@ def get_gerrit_changes(rest, project, start, end, status=None, branch='master'):
         end=end
     )
     print query_str
-    result = rest.query_ticket(query_str)
+    result = rest.query_ticket(query_str, start=count_start)
     return result
 
 
@@ -56,7 +56,7 @@ def write_to_xls(worksheet, line, change_id, change_info):
 def run(gerrit_info_path, project, start, end=None, status=None, branch='master'):
     end = str(datetime.datetime.now()).split()[0] if not end else end
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
-    gerrit_changes = get_gerrit_changes(rest, project, status=status, start=start, end=end, branch=branch)
+
     workbook = xlwt.Workbook(encoding='ascii')
     worksheet = workbook.add_sheet('GNB')
     worksheet.write(0, 0, label='Change ID')
@@ -65,11 +65,17 @@ def run(gerrit_info_path, project, start, end=None, status=None, branch='master'
     worksheet.write(0, 3, label='Created')
     worksheet.write(0, 4, label='Submitted')
     worksheet.write(0, 5, label='Closed')
+    count = 1
     line = 0
-    for change in gerrit_changes:
-        line += 1
-        change_info = filter_gerrit_info(rest.get_detailed_ticket(change['_number']))
-        write_to_xls(worksheet, line, change['_number'], change_info)
+    while True:
+        gerrit_changes = get_gerrit_changes(rest, project, status=status, start=start, end=end, branch=branch, count_start=count)
+        if not gerrit_changes:
+            break
+        count += 500
+        for change in gerrit_changes:
+            line += 1
+            change_info = filter_gerrit_info(rest.get_detailed_ticket(change['_number']))
+            write_to_xls(worksheet, line, change['_number'], change_info)
     book_name = '{name}.xls'.format(
         name=start + '-' + end
     )
