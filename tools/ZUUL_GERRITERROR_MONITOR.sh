@@ -1,9 +1,9 @@
 #!/bin/bash
 #
 # moniter gerrit branch diff error and bad pack header error.
-set -xe
+set -x
 
-COUNT=0
+#COUNT=0
 #ZUULSERVERS='eslinb40.emea.nsn-net.net eslinb34.emea.nsn-net.net zuulmergeres42.dynamic.nsn-net.net'
 ZUULSERVICES='zuul-server zuul-merger merger_eslinb34_1 merger_eslinb34_2 merger_es42_1 merger_es42_2'
 server=`hostname`
@@ -90,11 +90,14 @@ if [[ -s "allbadpackheadertime-${service}.txt" ]];then
 else
     echo "no bad pack header error in ${service} for now."
 fi
+rm -f ${server}-${service}-issue-finalrepos.list
+if [[ -s "${server}-issue-repos-${service}.list" ]];then 
+    sort -k2n ${server}-issue-repos-${service}.list|awk '{if ($0!=line) print;line=$0}' > ${server}-${service}-issue-finalrepos.list
+    rm -f ${server}-issue-repos-${service}.list
+fi
 
-sort -k2n ${server}-issue-repos-${service}.list|awk '{if ($0!=line) print;line=$0}' > ${server}-${service}-issue-finalrepos.list
-rm -f ${server}-issue-repos-${service}.list
 rm -f ${service}-tmp1.log
-cat ${server}-${service}-issue-finalrepos.list
+#cat ${server}-${service}-issue-finalrepos.list
 }
 
 
