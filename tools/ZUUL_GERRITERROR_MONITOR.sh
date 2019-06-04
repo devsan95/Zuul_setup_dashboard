@@ -1,12 +1,12 @@
 #!/bin/bash
 #
 # moniter gerrit branch diff error and bad pack header error.
-set -xeo
+set -xe
 
 COUNT=0
-ZUULSERVERS='eslinb40.emea.nsn-net.net eslinb34.emea.nsn-net.net zuulmergeres42.dynamic.nsn-net.net'
+#ZUULSERVERS='eslinb40.emea.nsn-net.net eslinb34.emea.nsn-net.net zuulmergeres42.dynamic.nsn-net.net'
 ZUULSERVICES='zuul-server zuul-merger merger_eslinb34_1 merger_eslinb34_2 merger_es42_1 merger_es42_2'
-
+server=`hostname`
 
 ##################################################################################
 # funcation name:   localref-prune
@@ -66,8 +66,8 @@ if [[ -s "allbadpackheadertime-${service}.txt" ]];then
                     if grep -q "${issuerepo}" ${service}-tmp1.log ;then
                         echo "gc already done by gerrit team."
                     else
-                        let "COUNT=COUNT+1"
-                        echo "${issuerepo}" >> issue-repos-${service}.list
+                        #let "COUNT=COUNT+1"
+                        echo "${server}-${service}-$(issuerepo)" >> ${server}-issue-repos-${service}.list
                     fi
                 fi
             done < allbadpackheadertime-${service}.txt
@@ -81,8 +81,8 @@ if [[ -s "allbadpackheadertime-${service}.txt" ]];then
                 if grep -q "${issuerepo}" ${service}-tmp1.log ;then
                     echo "gc already done by gerrit team."
                 else
-                    let "COUNT=COUNT+1"
-                    echo "${issuerepo}" >> issue-repos-${service}.list
+                    #let "COUNT=COUNT+1"
+                    echo "${server}-${service}-$(issuerepo)" >> ${server}-issue-repos-${service}.list
                 fi
             done < allbadpackheadertime-${service}.txt
         fi
@@ -91,53 +91,27 @@ else
     echo "no bad pack header error in ${service} for now."
 fi
 
-sort -k2n issue-repos-${service}.list|awk '{if ($0!=line) print;line=$0}' > issue-finalrepos-${service}.list
-rm -f issue-repos-${service}.list
+sort -k2n ${server}-issue-repos-${service}.list|awk '{if ($0!=line) print;line=$0}' > ${server}-${service}-issue-finalrepos.list
+rm -f ${server}-issue-repos-${service}.list
 rm -f ${service}-tmp1.log
-cat issue-finalrepos-${service}.list
+cat ${server}-${service}-issue-finalrepos.list
 }
 
 
 ##################################################################################
 # main actions
 ##################################################################################
-for server in ${ZUULSERVERS}
+for service in ${ZUULSERVICES}
 do
-    I=`echo ${server:0:6}`
-    if [[ "$I"=="eslinb" ]];then
-        ssh ca_5g_hz_scm@${server}
-        for service in $[ZUULSERVICES]
-        do
-            pwd
-            sudo docker cp ${service}:/ephemeral/log/zuul/merger-debug.log ${service}-merger-debug.log
-            if [[ -s "${service}-merger-debug.log" ]];then
-                localref_prune
-                bad_pack_header_moniter
-                rm -f ${service}-merger-debug.log
-            else
-                rm -f ${service}-merger-debug.log
-                echo "no container called ${service} in ${server}, skip to try next in ZUULSERVICES list."
-            fi
-        done
+    pwd
+    sudo docker cp ${service}:/ephemeral/log/zuul/merger-debug.log ${service}-merger-debug.log
+    if [[ -s "${service}-merger-debug.log" ]];then
+        localref_prune
+        bad_pack_header_moniter
+        scp -r ${server}-${service}-issue-finalrepos.list root@10.157.164.203:/root/workspace/ZUUL_GERRITERROR_MONITOR
+        rm -f ${service}-merger-debug.log
     else
-        ssh -i /root/.ssh/5gscm.pem root@${server}
-        for service in ${ZUULSERVICES}
-        do
-            pwd
-            sudo docker cp ${service}:/ephemeral/log/zuul/merger-debug.log ${service}-merger-debug.log
-            if [[ -s "${service}-merger-debug.log" ]];then
-                localref_prune
-                bad_pack_header_moniter
-                rm -f ${service}-merger-debug.log
-            else
-                rm -f ${service}-merger-debug.log
-                echo "no container called ${service} in ${server}, skip to try next in ZUULSERVICES list."
-            fi
-        done
+        rm -f ${service}-merger-debug.log
+        echo "no container called ${service} in ${server}, skip to try next in ZUULSERVICES list."
     fi
 done
-
-echo "COUNT = ${COUNT}"
-if [[ ${COUNT} -gt 0 ]];then
-    exit 1
-fi
