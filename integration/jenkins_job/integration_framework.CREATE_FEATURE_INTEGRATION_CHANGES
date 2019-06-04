@@ -83,4 +83,5 @@ python ${WORKSPACE}/script/integration/create_integration_changes.py \
                                       --force-feature-id "${FORCE_FEATURE_ID}" \
                                       --open-jira True \
                                       --ext_commit_msg """${ext_msg_param}""" \
-                                      --mysql_info "${MYSQL_INFO}"
+                                      --mysql_info "${MYSQL_INFO}" \
+                                      --comp-config "${WORKSPACE}/yaml/config/component-config.yaml"
