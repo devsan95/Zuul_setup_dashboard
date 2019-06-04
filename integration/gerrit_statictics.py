@@ -5,14 +5,16 @@ import datetime
 from api import gerrit_rest
 
 
-def get_gerrit_changes(rest, project, start, end, status=None):
-    query_str = 'project:{project} status:{status} after:{start} before:{end}'.format(
+def get_gerrit_changes(rest, project, start, end, status=None, branch='master'):
+    query_str = 'project:{project} branch:{branch} status:{status} after:{start} before:{end}'.format(
         project=project,
+        branch=branch,
         status=status,
         start=start,
         end=end
-    ) if status else 'project:{project} after:{start} before:{end}'.format(
+    ) if status else 'project:{project} branch:{branch} after:{start} before:{end}'.format(
         project=project,
+        branch=branch,
         start=start,
         end=end
     )
@@ -51,10 +53,10 @@ def write_to_xls(worksheet, line, change_id, change_info):
     worksheet.write(line, 5, label='{0}'.format(change_info['closed']))
 
 
-def run(gerrit_info_path, project, start, end=None, status=None):
+def run(gerrit_info_path, project, start, end=None, status=None, branch='master'):
     end = str(datetime.datetime.now()).split()[0] if not end else end
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
-    gerrit_changes = get_gerrit_changes(rest, project, status=status, start=start, end=end)
+    gerrit_changes = get_gerrit_changes(rest, project, status=status, start=start, end=end, branch=branch)
     workbook = xlwt.Workbook(encoding='ascii')
     worksheet = workbook.add_sheet('GNB')
     worksheet.write(0, 0, label='Change ID')
