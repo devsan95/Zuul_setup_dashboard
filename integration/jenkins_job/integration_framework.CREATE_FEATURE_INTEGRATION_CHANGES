@@ -84,4 +84,4 @@ python ${WORKSPACE}/script/integration/create_integration_changes.py \
                                       --open-jira True \
                                       --ext_commit_msg """${ext_msg_param}""" \
                                       --mysql_info "${MYSQL_INFO}" \
-                                      --comp-config "${WORKSPACE}/yaml/config/component-config.yaml"
+                                      --comp_config "${WORKSPACE}/yaml/config/component-config.yaml"
