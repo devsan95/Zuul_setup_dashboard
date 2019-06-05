@@ -114,16 +114,18 @@ def merge_layout(base_dict, merge_dict):
     if 'projects' in merge_dict:
         merge_project = [x['name'] for x in merge_dict['projects'] if 'name' in x]
     overlapped_list = set(ret_project) & set(merge_project)
-    for k, v in merge_dict.iteritems():
+
+    for k, v in merge_dict.iteritems():  # k: projects v: name:gnb
         if k in ret_dict:
             if k == 'projects' and overlapped_list:
                 to_merge = copy.copy(merge_dict[k])
                 to_ret = copy.copy(ret_dict[k])
+                to_append = []
                 for ol_project in overlapped_list:
                     to_merge_node = get_project_node(ol_project, to_merge)
                     to_ret_node = get_project_node(ol_project, to_ret)
                     ret_one_repo_node = copy.copy(to_ret_node)
-                    for key in ret_one_repo_node:
+                    for key in ret_one_repo_node:  # key: check gate
                         if key != 'name':
                             if key in to_merge_node:
                                 ret_one_repo_node[key] = merge_commented_seq(ret_one_repo_node[key], to_merge_node[key])
@@ -132,13 +134,13 @@ def merge_layout(base_dict, merge_dict):
                             ret_one_repo_node[key] = copy.copy(to_merge_node[key])
                     to_ret.remove(to_ret_node)
                     to_merge.remove(to_merge_node)
-                    ret_dict[k].append(ret_one_repo_node)
+                    to_append.append(ret_one_repo_node)
 
-                ret_dict[k] = merge_commented_seq(to_ret, to_merge)
+                ret_dict[k] = merge_commented_seq(to_ret, to_merge) + to_append
             else:
                 ret_dict[k] = merge_commented_seq(ret_dict[k], merge_dict[k])
         else:
-            ret_dict[k] = merge_dict[k]
+            ret_dict[k] = v
     return ret_dict
 
 
