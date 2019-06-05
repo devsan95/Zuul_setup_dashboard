@@ -47,19 +47,20 @@ def get_component_extend_data(component):
 
 def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    git_review_hash = rest.get_commit(change_id)['commit']
     msg = rest.get_commit(change_id)['message']
     change_list = rest.get_file_list(change_id).keys()
     ps_version = get_ps_version(msg)
     env_repo = '{}/MN/5G/COMMON/env'.format(repo_url)
     env_version = repo_ver
     component_list = get_component_list(change_list)
-    data = {'ps_version': ps_version, 'env_repo': env_repo, 'env_version': env_version, 'pipeline': pipeline, 'branch': branch}
+    data = {'PS_VERSION': ps_version, 'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_REVIEW_HASH': git_review_hash}
     for component in component_list:
-        print "[INFO] Triggering component {}...".format(component)
+        print "[INFO] Triggering component {} with {} integration ...".format(component, ps_version)
         component_extend_data = get_component_extend_data(component)
         data = dict(data.items() + component_extend_data.items())
         jenkins_remote_trigger(data)
-        print "[INFO] Triggered component {} successfully".format(component)
+        print "[INFO] Triggered component {} with {} integration successfully".format(component, ps_version)
 
 
 if __name__ == '__main__':
