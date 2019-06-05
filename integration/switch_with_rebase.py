@@ -336,7 +336,7 @@ def run(root_change, gerrit_info_path,
             database_info_path=database_info_path,
             issue_key=jira_ticket,
             integration_mode='HEAD' if base_package == 'HEAD' else 'FIXED_BASE',
-            fixed_build=None if base_package == 'HEAD' else base_package
+            fixed_build='' if base_package == 'HEAD' else base_package
 
         )
         skytrack_database_handler.update_events(
