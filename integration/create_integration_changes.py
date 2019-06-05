@@ -147,6 +147,7 @@ def check_graph_cycling(graph_obj):
 class IntegrationChangesCreation(object):
     def __init__(self, yaml_path, gerrit_path, zuul_user, zuul_key):
         self.change_info = None
+        self.base_load_list = None
         self.info_index = None
         self.meta = None
         self.structure = None
@@ -695,6 +696,22 @@ class IntegrationChangesCreation(object):
         path = os.path.join(job_tool.get_workspace(), 'result')
         job_tool.write_dict_to_properties(result_dict, path, False)
 
+    def get_base_commit_from_other(self, base_load, ric_com):
+        comp_ver = ''
+        for build in self.base_load_list:
+            module_ver = build
+            if module_ver == base_load:
+                continue
+            inte_repo = get_component_info.init_integration(module_ver)
+            try:
+                comp_ver = get_component_info.get_comp_hash(inte_repo, ric_com)
+            except Exception as e:
+                print e
+                print "[WARNING]Can't get base commit from {0}".format(module_ver)
+            if comp_ver:
+                return comp_ver
+        return comp_ver
+
     def parse_base_load(self, base_load):
         base_commits = {}
         inte_repo = get_component_info.init_integration(base_load)
@@ -722,17 +739,26 @@ class IntegrationChangesCreation(object):
             if 'type' in node and 'external' in node['type']:
                 if 'ric' in node and node['ric']:
                     for ric_com in node['ric']:
+                        com_ver = ''
                         try:
                             com_ver = get_component_info.get_comp_hash(inte_repo, ric_com)
-                            base_commits[ric_com] = com_ver
                             print("[Info] Base commit for component {} is {}".format(ric_com, com_ver))
                         except Exception as e:
                             print e
+                        if not com_ver:
+                            print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
+                            com_ver = self.get_base_commit_from_other(base_load, ric_com)
+                        if com_ver:
+                            base_commits[ric_com] = com_ver
+                        else:
                             print("[Warning] failed to find commit in base package, will use HEAD instead!")
-                    continue
+
             else:
                 if 'ric' in node and node['ric']:
                     com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
+                    if not com_ver:
+                        print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
+                        com_ver = self.get_base_commit_from_other(base_load, node['ric'][0])
                     base_commits[node['name']] = com_ver
                     print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
         if base_commits.values():
@@ -748,7 +774,6 @@ class IntegrationChangesCreation(object):
             if not base_load:
                 raise Exception('[Error] do integration on fixed mode but base_load not specified!')
             int_mode = '<without-zuul-rebase>'
-            stream = base_load.split('.')[0] + '.' + base_load.split('.')[1]
         else:
             int_mode = '<with-zuul-rebase>'
         for node in self.info_index['nodes'].values():
@@ -763,10 +788,11 @@ class IntegrationChangesCreation(object):
                     else:
                         self.info_index['nodes'][node['name']]['title_replace'] = '[none] [NOREBASE] {node[name]} {meta[version_name]} {meta[branch]}'
                 if 'type' in node and 'integration' in node['type'] and 'all' not in node['type']:
-                    if 'comments' in node:
-                        self.info_index['nodes'][node['name']]['comments'].append('update_base:{},{}'.format(stream, base_load))
-                    else:
-                        self.info_index['nodes'][node['name']]['comments'] = ['update_base:{},{}'.format(stream, base_load)]
+                    for build in self.base_load_list:
+                        if 'comments' in node:
+                            self.info_index['nodes'][node['name']]['comments'].append('update_base:{},{}'.format(build.rsplit('.', 1)[0], build))
+                        else:
+                            self.info_index['nodes'][node['name']]['comments'] = ['update_base:{},{}'.format(build.rsplit('.', 1)[0], build)]
                 if 'MN/SCMTA/zuul/inte_ric' in node['repo']:
                     if node['name'] in base_commits:
                         base_commit_info = base_commits[node['name']]
@@ -875,13 +901,13 @@ class IntegrationChangesCreation(object):
         base_commits = None
         if "Fixed_base" in integration_mode:
             if base_load:
-                base_load_list = [x for x in base_load.split(',') if x.strip()]
-                if base_load_list:
-                    base_load = wft_tools.get_newer_base_load(base_load_list)
+                self.base_load_list = [x for x in base_load.split(',') if x.strip()]
+                if self.base_load_list:
+                    base_load = wft_tools.get_newer_base_load(self.base_load_list)
                 else:
-                    base_load = wft_tools.get_latest_qt_load(self.meta['streams']).lstrip('5G_')
+                    base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
             else:
-                base_load = wft_tools.get_latest_qt_load(self.meta['streams']).lstrip('5G_')
+                base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
             base_commits = self.parse_base_load(base_load)
             if base_commits:
                 self.base_commits_info = base_commits

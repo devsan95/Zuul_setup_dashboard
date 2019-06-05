@@ -101,7 +101,7 @@ def get_latest_qt_load(stream_list):
         build_name, release_date = get_latest_qt_passed_build(stream)
         if not build_name:
             build_name, release_date = get_lasted_success_build(stream)
-        stream_build[release_date] = build_name
+        stream_build[release_date] = build_name.split('_')[-1]
     time_stamp = stream_build.keys()
     time_stamp.sort(reverse=True)
-    return stream_build[time_stamp[0]]
+    return stream_build[time_stamp[0]], stream_build.values()
