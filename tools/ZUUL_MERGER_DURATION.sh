@@ -46,15 +46,17 @@ function zuulmergerduration(){
 }
 for service in ${ZUULSERVICES}
 do
-    cd /tmp/
+#    cd /tmp/
+#    cd merger_duration_tmp/
     pwd
-    sudo docker cp ${service}:/ephemeral/log/zuul/merger-debug.log ${service}-merger-debug.log
+    sudo docker exec ${service} bash -c "cd /ephemeral/log/zuul;cp merger-debug.log merger-debug-tmp.log;chmod 777 merger-debug-tmp.log"
+    sudo docker cp ${service}:/ephemeral/log/zuul/merger-debug-tmp.log ${service}-merger-debug.log
     if [[ -s "${service}-merger-debug.log" ]];then
         zuulmergerduration
 #        scp -r ${server}-mergerdur.txt root@10.157.164.203:/root/workspace/ZUUL_MERGER_DURATION
-        sudo rm -f ${service}-merger-debug.log
+        rm -f ${service}-merger-debug.log
     else
-        sudo rm -f ${service}-merger-debug.log
+        rm -f ${service}-merger-debug.log
         echo "no container called ${service} in ${server}, skip to try next in ZUULSERVICES list."
     fi
 done
