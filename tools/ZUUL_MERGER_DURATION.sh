@@ -46,7 +46,7 @@ function zuulmergerduration(){
 }
 for service in ${ZUULSERVICES}
 do
-#    cd /tmp/
+    cd /tmp/
 #    cd merger_duration_tmp/
     pwd
     sudo docker exec ${service} bash -c "cd /ephemeral/log/zuul;cp merger-debug.log merger-debug-tmp.log;chmod 777 merger-debug-tmp.log"

@@ -41,13 +41,13 @@ done < localreftemp2.list
 # author:           richard.1.hu@nokia-sbell.com
 ##################################################################################
 function bad_pack_header_moniter(){
-grep -B 10 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | grep "MN/5G" | grep "ref" | awk '{print $2}' > allbadpackheadertime-${service}.txt
-local bph1=`grep -B 10 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | tail -10 | grep "MN/5G" | grep "ref" | awk '{print $2}'`
+grep -B 20 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | grep "MN/5G" | grep "ref" | awk '{print $2}' > allbadpackheadertime-${service}.txt
+local bph1=`grep -B 20 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | tail -20 | grep "MN/5G" | grep "ref" | awk '{print $2}'`
 local bph2=`grep -w "${bph1}" lastbadpackheadertime-${service}.txt`
 
 if [[ -s "allbadpackheadertime-${service}.txt" ]];then
     if [[ -n "${bph2}" ]];then
-        echo "no new bad pack header error in sec-zuul-merger for now."
+        echo "no new bad pack header error in ${service} for now."
     else
         if [[ -s "lastbadpackheadertime-${service}.txt" ]];then
             local bph3=`tail -1 lastbadpackheadertime-${service}.txt`
@@ -61,7 +61,7 @@ if [[ -s "allbadpackheadertime-${service}.txt" ]];then
                     echo "not a new bad pack header issue in ${service}."
                 else
                     echo "new bad pack header issue happening in ${service}, checking if cleanation is necessary."
-                    local issuerepo=`grep -B 10 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | grep "${line1}" | awk '{print $11}'`
+                    local issuerepo=`grep -B 20 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | grep "${line1}" | awk '{print $11}'`
                     awk -vRS="${bph1}" '{t=$0;}END{print "$bph1"t }' ${service}-merger-debug.log > ${service}-tmp1.log
                     if grep -q "${issuerepo}" ${service}-tmp1.log ;then
                         echo "gc already done by gerrit team."
@@ -76,7 +76,7 @@ if [[ -s "allbadpackheadertime-${service}.txt" ]];then
             echo "new bad pack header issue happening in ${service}, checking if cleanation is necessary."
             while read line2
             do
-                local issuerepo=`grep -B 10 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | grep "${line2}" | awk '{print $11}'`
+                local issuerepo=`grep -B 20 "fatal: protocol error: bad pack header" ${service}-merger-debug.log | grep "${line2}" | awk '{print $11}'`
                 awk -vRS="${bph1}" '{t=$0;}END{print "$bph1"t }' ${service}-merger-debug.log > ${service}-tmp1.log
                 if grep -q "${issuerepo}" ${service}-tmp1.log ;then
                     echo "gc already done by gerrit team."
@@ -106,8 +106,10 @@ rm -f ${service}-tmp1.log
 ##################################################################################
 for service in ${ZUULSERVICES}
 do
+    cd /tmp/
     pwd
-    sudo docker cp ${service}:/ephemeral/log/zuul/merger-debug.log ${service}-merger-debug.log
+    sudo docker exec ${service} bash -c "cd /ephemeral/log/zuul;cp merger-debug.log merger-debug-tmp.log;chmod 777 merger-debug-tmp.log"
+    sudo docker cp ${service}:/ephemeral/log/zuul/merger-debug-tmp.log ${service}-merger-debug.log
     if [[ -s "${service}-merger-debug.log" ]];then
         localref_prune
         bad_pack_header_moniter
