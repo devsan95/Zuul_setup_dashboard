@@ -25,6 +25,7 @@ from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
 from api import config
+from api.skytrack_log import skytrack_log
 from mod import get_component_info
 from mod import wft_tools
 from mod import integration_change as inte_change
@@ -829,6 +830,7 @@ class IntegrationChangesCreation(object):
                         self.gerrit_rest.change_commit_msg_to_edit(node['ticket_id'], new_msg)
                         self.gerrit_rest.publish_edit(node['ticket_id'])
 
+    @skytrack_log
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
             if_restore=False, integration_mode=None, base_load=None,
