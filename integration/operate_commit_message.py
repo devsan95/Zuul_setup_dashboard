@@ -21,6 +21,8 @@ class OperateCommitMessage(object):
         for change in self.all_changes:
             print('[Info] Going to update interface info for change: [{}]'.format(change))
             change_obj = inte_change.IntegrationChange(self.rest, change)
+            if comp_name in change_obj.get_components():
+                continue
             commit_msg_obj = inte_change.IntegrationCommitMessage(change_obj)
             commit_msg_obj.update_interface_info(bb_version, commit_ID, comp_name)
             try:
