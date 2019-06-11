@@ -67,7 +67,7 @@ class Gitlab_Tools(object):
             self.gitlab_client.create_branch(branch, ref=ref)
             mr = self.gitlab_client.create_mr(branch, title, targe_branch)
             print('MergeRequest Created: {}'.format(mr))
-            mr_id = mr['iid']
+            mr_id = str(mr).split('>')[0].split(':')[1]
         return mr_id
 
     def merge_mr(self, params):
