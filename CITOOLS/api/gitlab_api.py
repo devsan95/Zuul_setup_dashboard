@@ -55,8 +55,8 @@ class GitlabClient(object):
              'target_branch': target_branch,
              'title': title})
 
-    def get_mr(self, srch_dict, state='all', per_page=100, page=1):
-        mr_list = self.project.mergerequests.list(state=state, per_page=per_page, page=page)
+    def get_mr(self, srch_dict, iids=[], state='all', per_page=100, page=1):
+        mr_list = self.project.mergerequests.list(iids=iids, state=state, per_page=per_page, page=page)
         mr_rets = []
         for mr_obj in mr_list:
             matched = True
@@ -67,8 +67,8 @@ class GitlabClient(object):
                 mr_rets.append(mr_obj)
         return mr_rets
 
-    def merge_mr(self, srch_dict, state='opened', onlyone=True):
-        mr_rets = self.get_mr(srch_dict, state)
+    def merge_mr(self, srch_dict, iids, state='opened', onlyone=True):
+        mr_rets = self.get_mr(srch_dict, iids, state)
         if onlyone and len(mr_rets) > 1:
             print('Error: Find multi Merge Requests \
                    {}, please reset search dict'.format(mr_rets))

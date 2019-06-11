@@ -75,12 +75,16 @@ class Gitlab_Tools(object):
         self.chk_mandatory_params(params, mandatory_params)
         project = params['project']
         title = params['title']
+        iids = []
+        if 'mr_id' in params:
+            iids = [params['mr_id']]
         srch_dict = {'title': title}
+        print('mr_id is: {}'.format(iids))
         self.gitlab_client.set_project(project)
         try:
-            self.gitlab_client.merge_mr(srch_dict)
+            self.gitlab_client.merge_mr(srch_dict, iids=iids)
         except Exception as e:
-            if self.gitlab_client.get_mr(srch_dict, 'merged'):
+            if self.gitlab_client.get_mr(srch_dict, iids=iids, state='merged'):
                 print('Merge Request {} already merged!'.format(srch_dict))
             else:
                 print(e)
