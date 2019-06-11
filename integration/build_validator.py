@@ -62,7 +62,7 @@ def build_info_post():
     pass
 
 
-def run(gerrit_info_path, change_no):
+def validator(gerrit_info_path, change_no):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     inte_change = integration_change.ManageChange(rest, change_no)
     component_list = inte_change.get_all_components()
@@ -77,5 +77,11 @@ def run(gerrit_info_path, change_no):
     build_info_post()
 
 
+@skytrack_log.skytrack_log
+def build_trigger(gerrit_info_path, change_no):
+    rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    rest.review_ticket(change_no, 'reexperiment')
+
+
 if __name__ == '__main__':
-    fire.Fire(run)
+    fire.Fire()
