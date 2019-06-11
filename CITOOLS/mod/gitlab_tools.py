@@ -50,9 +50,6 @@ class Gitlab_Tools(object):
         if 'target_branch' in params:
             targe_branch = params['target_branch']
         self.gitlab_client.set_project(project)
-        mr_id = ''
-        if 'mr_id' in params:
-            mr_id = params['mr_id']
         page = 0
         while True:
             page += 1
@@ -60,15 +57,13 @@ class Gitlab_Tools(object):
             if mr_list or page == 5:
                 break
         if mr_list:
-            print('MergeRequest Already Exists: {}'.format(mr_list))
+            print('MergeRequest Already Exists: %s', mr_list)
             if brk_exists:
                 sys.exit(2)
         else:
             self.gitlab_client.create_branch(branch, ref=ref)
             mr = self.gitlab_client.create_mr(branch, title, targe_branch)
-            mr_id = str(mr).split('>')[0].split(':')[1]
-            print('MergeRequest Created: {}'.format(mr))
-        return mr_id
+            print('MergeRequest Created: %s', mr)
 
     def merge_mr(self, params):
         mandatory_params = ['title', 'project']
