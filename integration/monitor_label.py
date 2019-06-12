@@ -13,6 +13,7 @@ import urllib3
 import api.gerrit_api
 import api.gerrit_rest
 import gerrit_int_op
+from mod import integration_change as inte_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -235,8 +236,10 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
             item['status'] = _check_ticket_ok(ssh_server, ssh_port,
                                               ssh_user,
                                               ssh_key, item['ticket'], ticket_project)
+            change_obj = inte_change.IntegrationChange(rest, item['ticket'])
+            change_name = change_obj.get_change_name()
             if not item['status'] and item['attached']:
-                skytrack_log_collector.append('Change {} does not get Verified+1 or Code Review+1/+2 label'.format(item['ticket']))
+                skytrack_log_collector.append('Change {} {} does not get Verified+1 or Code Review+1/+2 label'.format(change_name, item['ticket']))
             print('Ticket {} pass status: {}'.format(
                 item['ticket'], item['status']))
     except Exception as ex:
