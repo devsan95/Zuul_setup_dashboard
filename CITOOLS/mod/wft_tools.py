@@ -63,6 +63,8 @@ def get_stream_name(version):
         sys.exit(1)
     build_list = json.loads(r.text.encode('utf-8'))
     for build in build_list['items']:
+        if "INT" in build['branch.title']:
+            continue
         stream = build['branch.title']
         break
     return stream
