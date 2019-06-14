@@ -188,4 +188,5 @@ def run(gerrit_info_path, change_id, dep_files,
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     fire.Fire()
