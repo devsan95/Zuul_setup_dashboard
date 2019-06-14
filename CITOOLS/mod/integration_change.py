@@ -230,7 +230,7 @@ class ManageChange(IntegrationChange):
         changed_files = self.rest.get_file_list(self.change_no)
         for change in changed_files:
             stream = streams_regex.match(change)
-            if stream and 'default' not in stream:
+            if stream and 'default' not in stream.group(1):
                 streams.append(stream.group(1))
         return streams
 
