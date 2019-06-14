@@ -28,14 +28,17 @@ from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
 from api import config
+from api import env_repo as get_env_repo
 from mod import get_component_info
 from mod import wft_tools
 from mod import integration_change as inte_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-auto_branch_repos = ['MN/SCMTA/zuul/inte_mn', 'MN/SCMTA/zuul/inte_ric', 'MN/SCMTA/zuul/inte_root', 'MN/5G/COMMON/env']
-env_repo = 'MN/5G/COMMON/env'
+auto_branch_repos = ['MN/SCMTA/zuul/inte_mn', 'MN/SCMTA/zuul/inte_ric',
+                     'MN/SCMTA/zuul/inte_root', 'MN/5G/COMMON/env',
+                     'MN/5G/COMMON/integration']
+env_repo = ['MN/5G/COMMON/env', 'MN/5G/COMMON/integration']
 
 CONF = config.ConfigTool()
 CONF.load('repo')
@@ -256,11 +259,13 @@ class IntegrationChangesCreation(object):
 
             # env change
             env_change = self.meta.get('env_change')
-            if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] == env_repo:
+            if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] in env_repo:
                 if env_change:
                     node_obj['env_change'] = env_change
-                    env_content = self.gerrit_rest.get_file_content('env-config.d/ENV', rest_id)
-                    node_obj['add_files'] = self.create_file_change_by_env_change(env_content, 'env-config.d/ENV')
+                    env_path = get_env_repo.get_env_repo_info(self.gerrit_rest, rest_id)[1]
+                    env_content = self.gerrit_rest.get_file_content(env_path, rest_id)
+                    node_obj['add_files'] = self.create_file_change_by_env_change(env_content,
+                                                                                  env_path)
 
         # restore
         copy_from_id = None
@@ -727,6 +732,9 @@ class IntegrationChangesCreation(object):
                     base_commits['env'] = com_ver
                     print("[Info] Base commit for env is: {}".format(com_ver))
                     continue
+            if 'MN/5G/COMMON/integration' in node['repo']:
+                base_commits['integration'] = base_load
+                continue
             if 'type' in node and 'integration' in node['type']:
                 continue
             if 'airphone' in node['repo']:

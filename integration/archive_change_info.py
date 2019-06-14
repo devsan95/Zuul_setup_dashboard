@@ -83,7 +83,13 @@ def run(info_path,
         # check if there are env
         pprint(changes_map)
         env_repo = 'MN/5G/COMMON/env'
+        int_repo = 'MN/5G/COMMON/integration'
         if env_repo in changes_map:
+            env_path = 'env-config.d/ENV'
+        if int_repo in changes_map:
+            env_path = 'env/env-config.d/ENV'
+
+        if env_repo in changes_map or int_repo in changes_map:
             print('{} is in the dependency'.format(env_repo))
             # get env
             temp = file_api.TempFolder('env_repo')
@@ -97,7 +103,7 @@ def run(info_path,
 
             # save env file
             content = None
-            with open(os.path.join(env_temp_path, 'env-config.d/ENV')) as f:
+            with open(os.path.join(env_temp_path, env_path)) as f:
                 content = f.read()
                 print(content)
             if content:

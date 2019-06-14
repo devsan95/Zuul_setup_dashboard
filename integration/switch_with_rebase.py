@@ -14,6 +14,7 @@ import skytrack_database_handler
 from api import config
 from api import gitlab_api
 from api import gerrit_rest
+from api import env_repo as get_env_repo
 from mod import wft_tools
 from mod import mailGenerator
 from mod import get_component_info
@@ -119,7 +120,7 @@ def rebase_by_load(rest, change_no, base_package,
             print('No component info for change: {}'.format(comp_change))
             continue
         comp_name = comp_names[0]
-        if 'env' in comp_names:
+        if 'env' in comp_names or 'integration' in comp_names:
             comp_name = 'env'
         project = comp_change_obj.get_project()
         branch = comp_change_obj.get_branch()
@@ -129,8 +130,11 @@ def rebase_by_load(rest, change_no, base_package,
         if base_package != 'HEAD':
             comp_hash = ''
             try:
-                comp_hash = get_component_info.get_comp_hash(
-                    base_int_obj, comp_name)
+                if 'integration' in comp_names:
+                    comp_hash = base_package
+                else:
+                    comp_hash = get_component_info.get_comp_hash(
+                        base_int_obj, comp_name)
             except Exception:
                 print('Cannot get hash for {}'.format(comp_name))
                 print('Try get hash from {}'.format(extra_bases))
@@ -171,9 +175,10 @@ def rebase_by_load(rest, change_no, base_package,
                 traceback.print_exc()
                 # if is env:
                 if comp_name == 'env':
+                    env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
                     try:
                         clear_and_rebase_file(rest, change_no,
-                                              'env-config.d/ENV', comp_hash)
+                                              env_path, comp_hash)
                         rebase_succeed['env {}'.format(change_no)] = comp_hash
                     except Exception:
                         traceback.print_exc()
@@ -263,7 +268,8 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
             raise Exception(str(e))
         # add new env
         print('add new env for change {}'.format(change_no))
-        base_env = rest.get_file_content('env-config.d/ENV', change_no)
+        env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
+        base_env = rest.get_file_content(env_path, change_no)
         change_map = create_file_change_by_env_change(
             env_change_list,
             base_env,

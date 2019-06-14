@@ -10,6 +10,7 @@ from functools import partial
 import skytrack_database_handler
 from api import retry
 from api import gerrit_rest, jira_api
+from api import env_repo as get_env_repo
 from mod import common_regex
 from mod.integration_change import RootChange
 from difflib import SequenceMatcher
@@ -115,13 +116,7 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     root_msg = get_commit_msg(change_no, rest)
     auto_rebase = False if re.findall(r'<without-zuul-rebase>', root_msg) else True
 
-    env_path = 'env/env-config.d/ENV'
-    try:
-        rest.get_file_content(env_path, change_no)
-    except Exception as e:
-        print('env file not in integration repo, reason:')
-        print(str(e))
-        env_path = 'env-config.d/ENV'
+    env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
 
     # 1 try rebase env change (if fail then pass)
     if auto_rebase and not env_change:

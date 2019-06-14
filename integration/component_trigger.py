@@ -6,6 +6,7 @@ import re
 import sys
 import requests
 from api import gerrit_rest
+from api import env_repo as get_env_repo
 
 
 def get_ps_version(msg):
@@ -57,7 +58,17 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     msg = rest.get_commit(change_id)['message']
     change_list = rest.get_file_list(change_id).keys()
     ps_version = get_ps_version(msg)
-    env_repo = '{}/MN/5G/COMMON/env'.format(repo_url)
+
+    int_change_obj = change_id.IntegrationChange(rest, change_id)
+    depends_comps = int_change_obj.get_depends()
+    for depends_comp in depends_comps:
+        print('depends_comp: {}'.format(depends_comp))
+        if depends_comp[2] == 'root':
+            root_change_no = depends_comp[1]
+
+    env_repo_info = get_env_repo.get_env_repo_info(rest, root_change_no)[0]
+
+    env_repo = '{}/{}'.format(repo_url, env_repo_info)
     env_version = repo_ver
     component_list = get_component_list(change_list)
     data = {'PS_VERSION': ps_version, 'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_HASH_REVIEW': git_hash_review}
