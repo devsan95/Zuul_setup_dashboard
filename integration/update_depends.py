@@ -94,15 +94,22 @@ def replace_depdends_file(rest, change_id, file_path, component, version,
     int_change_obj = IntegrationChange(rest, change_id)
     ticket_comps = int_change_obj.get_components()
     comps_for_interfaces = get_comp_obj(component, comp_config)
+    if component not in comps_for_interfaces.values():
+        logging.warn(
+            '%s not in %s', component, comps_for_interfaces)
+        return
+    in_dep_file_comps = False
     for t_comp in ticket_comps:
-        if t_comp not in comps_for_interfaces.values():
-            logging.warn(
-                'Not in %s or %s', comps_for_interfaces, dep_file_comps)
-            return
         if dep_file_comps and t_comp not in dep_file_comps:
             logging.warn(
-                'Not in %s or %s', comps_for_interfaces, dep_file_comps)
-            return
+                '%s not in %s', t_comp, dep_file_comps)
+            continue
+        else:
+            in_dep_file_comps = True
+    if not in_dep_file_comps:
+        logging.warn(
+            'ticket comp not in %s', dep_file_comps)
+        return
     # get file content from change_id
     try:
         recipe_content = rest.get_file_content(file_path, change_id)
