@@ -70,6 +70,7 @@ def update_depends(rest, change_id, dep_file_list,
                 dep_file_comps = dep_str_list[1].strip().split(',')
                 dep_file_comps.append('gnb')
             for comp_change in comp_change_list:
+                logging.info('Try to update %s, %s', comp_change, dep_file)
                 replace_depdends_file(rest, comp_change,
                                       dep_file, component, comp_version,
                                       comp_config, dep_file_comps)
