@@ -114,6 +114,15 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root_msg = get_commit_msg(change_no, rest)
     auto_rebase = False if re.findall(r'<without-zuul-rebase>', root_msg) else True
+
+    env_path = 'env/env-config.d/ENV'
+    try:
+        rest.get_file_content(env_path, change_no)
+    except Exception as e:
+        print('env file not in integration repo, reason:')
+        print(str(e))
+        env_path = 'env-config.d/ENV'
+
     # 1 try rebase env change (if fail then pass)
     if auto_rebase and not env_change:
         print('rebase the change {}'.format(change_no))
@@ -151,11 +160,11 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
                 raise Exception(str(e))
         # add new env
         print('add new env for change {}'.format(change_no))
-        old_env = rest.get_file_content('env-config.d/ENV', change_no)
+        old_env = rest.get_file_content(env_path, change_no)
         change_map = create_file_change_by_env_change(
             env_change_list,
             old_env,
-            'env-config.d/ENV')
+            env_path)
 
         # replace commit message
         op = RootChange(rest, change_no)
