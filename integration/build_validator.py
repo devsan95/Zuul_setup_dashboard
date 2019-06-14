@@ -59,17 +59,28 @@ def head_mode_validator(rest, components):
 
 
 def build_info_post():
-    pass
+    skytrack_log.skytrack_output(
+        [
+            "Build Pre-check Failed",
+            "More information will be added in future",
+            "You can click confirm button to continue"
+        ]
+    )
 
 
 def validator(gerrit_info_path, change_no):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     inte_change = integration_change.ManageChange(rest, change_no)
     component_list = inte_change.get_all_components()
+    messages = list()
     if inte_change.get_with_without() == '<without-zuul-rebase>':
         messages = fixed_base_validator(rest, component_list)
     else:
         messages = head_mode_validator(rest, component_list)
+    if not inte_change.get_build_streams():
+        messages.append('Build Pre-check Failed')
+        messages.append('No integration streams configured')
+        messages.append('You can add streams via: http://wrlinb147.emea.nsn-net.net:9090/view/008_Integration/job/integration_framework.UPDATE_KNIFE_STREAM/')
     if len(messages) > 1:
         skytrack_log.skytrack_output(messages)
         sys.exit(1)
