@@ -110,6 +110,8 @@ def replace_depdends_file(rest, change_id, file_path, component, version,
         logging.warn('Not able to find file %s in %s', file_path, change_id)
         logging.warn(str(e))
         return
+    logging.info('Update depend file for %s: %s', change_id, file_path)
+    logging.info('Update dependence info: %s, %s', component, version)
     new_recipe_content = replace_depdends_content(recipe_content,
                                                   component, version)
     if new_recipe_content != recipe_content:
