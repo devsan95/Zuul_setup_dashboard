@@ -68,7 +68,6 @@ def update_depends(rest, change_id, dep_file_list,
             dep_file_comps = []
             if len(dep_str_list) > 1:
                 dep_file_comps = dep_str_list[1].strip().split(',')
-                dep_file_comps.append('gnb')
             for comp_change in comp_change_list:
                 logging.info('Try to update %s, %s', comp_change, dep_file)
                 replace_depdends_file(rest, comp_change,
@@ -96,7 +95,7 @@ def replace_depdends_file(rest, change_id, file_path, component, version,
     ticket_comps = int_change_obj.get_components()
     comps_for_interfaces = get_comp_obj(component, comp_config)
     for t_comp in ticket_comps:
-        if t_comp not in comps_for_interfaces:
+        if t_comp not in comps_for_interfaces.values():
             logging.warn(
                 'Not in %s or %s', comps_for_interfaces, dep_file_comps)
             return
