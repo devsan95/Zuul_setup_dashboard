@@ -61,7 +61,7 @@ def head_mode_validator(rest, components):
 def build_info_post():
     skytrack_log.skytrack_output(
         [
-            "Build Pre-check Failed",
+            "Build Pre-check PASSED",
             "More information will be added in future",
             "You can click confirm button to continue"
         ]
