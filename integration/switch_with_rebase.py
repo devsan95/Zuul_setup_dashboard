@@ -190,16 +190,19 @@ def rebase_by_load(rest, change_no, base_package,
     if base_package == 'HEAD':
         mail_params['mode'] = 'HEAD'
     send_rebase_results(mail_list, mail_params, rebase_succeed, rebase_failed)
+    rebase_out_msg = 'integration framework web output start'
     if rebase_succeed:
         for comp, ver in rebase_succeed.items():
-            print('### Rebase {} to {} Succeed ###'.format(comp, ver))
-        return True
+            rebase_out_msg += '\n### Rebase {} to {} Succeed ###'.format(comp, ver)
     if rebase_failed:
         for comp, ver in rebase_failed.items():
-            print('*** Rebase {} to {} Failed ***'.format(comp, ver))
+            rebase_out_msg += '\n*** Rebase {} to {} Failed ***'.format(comp, ver)
         print('Not able to rebase all components: {}'.format(rebase_failed))
+    rebase_out_msg += '\nintegration framework web output end'
+    print(rebase_out_msg)
+    if rebase_failed:
         return False
-    return None
+    return True
 
 
 def clear_and_rebase_file(rest, change_no, file_path, env_hash):
