@@ -10,7 +10,10 @@ INTEGRTION_URL = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 
 
 def init_integration(base_pkg):
-    int_repo = integration_repo.INTEGRATION_REPO(INTEGRTION_URL, base_pkg)
+    integration_dir = os.path.join(
+        os.getcwd(), 'Integration_{}'.format(base_pkg))
+    int_repo = integration_repo.INTEGRATION_REPO(
+        INTEGRTION_URL, base_pkg, work_dir=integration_dir)
     int_repo.get_dep_files()
     int_repo.gen_dep_all()
     return int_repo
