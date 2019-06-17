@@ -201,7 +201,6 @@ class IntegrationRefs(ModelBase):
 
     id = sa.Column(sa.Integer, primary_key=True)
     zuul_ref = sa.Column(sa.String(255), nullable=True)
-    commit_id = sa.Column(sa.String(255), nullable=True)
     project = sa.Column(sa.String(255), nullable=True)
     zuul_url = sa.Column(sa.String(255), nullable=True)
     date = sa.Column(sa.String(255), nullable=True)
