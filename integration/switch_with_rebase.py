@@ -14,6 +14,7 @@ import skytrack_database_handler
 from api import config
 from api import gitlab_api
 from api import gerrit_rest
+from mod import wft_tools
 from mod import mailGenerator
 from mod import get_component_info
 from update_with_zuul_rebase import update_with_rebase_info
@@ -97,7 +98,7 @@ def update_base_commit(rest, comp_change, comp_change_obj, comp_hash):
 
 
 def rebase_by_load(rest, change_no, base_package,
-                   gitlab_info_path='', mail_list=None):
+                   gitlab_info_path='', mail_list=None, extra_bases=[]):
     op = RootChange(rest, change_no)
     comp_change_list, int_change = op.get_components_changes_by_comments()
     int_change_obj = IntegrationChange(rest, int_change)
@@ -109,6 +110,7 @@ def rebase_by_load(rest, change_no, base_package,
     rebase_failed = {}
     rebase_succeed = {}
     comp_change_list.append(change_no)
+    extra_base_repos = {}
     for comp_change in comp_change_list:
         print('Find component info for change: {}'.format(comp_change))
         comp_change_obj = IntegrationChange(rest, comp_change)
@@ -124,14 +126,31 @@ def rebase_by_load(rest, change_no, base_package,
         comp_name_with_change = '{} {}'.format(comp_name, comp_change)
         comp_hash = 'HEAD'
         if base_package != 'HEAD':
+            comp_hash = ''
             try:
                 comp_hash = get_component_info.get_comp_hash(
                     base_int_obj, comp_name)
             except Exception:
                 print('Cannot get hash for {}'.format(comp_name))
-                traceback.print_exc()
-                rebase_failed[comp_name_with_change] = 'NONE'
-                continue
+                print('Try get hash from {}'.format(extra_bases))
+                for extra_base in extra_bases:
+                    if extra_base not in extra_base_repos:
+                        extra_base_repos[extra_base] = get_component_info.init_integration(extra_base)
+                    try:
+                        comp_hash = get_component_info.get_comp_hash(
+                            extra_base_repos[extra_base], comp_name)
+                    except Exception:
+                        print('Exception when get hash from {}'.format(extra_base))
+                        continue
+                    if not comp_hash:
+                        print('Not get hash from {}'.format(extra_base))
+                        continue
+                    else:
+                        print('Get hash from {}'.format(extra_base))
+                        break
+                if not comp_hash:
+                    rebase_failed[comp_name_with_change] = 'NONE'
+                    continue
         parent_hash = rest.get_parent(comp_change)
         print('Parent for [{}] now is [{}]'.format(comp_change, parent_hash))
         print('need to rebase to [{}]'.format(comp_hash))
@@ -181,6 +200,8 @@ def rebase_by_load(rest, change_no, base_package,
                 except Exception:
                     traceback.print_exc()
                     rebase_failed[comp_name_with_change] = comp_hash
+            else:
+                rebase_succeed[comp_name_with_change] = comp_hash
     rest.review_ticket(
         change_no,
         'Rebase tickets to {}, results:\nSucceed: {}\nFailed: {}'.format(
@@ -279,12 +300,24 @@ def switch_with_rebase_mod(root_change, rest,
                                        gitlab_info_path=gitlab_info_path, mail_list=mail_list)
     else:
         update_with_rebase_info(rest, root_change, 'without-zuul-rebase')
-        ver_partten = '.'.join(base_package.split('.')[0:2])
-        rest.review_ticket(
-            int_change,
-            'update_base:{},{}'.format(ver_partten, base_package))
+        # get last package if multi pacakges
+        base_list = base_package.split(',')
+        for base_pkg_name in base_list:
+            ver_partten = '.'.join(base_pkg_name.split('.')[0:2])
+            rest.review_ticket(
+                int_change,
+                'update_base:{},{}'.format(ver_partten, base_pkg_name))
+        extra_bases = []
+        print('Base_package is {}'.format(base_package))
+        if ',' in base_package:
+            base_package = wft_tools.get_newer_base_load(base_list)
+            print('Last base_package is {}'.format(base_package))
+            base_list.remove(base_package)
+            extra_bases = base_list
         rebase_result = rebase_by_load(rest, root_change, base_package,
-                                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
+                                       gitlab_info_path=gitlab_info_path,
+                                       mail_list=mail_list,
+                                       extra_bases=extra_bases)
     return rebase_result
 
 
