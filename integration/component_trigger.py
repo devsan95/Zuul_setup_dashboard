@@ -17,13 +17,14 @@ def get_ps_version(msg):
 
 
 def jenkins_remote_trigger(data):
+    proxies = {"http": "", "https": ""}
     try:
         jenkins_url = data.pop('jenkins_url')
         job_name = data.pop('job_name')
     except Exception:
         print "jenkins_url or job_name is not provided!"
     url = '{}/job/{}/buildWithParameters'.format(jenkins_url, job_name)
-    res = requests.post(url, data)
+    res = requests.post(url, data, proxies=proxies)
     print(res.content)
     return res.ok
 
