@@ -48,11 +48,12 @@ def _parse_args():
     return vars(args)
 
 
-def _if_checklist_all_pass(checklist):
+def _if_checklist_all_pass(checklist, skytrack_log_collector):
     print('\nCheck if all changes are passed...')
     for item in checklist:
         if not item['status'] and item['attached']:
             print('Change {} does not meet the requirement.'.format(item['ticket']))
+            skytrack_log_collector.append('Change {} does not meet the requirement.'.format(item['ticket']))
             return False
     return True
 
@@ -247,7 +248,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     sys.stdout.flush()
     sys.stderr.flush()
 
-    if _if_checklist_all_pass(pass_list):
+    if _if_checklist_all_pass(pass_list, skytrack_log_collector):
         print('All component changes match the verified+1 and code review+1/+2 requirement.')
     else:
         print('please check the tickets listed above, make sure the requirement achieved, then retry')

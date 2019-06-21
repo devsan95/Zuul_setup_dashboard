@@ -141,7 +141,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     comp_found = False
     comp_dict = parse_hierarchy(comp_config['hierarchy'])
     for component in comp_config['components']:
-        if comp_name not in component['name']:
+        if not comp_name == component['name']:
             continue
         comp_found = True
         if 'ric' in component and component['ric']:
@@ -155,7 +155,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
         break
     if not comp_found:
         if comp_name in comp_dict:
-            comp['ric'] = comp_dict['comp_name']
+            comp['ric'] = comp_dict[comp_name]
             for component in comp_config['components']:
                 if comp['ric'][0] not in component['name']:
                     continue
