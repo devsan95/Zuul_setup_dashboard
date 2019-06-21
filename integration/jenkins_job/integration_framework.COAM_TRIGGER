@@ -1,12 +1,13 @@
-cd ${WORKSPACE}/mn_scripts/
+source ${WORKSPACE}/mn_scripts/pyenv.sh
+set +e
+unset https_proxy
+unset http_proxy
 
 JENKINS_URL="http://lteomci.inside.nsn.com:10101/trunk"
 COAM_JOB_NAME="5G+integration.POLLING"
 TOKEN="coamintegration12345"
 
-source pyenv.sh
-set +e
-python CITOOLS/mod/jenkins_job_trigger.py --jenkins_url "${JENKINS_URL}" \
+python ${WORKSPACE}/mn_scripts/CITOOLS/mod/jenkins_job_trigger.py --jenkins_url "${JENKINS_URL}" \
                                           --job_name "${COAM_JOB_NAME}" \
                                           --data ZUUL_CHANGE_IDS="${ZUUL_CHANGE_IDS}" \
                                              """ZUUL_PATCHSET=${ZUUL_PATCHSET}""" \
