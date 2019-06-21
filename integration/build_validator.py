@@ -44,8 +44,13 @@ def head_mode_validator(rest, components):
     print(messages[0])
     print('Start to check components mergeable status')
     merge_conficts = list()
+    closed = dict()
     for component in components:
         if component[2] in merge_conficts:
+            continue
+        change_info = rest.get_change(component[2])
+        if change_info['status'] in ['ABANDONED', 'MERGED']:
+            closed[component[2]] = change_info['status']
             continue
         if not rest.get_change(component[2])['mergeable']:
             merge_conficts.append(component[2])
@@ -55,10 +60,18 @@ def head_mode_validator(rest, components):
         messages.append('Below changes have merge conflicts need to be solved by developers')
     for change in merge_conficts:
         messages.append(gerrit_url.format(change=change))
-    return messages
+    return messages, closed
 
 
-def build_info_post():
+def build_info_post(closed_changes):
+    message = list()
+    if closed_changes:
+        message.append("Build Pre-check Succeed")
+        message.append("But below changes are closed, are you sure to continue?")
+        for change in closed_changes:
+            message.append('https://gerrit.ext.net.nokia.com/gerrit/#/c/{change}/'.format(
+                change=change
+            ))
     skytrack_log.skytrack_output(
         [
             "Build Pre-check PASSED",
@@ -73,10 +86,11 @@ def validator(gerrit_info_path, change_no):
     inte_change = integration_change.ManageChange(rest, change_no)
     component_list = inte_change.get_all_components()
     messages = list()
+    closed_dict = dict()
     if inte_change.get_with_without() == '<without-zuul-rebase>':
         messages = fixed_base_validator(rest, component_list)
     else:
-        messages = head_mode_validator(rest, component_list)
+        messages, closed_dict = head_mode_validator(rest, component_list)
     if not inte_change.get_build_streams():
         messages.append('Build Pre-check Failed')
         messages.append('No integration streams configured')
@@ -85,7 +99,7 @@ def validator(gerrit_info_path, change_no):
         skytrack_log.skytrack_output(messages)
         sys.exit(1)
     print('Build Pre-check Succeed')
-    build_info_post()
+    build_info_post(closed_dict)
 
 
 @skytrack_log.skytrack_log
