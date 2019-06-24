@@ -704,7 +704,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     rewrite_knife_json(knife_path, gnb_list_path)
 
     # store zuul_ref in zuul database
-    save_data_in_zuul_db(knife_path, db_info_path)
+    if zuul_ref:
+        save_data_in_zuul_db(knife_path, db_info_path)
 
 
 if __name__ == '__main__':
