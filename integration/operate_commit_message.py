@@ -21,8 +21,13 @@ class OperateCommitMessage(object):
         for change in self.all_changes:
             print('[Info] Going to update interface info for change: [{}]'.format(change))
             change_obj = inte_change.IntegrationChange(self.rest, change)
-            if comp_name in change_obj.get_components():
-                continue
+            for change_comp in change_obj.get_components():
+                if comp_name == change_comp:
+                    print('[Info] Skip  self ticket {}'.format(change))
+                    continue
+                if change_comp.startswith('interfaces'):
+                    print('[Info] Skip  interfaces ticket {}'.format(change))
+                    continue
             commit_msg_obj = inte_change.IntegrationCommitMessage(change_obj)
             commit_msg_obj.update_interface_info(bb_version, commit_ID, comp_name)
             try:
