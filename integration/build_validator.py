@@ -9,6 +9,7 @@ import update_oam_commit
 import generate_bb_json
 from api import gerrit_rest
 from api import skytrack_log
+from mod import wft_tools
 from mod import integration_change
 
 
@@ -81,14 +82,24 @@ def get_component_change_info(ex_dict, component):
     return None
 
 
-def get_build_content(knife_json_path, base_info_path, ex_dict, compare=True):
+def get_build_content(knife_json_path, base_info_path, ex_dict, build_streams,
+                      integration_mode, compare=True):
     with open(knife_json_path, 'r') as knife_json:
         build_info_dict = json.load(knife_json)
     with open(base_info_path, 'r') as base_info:
         base_build_dict = json.load(base_info)
     messages = ['Integration Build Will Be Based On Bellow Base Load:']
-    for stream, base_build in base_build_dict.items():
-        messages.append('Stream: {0} Base_build: {1}'.format(stream, base_build))
+    for stream in build_streams:
+        if stream in base_build_dict:
+            messages.append('Stream: {0} Base_build: {1}'.format(stream, base_build_dict[stream]))
+        else:
+            base_load = wft_tools.get_latest_qt_passed_build(
+                wft_tools.get_stream_name(stream)
+            )[0].split('5G_')[-1] if integration_mode == 'FIXED_BASE' \
+                else wft_tools.get_lasted_success_build(
+                wft_tools.get_stream_name(stream)
+            )[0].split('5G_')[-1]
+            messages.append('Stream: {0} Base_build: {1}'.format(stream, base_load))
     messages.append('Integration Build Content:')
     handled_component = list()
     if compare:
@@ -113,7 +124,7 @@ def get_build_content(knife_json_path, base_info_path, ex_dict, compare=True):
 
 
 def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_path,
-                          gnb_list_path, db_info_path, compare=False):
+                          gnb_list_path, db_info_path, build_streams, integration_mode, compare=False):
     print('Update MZOAM commit info')
     update_oam_commit.run(
         zuul_changes='',
@@ -143,12 +154,13 @@ def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_
     knife_config = generate_bb_json.parse_config(rest, change_id)
     ric_dict, ex_dict = generate_bb_json.parse_ric_list(
         rest, description, zuul_url='', zuul_ref='', project_branch={}, config=knife_config)
-    messages = get_build_content(knife_path, base_path, ex_dict, compare=compare)
+    messages = get_build_content(knife_path, base_path, ex_dict, build_streams,
+                                 integration_mode, compare=compare)
     return messages
 
 
 def build_info_post(change_id, gerrit_info_path, gitlab_info_path, output_path,
-                    db_info_path, compare=False, closed_changes=None):
+                    db_info_path, build_streams, integration_mode, compare=False, closed_changes=None):
     message = list()
     if closed_changes:
         message.append("Build Pre-check Succeed")
@@ -165,6 +177,8 @@ def build_info_post(change_id, gerrit_info_path, gitlab_info_path, output_path,
             output_path=output_path,
             gnb_list_path='',
             db_info_path=db_info_path,
+            build_streams=build_streams,
+            integration_mode=integration_mode,
             compare=compare
         ))
     except Exception:
@@ -186,10 +200,13 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     component_list = inte_change.get_all_components()
     closed_dict = dict()
     if inte_change.get_with_without() == '<without-zuul-rebase>':
+        integration_mode = 'FIXED_BASE'
         messages = fixed_base_validator(rest, component_list)
     else:
+        integration_mode = 'HEAD'
         messages, closed_dict = head_mode_validator(rest, component_list)
-    if not inte_change.get_build_streams():
+    build_streams = inte_change.get_build_streams()
+    if not build_streams:
         messages.append('Build Pre-check Failed')
         messages.append('No integration streams configured')
         messages.append('You can add streams via: http://wrlinb147.emea.nsn-net.net:9090/view/008_Integration/job/integration_framework.UPDATE_KNIFE_STREAM/')
@@ -203,6 +220,8 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
         gitlab_info_path=gitlab_info_path,
         output_path=output_path,
         db_info_path=db_info_path,
+        build_streams=build_streams,
+        integration_mode=integration_mode,
         closed_changes=closed_dict,
         compare=compare
     )
