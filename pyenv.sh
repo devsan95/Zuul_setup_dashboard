@@ -1,5 +1,47 @@
 #! /bin/bash
 
+run() {
+    # It's nice to be able to print some commands without
+    # enabling XTRACE for all the things.
+    echo "Executing: $*"
+    "$@"
+}
+
+run_try_n() {
+    # arguments: <tries> <delay> <command words>
+    # try at most <tries> times to execute a command
+    # with the delay of <secs> seconds between tries
+    if [[ $# -lt 3 ]]; then
+        die "${FUNCNAME}: missing parameters"
+    fi
+
+    local tries="$1"
+    shift
+    local delay="$1"
+    shift
+
+    if [[ ${tries} -lt 1 ]]; then
+        die "${FUNCNAME}: tries ${tries} is invalid"
+    fi
+
+    local i=1
+    while true; do
+        if run "$@"; then
+            break
+        fi
+
+        if [[ "${i}" -ge "${tries}" ]]; then
+            ewarn "command failed, no more tries left"
+            return 1
+        else
+            ewarn "command failed, trying again (current try: ${i})"
+            run sleep "${delay}"
+            ((i++))
+        fi
+    done
+}
+
+
 # Determine the directory containing this script
 if [[ -n $BASH_VERSION ]]; then
     _SCRIPT_LOCATION=${BASH_SOURCE[0]}
@@ -91,6 +133,7 @@ fi
 export http_proxy=http://10.158.100.1:8080
 export https_proxy=http://10.158.100.1:8080
 
+prepare_python_env(){
 if [ ! -e "$VENV_PATH"/envs/python2/bin/python ];
 then
   cd "$VENV_PATH"
@@ -123,5 +166,7 @@ pip install -U git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
 pip install -U git+https://gerrite1.ext.net.nokia.com:443/scm_tools
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
 cd "$OLD_PATH"
+}
 
+run_try_n 3 10 prepare_python_env
 echo "Python Virtualenv init finished. "
