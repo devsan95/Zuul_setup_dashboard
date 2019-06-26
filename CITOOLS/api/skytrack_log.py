@@ -1,3 +1,6 @@
+import traceback
+
+
 def skytrack_log(function):
     """
     Decorator raise exception to skytrack
@@ -6,9 +9,10 @@ def skytrack_log(function):
         try:
             return function(*args, **kwargs)
         except Exception as e:
-            print('integration framework web output start')
-            print(e)
-            print('integration framework web output end')
+            traceback_log = traceback.format_exc()
+            print('[SKYTRACK] integration framework web output start')
+            print traceback_log
+            print('[SKYTRACK] integration framework web output end')
             exception = e
             raise exception
     return wrapper

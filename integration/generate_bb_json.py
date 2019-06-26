@@ -701,7 +701,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     save_json_file(reviews_path, list(set(mail_list)))
 
     # add all gnb components
-    rewrite_knife_json(knife_path, gnb_list_path)
+    if gnb_list_path:
+        rewrite_knife_json(knife_path, gnb_list_path)
 
     # store zuul_ref in zuul database
     if zuul_ref:
