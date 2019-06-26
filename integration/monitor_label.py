@@ -248,15 +248,19 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     sys.stdout.flush()
     sys.stderr.flush()
 
+    check_result = True
     if _if_checklist_all_pass(pass_list, skytrack_log_collector):
         print('All component changes match the verified+1 and code review+1/+2 requirement.')
+        skytrack_log_collector.append('Validation succeed! Ready to merge to production now.')
     else:
         print('please check the tickets listed above, make sure the requirement achieved, then retry')
-        if len(skytrack_log_collector) > 0:
-            print('integration framework web output start')
-            for log in skytrack_log_collector:
-                print(log)
-            print('integration framework web output end')
+        check_result = False
+    if len(skytrack_log_collector) > 0:
+        print('integration framework web output start')
+        for log in skytrack_log_collector:
+            print(log)
+        print('integration framework web output end')
+    if not check_result:
         sys.exit(1)
 
 
