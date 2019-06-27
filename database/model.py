@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.mysql import DATETIME, TINYINT
 
+
 ModelBase = declarative_base()
 
 
@@ -221,3 +222,4 @@ class IntegrationRefs(ModelBase):
     project = sa.Column(sa.String(255), nullable=True)
     zuul_url = sa.Column(sa.String(255), nullable=True)
     date = sa.Column(sa.String(255), nullable=True)
+    enable = sa.Column(sa.Integer, nullable=True)
