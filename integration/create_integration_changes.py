@@ -1003,7 +1003,7 @@ class IntegrationChangesCreation(object):
                 database_info_path=mysql_info,
                 issue_key=self.meta["jira_key"],
                 integration_mode=integration_mode,
-                fixed_build=base_load,
+                fixed_build=','.join(self.base_load_list),
             )
             skytrack_database_handler.update_events(
                 database_info_path=mysql_info,
