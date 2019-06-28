@@ -27,7 +27,7 @@ def parse_root_change(rest, root_change):
     return root
 
 
-def generate_commit_message(comp, root):
+def generate_commit_message(comp, root, base_commit):
     msg_list = []
     if 'MN/5G/NB/gnb' in comp['repo']:
         msg_list.append('[none] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
@@ -41,6 +41,8 @@ def generate_commit_message(comp, root):
     msg_list.append('---')
     msg_list.append('Apply adaption using format, update_bb:COMPONENT_NAME,REPO_URL,REPO_VER')
     msg_list.append('{}'.format(root['zuul_rebase']))
+    if base_commit:
+        msg_list.append('base_commit:{}'.format(base_commit))
     msg_list.append('---')
     msg_list.append('\n')
     msg_list.append('This change contains following component(s):')
@@ -54,7 +56,7 @@ def generate_commit_message(comp, root):
 
 
 def create_comp_change(rest, comp, base_commit, root):
-    commit_message = generate_commit_message(comp, root)
+    commit_message = generate_commit_message(comp, root, base_commit)
     change_id, ticket_id, rest_id = rest.create_ticket(
         comp['repo'], None, root['branch'], commit_message, base_change=base_commit
     )
