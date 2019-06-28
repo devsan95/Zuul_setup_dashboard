@@ -41,7 +41,7 @@ def get_component_list(change_list):
 
 def get_component_extend_data(component):
     component_info = {
-        'sma-lite': {'jenkins_url': 'http://10.66.13.21:8080/jenkins/', 'job_name': 'ASI_SMA_Trunk_5G_PS_REL_Trigger', 'token': '123456'},
+        'sma-lite': {'jenkins_url': 'http://10.66.13.21:8080/jenkins/', 'job_name': 'ASI_SMA_5G_PS_REL_Trigger', 'token': '123456'},
         'scoam-asi-controller': {'jenkins_url': 'http://krak150.emea.nsn-net.net:8080/', 'job_name': 'ASIR_CPI_Trigger', 'token': 'BNM732V5K6J3J4OP43'}
     }
     try:
