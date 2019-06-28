@@ -6,6 +6,8 @@ import fire
 import ruamel.yaml as yaml
 import urllib3
 import re
+from slugify import slugify
+from datetime import datetime
 from api import gerrit_rest
 from mod import integration_change as inte_change
 from mod import get_component_info
@@ -94,7 +96,10 @@ def get_base_commit(rest, comp, root):
             commit_hash = commit_info['revision']
         else:
             inte_repo = get_component_info.init_integration(base_load)
-            commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'])
+            if isinstance(comp['ric'], str):
+                commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'])
+            if isinstance(comp['ric'], list):
+                commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'][0])
     if commit_hash:
         change_info = rest.query_ticket('commit:{}'.format(commit_hash), count=1)
         if change_info:
@@ -135,6 +140,17 @@ def parse_hierarchy(hierarchy, pkey=None):
     return parse_dict
 
 
+def add_tmp_file(rest, change_number, files, topic):
+    need_publish = False
+    if len(files) > 0:
+        for f in files:
+            file_path = f + slugify(topic) + '.inte_tmp'
+            rest.add_file_to_change(change_number, file_path, datetime.utcnow().strftime('%Y%m%d%H%M%S'))
+            need_publish = True
+    if need_publish:
+        rest.publish_edit(change_number)
+
+
 def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_path, base_commit=None):
     comp_config = yaml.load(open(component_config),
                             Loader=yaml.Loader, version='1.1')
@@ -142,12 +158,15 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     comp['name'] = comp_name
     comp_found = False
     comp_dict = parse_hierarchy(comp_config['hierarchy'])
+    comp['files'] = []
     for component in comp_config['components']:
         if not comp_name == component['name']:
             continue
         comp_found = True
         if 'ric' in component and component['ric']:
             comp['ric'] = component['ric']
+        if 'files' in component and component['files']:
+            comp['files'].append(component['files'])
         if 'repo' in component:
             comp['repo'] = component['repo']
         elif 'type' in component and 'external' in component['type']:
@@ -165,6 +184,11 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
                     comp['repo'] = component['repo']
                 elif 'type' in component and 'external' in component['type']:
                     comp['repo'] = 'MN/SCMTA/zuul/inte_ric'
+            for com in comp_dict[comp_name]:
+                for c in comp_config['components']:
+                    if com == c['name']:
+                        if 'files' in c and c['files']:
+                            comp['files'].append(c['files'])
         else:
             raise Exception('[Error] component name is invalid, please refer to the name in skytrack create page')
 
@@ -178,12 +202,17 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     comp_list = []
     for i in component_list:
         comp_list.append(i[0])
-    if comp_name not in comp_list:
-        comp_change_number = create_comp_change(rest, comp, base_commit, root)
-        int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
-        int_operator.add(comp_change_number)
-    else:
+    if comp_name in comp_list:
         raise Exception("component {} has been already added before".format(comp_name))
+
+    comp_change_number = create_comp_change(rest, comp, base_commit, root)
+    print("[Info] The new add component change number is: {}".format(comp_change_number))
+
+    if 'files' in comp and comp['files']:
+        add_tmp_file(rest, comp_change_number, comp['files'], root['topic'])
+
+    int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
+    int_operator.add(comp_change_number)
 
 
 if __name__ == '__main__':
