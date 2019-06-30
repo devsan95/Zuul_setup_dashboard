@@ -170,12 +170,20 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root = parse_root_change(rest, root_change)
+    list_obj = inte_change.ManageChange(rest, root['manager_change'])
+    component_list = list_obj.get_all_components()
+
     if not base_commit:
         base_commit = get_base_commit(rest, comp, root)
-    comp_change_number = create_comp_change(rest, comp, base_commit, root)
-
-    int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
-    int_operator.add(comp_change_number)
+    comp_list = []
+    for i in component_list:
+        comp_list.append(i[0])
+    if comp_name not in comp_list:
+        comp_change_number = create_comp_change(rest, comp, base_commit, root)
+        int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
+        int_operator.add(comp_change_number)
+    else:
+        raise Exception("component {} has been already added before".format(comp_name))
 
 
 if __name__ == '__main__':
