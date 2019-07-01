@@ -146,7 +146,7 @@ def check_graph_cycling(graph_obj):
 class IntegrationChangesCreation(object):
     def __init__(self, yaml_path, gerrit_path, zuul_user, zuul_key):
         self.change_info = None
-        self.base_load_list = None
+        self.base_load_list = list()
         self.info_index = None
         self.meta = None
         self.structure = None
