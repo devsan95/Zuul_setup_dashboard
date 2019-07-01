@@ -39,11 +39,18 @@ def check_root_integrated(ssh_server, ssh_port, ssh_user, ssh_key, root_change):
 def main(root_change, gerrit_info_path, ssh_server, ssh_port, ssh_user, ssh_key):
 
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    skytrack_log_collector = []
     if not check_root_integrated(ssh_server, ssh_port, ssh_user, ssh_key, root_change):
         gerrit_api.review_patch_set(ssh_user, ssh_server, root_change,
                                     ['Verified=+1', 'Integrated=+2'], None,
                                     ssh_key, port=ssh_port)
     rest.review_ticket(root_change, 'going to deliver this feature, code review+2 given to root change', {'Code-Review': 2})
+    skytrack_log_collector.append('Go Succeed! Trigger integration changes start to merge!')
+    if len(skytrack_log_collector) > 0:
+        print('integration framework web output start')
+        for log in skytrack_log_collector:
+            print(log)
+        print('integration framework web output end')
 
 
 if __name__ == '__main__':
