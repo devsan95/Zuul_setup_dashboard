@@ -74,6 +74,8 @@ def get_release_date(package):
     package = package.strip()
     if package.startswith('5.3'):
         package_name = '5G19_' + package
+    elif package.startswith('6.'):
+        package_name = '5G19A_' + package
     else:
         package_name = '5G_' + package
     rs = WFT.get_build_content(package_name)
