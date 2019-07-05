@@ -32,7 +32,10 @@ def parse_root_change(rest, root_change):
 def generate_commit_message(comp, root, base_commit):
     msg_list = []
     if 'MN/5G/NB/gnb' in comp['repo']:
-        msg_list.append('[none] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
+        if 'without-zuul-rebase' in root['zuul_rebase']:
+            msg_list.append('[none] [NOREBASE] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
+        else:
+            msg_list.append('[none] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
     msg_list.append('<{}> on <{}> of <{}> topic <{}>'.format(comp['name'], root['feature_id'], root['branch'], root['topic']))
     msg_list.append('Platform ID: <{}>'.format(root['platform_id']))
     msg_list.append('\n')
