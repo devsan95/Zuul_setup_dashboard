@@ -60,10 +60,10 @@ def generate_commit_message(comp, root, base_commit):
     return '\n'.join(msg_list)
 
 
-def create_comp_change(rest, comp, base_commit, root):
+def create_comp_change(rest, comp, base_commit, base_change, root):
     commit_message = generate_commit_message(comp, root, base_commit)
     change_id, ticket_id, rest_id = rest.create_ticket(
-        comp['repo'], None, root['branch'], commit_message, base_change=base_commit
+        comp['repo'], None, root['branch'], commit_message, base_change=base_change
     )
     return ticket_id
 
@@ -88,6 +88,7 @@ def get_base_commit(rest, comp, root):
     int_mode = root['zuul_rebase']
     commit_hash = None
     base_commit = None
+    base_change = None
     if 'with-zuul-rebase' in int_mode:
         print('[Info] Integration mode is Head mode')
         commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
@@ -97,6 +98,8 @@ def get_base_commit(rest, comp, root):
         if 'MN/SCMTA/zuul/inte_ric' in comp['repo']:
             commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
             commit_hash = commit_info['revision']
+            inte_repo = get_component_info.init_integration(base_load)
+            base_commit = get_component_info.get_comp_hash(inte_repo, comp['ric'])
         else:
             inte_repo = get_component_info.init_integration(base_load)
             if isinstance(comp['ric'], str):
@@ -107,8 +110,8 @@ def get_base_commit(rest, comp, root):
         change_info = rest.query_ticket('commit:{}'.format(commit_hash), count=1)
         if change_info:
             change_info = change_info[0]
-            base_commit = change_info['_number']
-    return base_commit
+            base_change = change_info['_number']
+    return base_commit, base_change
 
 
 def parse_hierarchy(hierarchy, pkey=None):
@@ -201,14 +204,14 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     component_list = list_obj.get_all_components()
 
     if not base_commit:
-        base_commit = get_base_commit(rest, comp, root)
+        base_commit, base_change = get_base_commit(rest, comp, root)
     comp_list = []
     for i in component_list:
         comp_list.append(i[0])
     if comp_name in comp_list:
         raise Exception("component {} has been already added before".format(comp_name))
 
-    comp_change_number = create_comp_change(rest, comp, base_commit, root)
+    comp_change_number = create_comp_change(rest, comp, base_commit, base_change, root)
     print("[Info] The new add component change number is: {}".format(comp_change_number))
 
     if 'files' in comp and comp['files']:
