@@ -10,6 +10,21 @@ from mod.integration_change import RootChange
 mandotory_info = ['bb_version', 'commit_id']
 
 
+def update_interfaces_refs(rest, comp_change_list, comp_name, commit_id):
+    interfaces_change = rest.query_ticket('commit:{0}'.format(commit_id))[0]['_number']
+    revisions = rest.query_ticket(interfaces_change, obtained='ALL_REVISIONS')[0]['revisions']
+    refs = ''
+    for rev in revisions:
+        if rev == commit_id:
+            refs = revisions[rev]['ref']
+            break
+    if refs:
+        for change in comp_change_list:
+            rest.review_ticket(change, '{0}:{1}'.format(comp_name, refs))
+    else:
+        print ['WARN: Can not get interfaces refs']
+
+
 def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     op = RootChange(rest, change_no)
@@ -27,6 +42,7 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     op_commit_msg.update_interface_information(
         '{}-{}'.format(comp_name, comp_ver),
         change_info['commit_id'], comp_name)
+    update_interfaces_refs(rest, comp_change_list, comp_name, change_info['commit_id'])
     if database_info_path:
         skytrack_database_handler.update_events(
             database_info_path=database_info_path,

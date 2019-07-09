@@ -49,7 +49,6 @@ if [[ -z "${yaml}" ]] && [[ -z "${jira_key}" ]]; then
     FEATURE_OWNER="${BUILD_USER_ID}"
     ENV_CHANGE="${env_change}"
     IF_RESTORE="${restore_from_topic}"
-    FORCE_FEATURE_ID="False"
 else
     echo "GUI mode"
     python ${WORKSPACE}/script/integration/archive_feature_yaml.py --gerrit-info-path ${WORKSPACE}/gerritt_info/${gerrit_info} --yaml "${yaml}" --identity "${jira_key}" --project MN/SCMTA/zuul/comp-deps --branch master --schema-path "${WORKSPACE}/yaml/schema/schema.json" --dependent True --output-path "${WORKSPACE}/yaml.yaml"
@@ -57,7 +56,6 @@ else
     TOPIC_PREFIX="feature"
     FEATURE_ID="${jira_key}"
     IF_RESTORE="False"
-    FORCE_FEATURE_ID="True"
 fi
 
 GERRIT_INFO="${WORKSPACE}/gerritt_info/${gerrit_info}"
@@ -80,7 +78,6 @@ python ${WORKSPACE}/script/integration/create_integration_changes.py \
                                       --integration-mode "${integration_mode}" \
                                       --base-load "${base_load}" \
                                       --env-change """${ENV_CHANGE}""" \
-                                      --force-feature-id "${FORCE_FEATURE_ID}" \
                                       --open-jira True \
                                       --ext_commit_msg """${ext_msg_param}""" \
                                       --mysql_info "${MYSQL_INFO}" \

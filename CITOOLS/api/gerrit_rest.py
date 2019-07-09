@@ -234,7 +234,7 @@ class GerritRestClient(object):
                 'Status code is [{}], content is [{}]'.format(
                     rest_id, changes.status_code, changes.content))
 
-    def query_ticket(self, query_string, count=None, start=None):
+    def query_ticket(self, query_string, count=None, start=None, obtained=None):
         get_param = {
             'q': query_string,
         }
@@ -242,6 +242,8 @@ class GerritRestClient(object):
             get_param['n'] = count
         if start:
             get_param['start'] = start
+        if obtained:
+            get_param['o'] = obtained
         auth = self.get_auth()
         url = 'changes/'
         changes = self.session.get(self.get_rest_url(url),

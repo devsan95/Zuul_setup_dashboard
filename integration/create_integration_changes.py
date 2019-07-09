@@ -4,6 +4,7 @@
 import copy
 import json
 import os
+import re
 import shlex
 import sys
 import textwrap
@@ -20,6 +21,7 @@ import create_jira_ticket
 import gerrit_int_op
 import send_result_email
 import skytrack_database_handler
+from rebase_interface import update_interfaces_refs
 from api import collection_api
 from api import gerrit_api
 from api import gerrit_rest
@@ -858,7 +860,7 @@ class IntegrationChangesCreation(object):
             jira_key=None, feature_id=None, feature_owner=None,
             if_restore=False, integration_mode=None, base_load=None,
             env_change=None, ext_commit_msg=None, mysql_info=None,
-            comp_config=None, force_feature_id=False,
+            comp_config=None,
             open_jira=False, skip_jira=False):
 
         # handle integration topic
@@ -977,8 +979,8 @@ class IntegrationChangesCreation(object):
         # handle feature id
         if feature_id:
             self.meta['feature_id'] = feature_id
-        elif 'jira_key' in self.meta and force_feature_id:
-            self.meta['feature_id'] = self.meta['jira_key']
+        else:
+            self.meta['feature_id'] = version_name
 
         print('[JOBTAG] Version name is {}. '
               'Jira key is {}. '
@@ -991,7 +993,14 @@ class IntegrationChangesCreation(object):
         self.add_structure_string()
         self.label_all_tickets()
         self.update_oam_description()
-
+        if 'interface info:' in ext_commit_msg:
+            comp_change_list = [node['ticket_id'] for node in self.info_index['nodes'].values() if
+                                node.get('type') != 'auto_submodule']
+            update_interfaces_refs(rest=self.gerrit_rest,
+                                   comp_change_list=comp_change_list,
+                                   comp_name=re.search(r'comp_name:\W+(.*)', ext_commit_msg).group(1),
+                                   commit_id=re.search(r'commit-ID:\W+(.*)', ext_commit_msg).group(1)
+                                   )
         # handle node need to be depends on
         base_comp = self.get_base_comp(comp_config)
         if base_comp:
@@ -1038,7 +1047,6 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--ext_commit_msg', default=None, type=unicode)
 @click.option('--mysql_info', default=None, type=unicode)
 @click.option('--comp_config', default=None, type=unicode)
-@click.option('--force-feature-id', default=False, type=bool)
 @click.option('--open-jira', default=False, type=bool)
 @click.option('--skip-jira', default=False, type=bool)
 @click.pass_context
@@ -1046,7 +1054,7 @@ def create_changes(ctx, version_name=None,
                    topic_prefix=None, streams=None,
                    jira_key=None, feature_id=None, feature_owner=None, if_restore=False,
                    integration_mode=None, base_load=None, ext_commit_msg=None,
-                   mysql_info=None, comp_config=None, env_change=None, force_feature_id=False,
+                   mysql_info=None, comp_config=None, env_change=None,
                    open_jira=False, skip_jira=False):
     icc = ctx.obj['obj']
     icc.run(version_name=version_name, topic_prefix=topic_prefix,
@@ -1055,7 +1063,7 @@ def create_changes(ctx, version_name=None,
             if_restore=if_restore, integration_mode=integration_mode,
             base_load=base_load, env_change=env_change,
             ext_commit_msg=ext_commit_msg, mysql_info=mysql_info,
-            comp_config=comp_config, force_feature_id=force_feature_id,
+            comp_config=comp_config,
             open_jira=open_jira, skip_jira=skip_jira)
 
 
