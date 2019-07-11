@@ -79,7 +79,7 @@ class INTEGRATION_REPO(object):
     def get_comp_info_by_bitbake(self, int_bb_target, comp_name, comp_ver, bb_file):
         comp_name_with_ver = '{}-{}'.format(comp_name, comp_ver)
         regex_repo = r'^(GIT_URI|GIT_REPO|SRC_URI)="([^"]+)"'
-        regex_ver = r'^(REVISION|SVNTAG|SVNREV|SRCREV|BIN_VER)="([^"]+)"'
+        regex_ver = r'^(REVISION|SVNTAG|SVNREV|SRCREV|BIN_VER|SRC_REV)="([^"]+)"'
         repo_url = ''
         repo_ver = ''
         env_file_path = os.path.join(
@@ -440,7 +440,7 @@ class INTEGRATION_REPO(object):
             if m:
                 bb_dict['repo_url'] = m.group(2)
             m_ver = re.match(
-                r'\s*(SRCREV|SVNREV|REVISION)\s*=\s*"(\S+)"',
+                r'\s*(SRCREV|SRC_REV|SVNREV|REVISION)\s*=\s*"(\S+)"',
                 line)
             if m_ver:
                 bb_dict['repo_ver'] = m_ver.group(2)
@@ -739,11 +739,8 @@ class INTEGRATION_REPO(object):
 
     def replace_bbfile_repo_ver(self, bbfile, repo_ver):
         self.replace_file_by_key(bbfile, 'SRCREV', repo_ver, skip_nomatch=True)
-        self.replace_file_by_key(
-            bbfile,
-            'REVISION',
-            repo_ver,
-            skip_nomatch=True)
+        self.replace_file_by_key(bbfile, 'SRC_REV', repo_ver, skip_nomatch=True)
+        self.replace_file_by_key(bbfile, 'REVISION', repo_ver, skip_nomatch=True)
         self.replace_file_by_key(bbfile, 'SVNREV', repo_ver, skip_nomatch=True)
 
     def replace_file_by_key(self, filename, key, value,
