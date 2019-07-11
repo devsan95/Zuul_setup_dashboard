@@ -230,7 +230,8 @@ def update_events(database_info_path, integration_name, description, highlight=F
 def update_integration_mode(database_info_path, issue_key, integration_mode, fixed_build=None):
     mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
     replacements = {
-        'integration_mode': integration_mode
+        'integration_mode': integration_mode,
+        'fixed_base': ''
     } if not fixed_build else {
         'integration_mode': integration_mode,
         'fixed_base': fixed_build
