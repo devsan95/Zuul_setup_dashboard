@@ -219,7 +219,8 @@ def trigger(meta_bb, branch, rest,
             '{}_{}'.format(comp_name, bb_ver))
         env_change += r'commit_id={}'.format(repo_ver)
         rebase_job_param = {'root_change': root_change,
-                            'env_change': env_change}
+                            'env_change': env_change,
+                            'auto_recheck': 'False'}
         job_tool.write_dict_to_properties(
             rebase_job_param, 'rebase_env.prop', with_quotes=False)
 

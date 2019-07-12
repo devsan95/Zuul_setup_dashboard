@@ -38,11 +38,11 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     comp_ver = change_info['bb_version'].split('_', 1)[1]
     rest.review_ticket(int_change, 'update_bb:{},bb,{}'.format(
         change_info['comp_name'], comp_ver))
+    update_interfaces_refs(rest, comp_change_list, comp_name, change_info['commit_id'])
     op_commit_msg = OperateCommitMessage(gerrit_info_path, change_no)
     op_commit_msg.update_interface_information(
         '{}-{}'.format(comp_name, comp_ver),
         change_info['commit_id'], comp_name)
-    update_interfaces_refs(rest, comp_change_list, comp_name, change_info['commit_id'])
     if database_info_path:
         skytrack_database_handler.update_events(
             database_info_path=database_info_path,
