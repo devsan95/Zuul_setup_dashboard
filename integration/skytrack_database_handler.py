@@ -247,5 +247,11 @@ def update_integration_mode(database_info_path, issue_key, integration_mode, fix
     )
 
 
+def if_issue_exist(database_info_path, issue_key):
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
+    sql = "SELECT * FROM t_issue WHERE issue_key='{0}'".format(issue_key)
+    return True if mydb.executor(sql, output=True) else False
+
+
 if __name__ == '__main__':
     fire.Fire()

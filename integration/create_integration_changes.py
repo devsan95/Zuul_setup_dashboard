@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import sys
+import time
 import textwrap
 import traceback
 from datetime import datetime
@@ -1008,12 +1009,27 @@ class IntegrationChangesCreation(object):
         self.print_result()
         send_result_email.run(self.info_index)
         if mysql_info:
-            skytrack_database_handler.update_integration_mode(
-                database_info_path=mysql_info,
-                issue_key=self.meta["jira_key"],
-                integration_mode=integration_mode,
-                fixed_build=','.join(self.base_load_list),
-            )
+            retry = 5
+            while True:
+                if not skytrack_database_handler.if_issue_exist(
+                        database_info_path=mysql_info,
+                        issue_key=self.meta["jira_key"]
+                ):
+                    print "[WARNING] {0} haven't created in skytrack database".format(self.meta["jira_key"])
+                    print "Will retry in 20s"
+                    time.sleep(20)
+                    if retry == 0:
+                        print "[WARNING] retry end, can not update integration mode"
+                        break
+                    retry -= 1
+                    print "Retry left {0} times".format(retry)
+                    continue
+                skytrack_database_handler.update_integration_mode(
+                    database_info_path=mysql_info,
+                    issue_key=self.meta["jira_key"],
+                    integration_mode=integration_mode,
+                    fixed_build=','.join(self.base_load_list),)
+                break
             skytrack_database_handler.update_events(
                 database_info_path=mysql_info,
                 integration_name=self.info_index['meta']['jira_key'],
