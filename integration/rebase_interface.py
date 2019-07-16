@@ -47,7 +47,8 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
         skytrack_database_handler.update_events(
             database_info_path=database_info_path,
             integration_name=jira_ticket,
-            description="Integration Topic Change To {0}".format(change_info['bb_version']),
+            description="Integration Topic Change To {}, commit_id: {}".format(
+                change_info['bb_version'], change_info['commit_id']),
             highlight=True
         )
 
