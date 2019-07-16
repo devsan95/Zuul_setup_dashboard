@@ -52,10 +52,24 @@ def _if_checklist_all_pass(checklist, skytrack_log_collector):
     print('\nCheck if all changes are passed...')
     for item in checklist:
         if not item['status'] and item['attached']:
+            if not item['verified']:
+                skytrack_log_collector.append("{0} change {1} haven't got verified lable".format(
+                    item['comp_name'],
+                    item['ticket']
+                ))
+            else:
+                if item['external']:
+                    skytrack_log_collector.append("{0} change {2} haven't got Code-review +1/2".format(
+                        item['comp_name'],
+                        item['ticket']
+                    ))
+                else:
+                    skytrack_log_collector.append("{0} change {2} haven't got Code-review +2".format(
+                        item['comp_name'],
+                        item['ticket']
+                    ))
             print('Change {} does not meet the requirement.'.format(item['ticket']))
-            skytrack_log_collector.append('Change {} does not meet the requirement.'.format(item['ticket']))
-            return False
-    return True
+    return True if not skytrack_log_collector else False
 
 
 def _check_ticket_ok(ssh_server, ssh_port, ssh_user, ssh_key, ticket, project):
@@ -162,7 +176,9 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                 'status': False,
                 'verified': False,
                 'attached': True,
-                'need_backup': False
+                'need_backup': False,
+                'external': False,
+                'comp_name': ''
             }
         )
     print('Starting check if all tickets are done...')
@@ -171,6 +187,9 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
         # update depends list
         depends_list = update_depends_list(rest, targets['manager'])
         for item in pass_list:
+            change_obj = inte_change.IntegrationChange(rest, item['ticket'])
+            change_name = change_obj.get_change_name()
+            item['comp_name'] = change_name
             print('\nCheck status of [{}]:'.format(item['ticket']))
             # update attached:
             try:
@@ -195,8 +214,8 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                           'need to backup'.format(item['ticket']))
                     item['need_backup'] = False
             # check if external component
-            if_external = _check_if_external(rest, item['ticket'])
-            if if_external:
+            item['external'] = _check_if_external(rest, item['ticket'])
+            if item['external']:
                 item['need_backup'] = False
                 print('Ticket {} is external component, no need to backup'.format(item['ticket']))
             if backup_topic and item['need_backup']:
@@ -237,17 +256,12 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
             item['status'] = _check_ticket_ok(ssh_server, ssh_port,
                                               ssh_user,
                                               ssh_key, item['ticket'], ticket_project)
-            change_obj = inte_change.IntegrationChange(rest, item['ticket'])
-            change_name = change_obj.get_change_name()
-            if not item['status'] and item['attached']:
-                skytrack_log_collector.append('Change {} {} does not get Verified+1 or Code Review+1/+2 label'.format(change_name, item['ticket']))
             print('Ticket {} pass status: {}'.format(
                 item['ticket'], item['status']))
     except Exception as ex:
         print('check changes met an exception [{}]'.format(str(ex)))
     sys.stdout.flush()
     sys.stderr.flush()
-
     check_result = True
     if _if_checklist_all_pass(pass_list, skytrack_log_collector):
         print('All component changes match the verified+1 and code review+1/+2 requirement.')
