@@ -51,11 +51,12 @@ def generate_commit_message(comp, root, base_commit):
     msg_list.append('---')
     msg_list.append('\n')
     msg_list.append('This change contains following component(s):')
-    if isinstance(comp['ric'], str):
-        msg_list.append('  - COMP <{}>'.format(comp['ric']))
-    if isinstance(comp['ric'], list):
-        for ric in comp['ric']:
-            msg_list.append('  - COMP <{}>'.format(ric))
+    if 'ric' in comp:
+        if isinstance(comp['ric'], str):
+            msg_list.append('  - COMP <{}>'.format(comp['ric']))
+        if isinstance(comp['ric'], list):
+            for ric in comp['ric']:
+                msg_list.append('  - COMP <{}>'.format(ric))
     msg_list.append('\n')
     return '\n'.join(msg_list)
 
