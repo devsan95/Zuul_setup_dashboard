@@ -59,12 +59,12 @@ def _if_checklist_all_pass(checklist, skytrack_log_collector):
                 ))
             else:
                 if item['external']:
-                    skytrack_log_collector.append("{0} change {2} haven't got Code-review +1/2".format(
+                    skytrack_log_collector.append("{0} change {1} haven't got Code-review +1/2".format(
                         item['comp_name'],
                         item['ticket']
                     ))
                 else:
-                    skytrack_log_collector.append("{0} change {2} haven't got Code-review +2".format(
+                    skytrack_log_collector.append("{0} change {1} haven't got Code-review +2".format(
                         item['comp_name'],
                         item['ticket']
                     ))
