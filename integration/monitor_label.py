@@ -185,7 +185,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     skytrack_log_collector = []
     try:
         # update depends list
-        depends_list = update_depends_list(rest, targets['manager'])
+        depends_list = targets['tickets']
         for item in pass_list:
             change_obj = inte_change.IntegrationChange(rest, item['ticket'])
             change_name = change_obj.get_change_name()
@@ -260,6 +260,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                 item['ticket'], item['status']))
     except Exception as ex:
         print('check changes met an exception [{}]'.format(str(ex)))
+        traceback.print_exc()
     sys.stdout.flush()
     sys.stderr.flush()
     check_result = True
