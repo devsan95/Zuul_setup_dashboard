@@ -74,7 +74,7 @@ class OperateFeature(object):
                 except Exception as e:
                     print(e)
 
-    def generate(self, root_change_no, save_path=None, add=False):
+    def generate(self, root_change_no, comp_config_path, save_path=None, add=False):
         root_change = integration_change.RootChange(self.rest, root_change_no)
         try:
             root_change.get_topic()
@@ -82,6 +82,12 @@ class OperateFeature(object):
             log.info('No an integration change')
             return
         comp_change_list = root_change.get_all_changes_by_comments()
+        comp_config = yaml.load(open(comp_config_path), Loader=yaml.Loader, version='1.1')
+        target_branch = str(root_change.get_info().get('branch'))
+        target_streams = []
+        for stream in comp_config['streams']:
+            if stream['branch'] == target_branch:
+                target_streams.append(stream['name'])
         comp_set = set()
         for comp_change_no in comp_change_list:
             comp_change = integration_change.IntegrationChange(self.rest, comp_change_no)
@@ -93,23 +99,27 @@ class OperateFeature(object):
                 print(e)
                 continue
 
-        new_yaml_obj = dict()
-        new_yaml_obj['feature_id'] = str(root_change.get_feature_id())
-        new_yaml_obj['branch'] = str(root_change.get_info().get('branch'))
-        new_yaml_obj['status'] = 'on-going'
-        new_yaml_obj['components'] = list()
-        for comp in comp_set:
-            comp_dict = dict()
-            comp_dict['name'] = str(comp)
-            comp_dict['delivered'] = False
-            new_yaml_obj['components'].append(comp_dict)
-        new_yaml = yaml.dump(new_yaml_obj, Dumper=yaml.RoundTripDumper)
-        log.debug('Generated Yaml is: \n{}'.format(new_yaml))
-        if save_path:
-            with open(save_path, 'w') as f:
-                f.write(new_yaml)
+        new_yaml_obj_list = []
+        for stream in target_streams:
+            stream_yaml_obj = dict()
+            stream_yaml_obj['feature_id'] = str(root_change.get_feature_id())
+            stream_yaml_obj['stream'] = stream
+            stream_yaml_obj['status'] = 'on-going'
+            stream_yaml_obj['components'] = list()
+            for comp in comp_set:
+                comp_dict = dict()
+                comp_dict['name'] = str(comp)
+                comp_dict['delivered'] = False
+            stream_yaml_obj['components'].append(comp_dict)
+            new_yaml_obj_list.append(stream_yaml_obj)
+            new_yaml = yaml.dump(stream_yaml_obj, Dumper=yaml.RoundTripDumper)
+            log.debug('Generated Yaml is: \n{}'.format(new_yaml))
+            if save_path:
+                with open(save_path, 'w') as f:
+                    f.write(new_yaml)
         if add:
-            self.add(new_yaml_obj)
+            for yaml_obj in new_yaml_obj_list:
+                self.add(yaml_obj)
 
     def close(self, feature_id):
         try:
