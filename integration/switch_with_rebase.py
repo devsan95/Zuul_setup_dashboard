@@ -123,7 +123,8 @@ def rebase_by_load(rest, change_no, base_package,
             comp_name = 'env'
         project = comp_change_obj.get_project()
         branch = comp_change_obj.get_branch()
-        comp_name_with_change = '{} {}'.format(comp_name, comp_change)
+        change_name = comp_change_obj.get_change_name()
+        comp_name_with_change = '{} {}'.format(change_name, comp_change)
         comp_hash = 'HEAD'
         if base_package != 'HEAD':
             comp_hash = ''
