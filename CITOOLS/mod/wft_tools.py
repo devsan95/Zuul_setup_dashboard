@@ -5,6 +5,7 @@ import sys
 import requests
 import xml.etree.ElementTree as ET
 from scm_tools.wft.api import WftAPI
+from scm_tools.wft.build_content import BuildContent
 
 from api import config
 
@@ -107,3 +108,8 @@ def get_latest_qt_load(stream_list):
     time_stamp = stream_build.keys()
     time_stamp.sort(reverse=True)
     return stream_build[time_stamp[0]], stream_build.values()
+
+
+def get_planed_delivery_date(baseline):
+    build_content = BuildContent.get(baseline)
+    return build_content.get_planned_delivery_date()

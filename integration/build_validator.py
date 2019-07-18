@@ -90,16 +90,27 @@ def get_build_content(knife_json_path, base_info_path, ex_dict, build_streams,
         base_build_dict = json.load(base_info)
     messages = ['Integration Build Will Be Based On Bellow Base Load:']
     for stream in build_streams:
+        stream_name = wft_tools.get_stream_name(stream)
+        last_success_build, last_success_build_date = \
+            wft_tools.get_lasted_success_build(stream_name)
+        stream_name_prefix = last_success_build.split('_')[0]
         if stream in base_build_dict:
-            messages.append('Stream: {0} Base_build: {1}'.format(stream, base_build_dict[stream]))
+            delivery_date = wft_tools.get_planed_delivery_date('{0}_{1}'.format(
+                stream_name_prefix,
+                base_build_dict[stream]
+            ))
+            messages.append('Stream: {0} Base_build: {1} Release Date: {2}'
+                            .format(stream,
+                                    base_build_dict[stream],
+                                    delivery_date))
         else:
-            base_load = wft_tools.get_latest_qt_passed_build(
-                wft_tools.get_stream_name(stream)
-            )[0].split('5G_')[-1] if integration_mode == 'FIXED_BASE' \
-                else wft_tools.get_lasted_success_build(
-                wft_tools.get_stream_name(stream)
-            )[0].split('5G_')[-1]
-            messages.append('Stream: {0} Base_build: {1}'.format(stream, base_load))
+            base_load, release_date = wft_tools.get_latest_qt_passed_build(
+                stream_name
+            ) if integration_mode == 'FIXED_BASE' \
+                else last_success_build
+            messages.append('Stream: {0} Base_build: {1} Release Date: {2}'.format(stream,
+                                                                                   base_load,
+                                                                                   release_date))
     messages.append('Integration Build Content:')
     handled_component = list()
     if compare:
