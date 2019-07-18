@@ -6,13 +6,6 @@ def main_params(item, params):
     params['ZUULEX_CHANGE_REVISION'] = item.change._data['currentPatchSet']['revision']
     params['ZUULEX_CHANGE_SIZE_INSERTIONS'] = item.change._data['currentPatchSet']['sizeInsertions']
     params['ZUULEX_CHANGE_SIZE_DELETIONS'] = item.change._data['currentPatchSet']['sizeDeletions']
-#    params['CHANGE_PARENT_REV'] = item.change._data['currentPatchSet']['parents']
-
-#    params['ZUULEX_CHANGE_PARENT_ISCURRENTPATCHSET'] = item.change._data['dependsOn']['isCurrentPatchSet']
-#    params['ZUULEX_CHANGE_PARENT_REVISION'] = item.change._data['dependsOn']['revision']
-#    params['ZUULEX_CHANGE_PARENT_REF'] = item.change._data['dependsOn']['ref']
-#    params['ZUULEX_CHANGE_PARENT_ID'] = item.change._data['dependsOn']['id']
-#    params['ZUULEX_CHANGE_PARENT_NO'] = item.change._data['dependsOn']['number']
 
     params['ZUULEX_CHANGE_OWNER_USERNAME'] = item.change._data['owner']['username']
     params['ZUULEX_CHANGE_OWNER_NAME'] = item.change._data['owner']['name']
