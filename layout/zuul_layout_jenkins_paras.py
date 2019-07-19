@@ -1,4 +1,4 @@
-def main_params(item, params):
+def zuul_external_params_default(item, params):
     params['ZUULEX_COMMIT_MESSAGE'] = item.change._data['commitMessage']
     params['ZUULEX_CHANGE_STATUS'] = item.change._data['status']
     params['ZUULEX_CHANGE_URL'] = item.change._data['url']
@@ -21,5 +21,5 @@ def main_params(item, params):
 
 
 def temp_params(item, params):
-    main_params(item, params)
+    zuul_external_params_default(item, params)
 #    params['ROOT_PATH'] = '/aaa/bbb/ccc'
