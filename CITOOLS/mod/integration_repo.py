@@ -981,7 +981,7 @@ class INTEGRATION_REPO(object):
             return targets
         target_list = []
         for platform in self.get_config_value('MODULES').split():
-            m_target = self.get_config_value('TARGET_{}'.format(platform))
+            m_target = self.get_config_value('TARGET_{}'.format(platform.replace('-', '_')))
             if m_target:
                 target_list.append(
                     '{}.integration-{}'.format(
