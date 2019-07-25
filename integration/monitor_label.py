@@ -155,6 +155,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
         name, branch, repo, platform = gop.get_info_from_change(change_id)
         if platform:
             backup_topic = 'integration_{}_backup'.format(platform)
+    print('backup_topic : {}'.format(backup_topic))
     targets = None
     while not targets:
         try:
@@ -212,7 +213,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                 if verified_new:
                     print('Change {} verified became True, '
                           'need to backup'.format(item['ticket']))
-                    # item['need_backup'] = False
+                    item['need_backup'] = True
             # check if external component
             item['external'] = _check_if_external(rest, item['ticket'])
             if item['external']:
