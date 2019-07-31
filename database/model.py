@@ -196,6 +196,23 @@ def get_loop_action_model(table_name='loop_action'):
     return LoopAction
 
 
+def get_loop_compact_model(table_name='loop_compact'):
+    DynamicBase = declarative_base(class_registry=dict())
+
+    class LoopCompact(DynamicBase):
+        __tablename__ = table_name
+        id = sa.Column(sa.Integer, primary_key=True)
+
+        ref_id = sa.Column(sa.Integer, index=True)
+        datetime = sa.Column(DATETIME(fsp=3), index=True)
+        duration = sa.Column(sa.Integer, index=False)
+        times = sa.Column(sa.Integer, index=False)
+        average = sa.Column(sa.Float, index=False)
+        action = sa.Column(sa.String(50), index=True)
+
+    return LoopCompact
+
+
 class IntegrationRefs(ModelBase):
     __tablename__ = 't_integration_refs'
 
