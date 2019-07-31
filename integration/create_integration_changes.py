@@ -765,7 +765,10 @@ class IntegrationChangesCreation(object):
 
             else:
                 if 'ric' in node and node['ric']:
-                    com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
+                    try:
+                        com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
+                    except Exception as e:
+                        print e
                     if not com_ver:
                         print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
                         com_ver = self.get_base_commit_from_other(base_load, node['ric'][0])
