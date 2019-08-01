@@ -568,6 +568,8 @@ class GerritRestClient(object):
                 'Status code is [{}], content is [{}]'.format(
                     project_name, branch_name,
                     ret.status_code, ret.content))
+        result = self.parse_rest_response(ret)
+        return result
 
     def delete_branch(self, project_name, branch_name):
         auth = self.get_auth()

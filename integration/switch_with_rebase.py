@@ -132,7 +132,7 @@ def rebase_by_load(rest, change_no, base_package,
             try:
                 if 'integration' in comp_names:
                     comp_hash = rest.get_tag(
-                        'MN/5G/COMMON/integration', base_package)['revision']
+                        'MN/5G/COMMON/integration', base_package)['object']
                 else:
                     comp_hash = get_component_info.get_comp_hash(
                         base_int_obj, comp_name)
