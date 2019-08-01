@@ -542,6 +542,19 @@ class GerritRestClient(object):
             self.set_cache(['list_branches', project_name], result)
         return result
 
+    def get_tag(self, project_name, tag_name):
+        auth = self.get_auth()
+        rest_url = 'projects/{}/tags/{}'.format(
+            requests.utils.quote(project_name, safe=''),
+            requests.utils.quote(tag_name, safe=''))
+        ret = self.session.put(self.get_rest_url(rest_url), auth=auth)
+        if not ret.ok:
+            raise Exception(
+                'Get tag [{}] from project [{}] failed.\n'
+                'Status code is [{}], content is [{}]'.format(
+                    tag_name, project_name,
+                    ret.status_code, ret.content))
+
     def create_branch(self, project_name, branch_name, base='HEAD'):
         auth = self.get_auth()
         data = {'revision': base}
