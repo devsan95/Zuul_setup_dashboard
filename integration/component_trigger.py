@@ -7,6 +7,7 @@ import sys
 import requests
 from api import gerrit_rest
 from api import env_repo as get_env_repo
+from mod import integration_change
 
 
 def get_ps_version(msg):
@@ -59,7 +60,7 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     change_list = rest.get_file_list(change_id).keys()
     ps_version = get_ps_version(msg)
 
-    int_change_obj = change_id.IntegrationChange(rest, change_id)
+    int_change_obj = integration_change.IntegrationChange(rest, change_id)
     depends_comps = int_change_obj.get_depends()
     for depends_comp in depends_comps:
         print('depends_comp: {}'.format(depends_comp))
