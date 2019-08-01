@@ -547,7 +547,7 @@ class GerritRestClient(object):
         rest_url = 'projects/{}/tags/{}'.format(
             requests.utils.quote(project_name, safe=''),
             requests.utils.quote(tag_name, safe=''))
-        ret = self.session.put(self.get_rest_url(rest_url), auth=auth)
+        ret = self.session.get(self.get_rest_url(rest_url), auth=auth)
         if not ret.ok:
             raise Exception(
                 'Get tag [{}] from project [{}] failed.\n'
