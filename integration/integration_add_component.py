@@ -104,7 +104,10 @@ def get_base_commit(rest, comp, root):
         else:
             inte_repo = get_component_info.init_integration(base_load)
             if isinstance(comp['ric'], str):
-                commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'])
+                if comp['ric'] == 'integration':
+                    commit_hash = base_load
+                else:
+                    commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'])
             if isinstance(comp['ric'], list):
                 commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'][0])
     if commit_hash:
