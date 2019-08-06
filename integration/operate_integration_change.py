@@ -1,6 +1,7 @@
 import fire
 import json
 import urllib3
+import datetime
 
 from api import gerrit_rest
 from api import mysql_api
@@ -43,7 +44,8 @@ class OperateIntegrationChange(object):
         self.mysql.update_info(
             table='t_commit_component',
             replacements={
-                'is_detached': 1
+                'is_detached': 1,
+                'detach_time': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
             },
             conditions={'`change`': component_change}
         )
