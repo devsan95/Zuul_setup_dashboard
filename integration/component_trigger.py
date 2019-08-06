@@ -10,12 +10,13 @@ from api import env_repo as get_env_repo
 from mod import integration_change
 
 
-def get_ps_version(msg):
-    reg = re.compile('<(.*?)> on <(.*?)> of <PS Integration (.*?)>')
-    ps_version = reg.search(msg).group(2)
-    if not ps_version:
-        raise Exception("Cannot find related PS version")
-    return ps_version
+def get_ps_version(rest, root_change, env_file_path):
+    change_files = rest.get_file_list(root_change)
+    if env_file_path in change_files:
+        for line in rest.get_file_change(env_file_path, root_change).split('\n'):
+            if 'ENV_PS_REL' in line:
+                return line.split('=')[-1]
+    return None
 
 
 def jenkins_remote_trigger(data):
@@ -56,19 +57,18 @@ def get_component_extend_data(component):
 def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     git_hash_review = rest.get_commit(change_id)['commit']
-    msg = rest.get_commit(change_id)['message']
     change_list = rest.get_file_list(change_id).keys()
-    ps_version = get_ps_version(msg)
-
     int_change_obj = integration_change.IntegrationChange(rest, change_id)
     depends_comps = int_change_obj.get_depends()
     for depends_comp in depends_comps:
         print('depends_comp: {}'.format(depends_comp))
         if depends_comp[2] == 'root':
             root_change_no = depends_comp[1]
-
     env_repo_info = get_env_repo.get_env_repo_info(rest, root_change_no)[0]
-
+    ps_version = get_ps_version(root_change=change_id, rest=rest, env_file_path=env_repo_info[-1])
+    if not ps_version:
+        print "[INFO] No PS changes, skip component trigger"
+        sys.exit(0)
     env_repo = '{}/{}'.format(repo_url, env_repo_info)
     env_version = repo_ver
     component_list = get_component_list(change_list)
