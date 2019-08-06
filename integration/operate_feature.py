@@ -76,6 +76,11 @@ class OperateFeature(object):
 
     def generate(self, root_change_no, save_path=None, add=False):
         root_change = integration_change.RootChange(self.rest, root_change_no)
+        try:
+            root_change.get_topic()
+        except AttributeError:
+            log.info('No an integration change')
+            return
         comp_change_list = root_change.get_all_changes_by_comments()
         comp_set = set()
         for comp_change_no in comp_change_list:
