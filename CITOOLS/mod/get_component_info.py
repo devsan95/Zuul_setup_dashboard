@@ -1,7 +1,9 @@
 import os
 import re
+import git
 import fire
 import logging
+import traceback
 
 from mod import integration_repo
 
@@ -16,6 +18,12 @@ def init_integration(base_pkg):
         INTEGRTION_URL, base_pkg, work_dir=integration_dir)
     int_repo.get_dep_files()
     int_repo.gen_dep_all()
+    try:
+        print('Base tag: {} add to gerrit'.format(base_pkg))
+        g = git.Git(integration_dir)
+        g.push('origin', '{}:refs/for/master%merged'.format(base_pkg))
+    except Exception:
+        traceback.print_exc()
     return int_repo
 
 
