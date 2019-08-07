@@ -155,7 +155,8 @@ def rebase_by_load(rest, change_no, base_package,
                         print('Get hash from {}'.format(extra_base))
                         break
                 if not comp_hash:
-                    rebase_failed[comp_name_with_change] = 'NONE'
+                    rebase_failed[comp_name_with_change] = 'No component in packages: {},{}'.format(
+                        base_package, extra_bases)
                     continue
         parent_hash = rest.get_parent(comp_change)
         print('Parent for [{}] now is [{}]'.format(comp_change, parent_hash))
