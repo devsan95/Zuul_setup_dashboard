@@ -45,7 +45,7 @@ class OperateIntegrationChange(object):
             table='t_commit_component',
             replacements={
                 'is_detached': 1,
-                'detach_time': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+                'detach_time': datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             },
             conditions={'`change`': component_change}
         )
