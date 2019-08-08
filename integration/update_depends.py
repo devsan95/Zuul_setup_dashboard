@@ -11,7 +11,7 @@ from integration_trigger import get_comp_obj
 
 
 def update_depends(rest, change_id, dep_file_list,
-                   dep_submodule_dict, comp_config):
+                   dep_submodule_dict, comp_config, project):
     # check if there is interfaces info in commit-msg
     commit_msg = rest.get_commit(change_id).get('message')
     commit_lines = commit_msg.splitlines()
@@ -19,12 +19,18 @@ def update_depends(rest, change_id, dep_file_list,
     interface_infos = []
     for idx, commit_line in enumerate(commit_lines):
         if commit_line.startswith('interface info:'):
+            find_interfaces = True
+            continue
+        if find_interfaces:
             component = ''
             comp_version = ''
             repo_version = ''
-            comp_line = commit_lines[idx + 1]
-            bb_ver_line = commit_lines[idx + 2]
-            version_line = commit_lines[idx + 3]
+            if len(commit_lines) > (idx + 2):
+                comp_line = commit_lines[idx + 0]
+                bb_ver_line = commit_lines[idx + 1]
+                version_line = commit_lines[idx + 2]
+            else:
+                break
             m = re.match(r'[\s]+comp_name:\s+(\S+)', comp_line)
             if not m:
                 logging.warn(
@@ -58,21 +64,35 @@ def update_depends(rest, change_id, dep_file_list,
     op = RootChange(rest, change_id)
     comp_change_list, int_change = op.get_components_changes_by_comments()
 
-    for interface_info in interface_infos:
-        component = interface_info['component']
-        comp_version = interface_info['comp_version']
-        repo_version = interface_info['repo_version']
-        for dep_file_line in dep_file_list:
-            dep_str_list = dep_file_line.split(':')
-            dep_file = dep_str_list[0].strip()
-            dep_file_comps = []
-            if len(dep_str_list) > 1:
-                dep_file_comps = dep_str_list[1].strip().split(',')
-            for comp_change in comp_change_list:
+    for comp_change in comp_change_list:
+        int_change_obj = IntegrationChange(rest, comp_change)
+        comp_project = int_change_obj.get_project()
+        if project and comp_project != project:
+            logging.info('%s is not same as project %s', comp_project, project)
+        ticket_comps = int_change_obj.get_components()
+        logging.info('Interface_infos: {}'.format(interface_infos))
+        for interface_info in interface_infos:
+            component = interface_info['component']
+            comp_version = interface_info['comp_version']
+            repo_version = interface_info['repo_version']
+            comps_for_interfaces = get_dep_comps(component, comp_config)
+            for t_comp in ticket_comps:
+                if t_comp in comps_for_interfaces:
+                    break
+            else:
+                logging.warn(
+                    '%s not in %s', ticket_comps, comps_for_interfaces)
+                continue
+            for dep_file_line in dep_file_list:
+                dep_str_list = dep_file_line.split(':')
+                dep_file = dep_str_list[0].strip()
+                dep_file_comps = []
+                if len(dep_str_list) > 1:
+                    dep_file_comps = dep_str_list[1].strip().split(',')
                 logging.info('Try to update %s, %s', comp_change, dep_file)
                 replace_depdends_file(rest, comp_change,
                                       dep_file, component, comp_version,
-                                      comp_config, dep_file_comps)
+                                      dep_file_comps)
                 if component in dep_submodule_dict:
                     replace_submodule_content(
                         rest, comp_change,
@@ -87,17 +107,21 @@ def update_depends(rest, change_id, dep_file_list,
                     print(str(e))
 
 
-def replace_depdends_file(rest, change_id, file_path, component, version,
-                          comp_config, dep_file_comps):
+def get_dep_comps(comp_name, comp_config):
+    component = get_comp_obj(comp_name, comp_config)
+    for key, component_set in comp_config['component_sets'].items():
+        if key == component['name'] or \
+                ('ric' in component and component['ric'] == key):
+            return component_set
+    return []
+
+
+def replace_depdends_file(rest, change_id, file_path,
+                          component, version, dep_file_comps):
+    int_change_obj = IntegrationChange(rest, change_id)
     logging.info('Try to update depends for %s', file_path)
     # if component is match
-    int_change_obj = IntegrationChange(rest, change_id)
     ticket_comps = int_change_obj.get_components()
-    comps_for_interfaces = get_comp_obj(component, comp_config)
-    if component not in comps_for_interfaces.values():
-        logging.warn(
-            '%s not in %s', component, comps_for_interfaces)
-        return
     in_dep_file_comps = False
     for t_comp in ticket_comps:
         if dep_file_comps and t_comp not in dep_file_comps:
@@ -175,7 +199,7 @@ def replace_submodule_content(rest, change_id, file_path, version):
 
 
 def run(gerrit_info_path, change_id, dep_files,
-        dep_submodules, component_yaml_path):
+        dep_submodules, component_yaml_path, project=None):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     dep_file_list = dep_files.splitlines()
     dep_submodule_dict = {}
@@ -190,7 +214,7 @@ def run(gerrit_info_path, change_id, dep_files,
         else:
             logging.warn('Cannot find ":" in line: %s', dep_submodule_line)
     update_depends(rest, change_id, dep_file_list,
-                   dep_submodule_dict, comp_config)
+                   dep_submodule_dict, comp_config, project)
 
 
 if __name__ == '__main__':
