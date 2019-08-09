@@ -35,6 +35,17 @@ class OperateFeature(object):
             return relative_path
         return os.path.join(folder, relative_path)
 
+    def get_feature_not_needed_list(self, config_yaml_path):
+        data = yaml.load(open(config_yaml_path, 'r'), Loader=yaml.Loader)
+        feature_not_needed_list = []
+        comp_list = data['components']
+        for comp in comp_list:
+            if 'ric' in comp:
+                if 'feature_needed' in comp:
+                    if comp['feature_needed'] is False:
+                        feature_not_needed_list.append(comp['ric'])
+        return feature_not_needed_list
+
     def add_by_path(self, feature_yaml_path):
         new_yaml = yaml.load(open(feature_yaml_path, 'r'), Loader=yaml.Loader)
         self.add(new_yaml)
@@ -74,7 +85,7 @@ class OperateFeature(object):
                 except Exception as e:
                     print(e)
 
-    def generate(self, root_change_no, save_path=None, add=False):
+    def generate(self, root_change_no, config_yaml_file, save_path=None, add=False):
         root_change = integration_change.RootChange(self.rest, root_change_no)
         try:
             root_change.get_topic()
@@ -83,12 +94,15 @@ class OperateFeature(object):
             return
         comp_change_list = root_change.get_all_changes_by_comments()
         comp_set = set()
+
         for comp_change_no in comp_change_list:
             comp_change = integration_change.IntegrationChange(self.rest, comp_change_no)
             try:
                 comp_list = comp_change.get_components()
+                feature_not_needed_list = self.get_feature_not_needed_list(config_yaml_file)
                 for comp in comp_list:
-                    comp_set.add(comp)
+                    if comp not in feature_not_needed_list:
+                        comp_set.add(comp)
             except Exception as e:
                 print(e)
                 continue
