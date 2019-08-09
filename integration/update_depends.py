@@ -76,13 +76,14 @@ def update_depends(rest, change_id, dep_file_list,
             comp_version = interface_info['comp_version']
             repo_version = interface_info['repo_version']
             comps_for_interfaces = get_dep_comps(component, comp_config)
-            for t_comp in ticket_comps:
-                if t_comp in comps_for_interfaces:
-                    break
-            else:
-                logging.warn(
-                    '%s not in %s', ticket_comps, comps_for_interfaces)
-                continue
+            if comps_for_interfaces:
+                for t_comp in ticket_comps:
+                    if t_comp in comps_for_interfaces:
+                        break
+                else:
+                    logging.warn(
+                        '%s not in %s', ticket_comps, comps_for_interfaces)
+                    continue
             for dep_file_line in dep_file_list:
                 dep_str_list = dep_file_line.split(':')
                 dep_file = dep_str_list[0].strip()
