@@ -13,7 +13,7 @@ from mod import integration_change
 def get_ps_version(rest, root_change, env_file_path):
     change_files = rest.get_file_list(root_change)
     if env_file_path in change_files:
-        for line in rest.get_file_change(env_file_path, root_change).split('\n'):
+        for line in rest.get_file_change(env_file_path, root_change)['new_diff'].split('\n'):
             if 'ENV_PS_REL' in line:
                 return line.split('=')[-1]
     return None
@@ -64,12 +64,15 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
         print('depends_comp: {}'.format(depends_comp))
         if depends_comp[2] == 'root':
             root_change_no = depends_comp[1]
-    env_repo_info = get_env_repo.get_env_repo_info(rest, root_change_no)[0]
-    ps_version = get_ps_version(root_change=change_id, rest=rest, env_file_path=env_repo_info[-1])
+    env_info = get_env_repo.get_env_repo_info(rest, root_change_no)
+    env_repo_info = env_info[0]
+    print env_repo_info
+    ps_version = get_ps_version(root_change=root_change_no, rest=rest, env_file_path=env_info[1])
     if not ps_version:
         print "[INFO] No PS changes, skip component trigger"
         sys.exit(0)
     env_repo = '{}/{}'.format(repo_url, env_repo_info)
+    print "[INFO] env repo: {0}".format(env_repo)
     env_version = repo_ver
     component_list = get_component_list(change_list)
     data = {'PS_VERSION': ps_version, 'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_HASH_REVIEW': git_hash_review}
