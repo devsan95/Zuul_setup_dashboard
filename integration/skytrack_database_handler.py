@@ -215,7 +215,7 @@ def update_qt_result(database_info_path, jira_key, package_name, type_name, resu
 def update_events(database_info_path, integration_name, description, highlight=False, date=None,
                   user='SKYTRACK'):
     mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
-    date = date if date else datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    date = date if date else datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     values = {
         'integration_name': integration_name,
         'description': description,
