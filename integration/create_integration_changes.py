@@ -765,6 +765,7 @@ class IntegrationChangesCreation(object):
 
             else:
                 if 'ric' in node and node['ric']:
+                    com_ver = ''
                     try:
                         com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
                     except Exception as e:
