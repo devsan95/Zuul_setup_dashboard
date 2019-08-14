@@ -38,11 +38,9 @@ def fetch_codes(repos, refs, mergerN, arguments, mergerurl):
 
             ref_path = arguments.gitrepo + "/.git/" + stored_data.zuul_ref
 
-            if os.path.exists(os.path.dirname(ref_path)):
-                if os.path.exists(ref_path):
-                    print("{} in repo {} from merger {} exists.".format(stored_data.zuul_ref, arguments.gitrepo,
-                                                                        mergerN))
-                    continue
+            if os.path.exists(ref_path):
+                print("{} in repo {} from merger {} exists.".format(stored_data.zuul_ref, arguments.gitrepo, mergerN))
+                continue
             else:
                 try:
                     os.makedirs(os.path.dirname(ref_path))
