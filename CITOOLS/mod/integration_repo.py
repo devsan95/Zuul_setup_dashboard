@@ -52,21 +52,19 @@ class INTEGRATION_REPO(object):
         self.int_targets = self.get_int_targets()
         self.add_if_no = add_if_no
         self.dep_file_list = []
-        self.dep_env_list = []
         self.git_user = GIT_USER
         self.git_email = GIT_EMAIL
 
-    def run_bitbake_cmd(self, prefix_path, int_bb_target,
-                        oe_scripts, *bitbake_args):
+    def run_bitbake_cmd(self, prefix_path, oe_scripts, *bitbake_args):
         bitbake_arg_str = ' '.join(list(bitbake_args))
         bash_cmd = ''
         bash_cmd += '{ mkdir -p build && '
         bash_cmd += 'source ./.config-{} && '.format(self.pipeline)
         bash_cmd += 'source {} build/{} && '.format(
             oe_scripts, prefix_path)
-        if prefix_path.startswith('integration-'):
-            bash_cmd += '../../env/prefix-root-gen-script.d/"${{TARGET_{}:-NATIVE}}" ./prefix_root && '.format(
-                int_bb_target.split('integration-')[1])
+        if oe_scripts == './oe-init-build-env':
+            bash_cmd += '../../env/prefix-root-gen-script.d/{} ./prefix_root && '.format(
+                prefix_path.replace('integration-', ''))
             bash_cmd += 'source ./prefix_root/environment-setup.sh && '
         bash_cmd += 'PIPELINE={} bitbake {};'.format(
             self.pipeline,
@@ -85,14 +83,21 @@ class INTEGRATION_REPO(object):
         regex_ver = r'^(REVISION|SVNTAG|SVNREV|SRCREV|BIN_VER|SRC_REV)="([^"]+)"'
         repo_url = ''
         repo_ver = ''
+        oe_scripts = './oe-init-build-env'
+        module = int_bb_target.split('integration-')[1]
+        target_var = 'TARGET_{}'.format(module.replace('-', '_'))
+        director = self.get_config_value(target_var)
+        if module.startswith('Yocto') and module != 'Yocto':
+            oe_scripts = 'poky/oe-init-build-env'
+        else:
+            director = 'integration-{}'.format(director)
         env_file_path = os.path.join(
             self.work_dir,
             'build',
-            int_bb_target,
+            director,
             '{}.env'.format(comp_name_with_ver))
-        oe_scripts = './oe-init-build-env'
         try:
-            self.run_bitbake_cmd(int_bb_target, int_bb_target, oe_scripts,
+            self.run_bitbake_cmd(director, oe_scripts,
                                  '-e', '-b', bb_file, '>', env_file_path)
         except Exception:
             return repo_url, repo_ver
@@ -112,45 +117,26 @@ class INTEGRATION_REPO(object):
         if not int_bb_target:
             int_bb_target = director
         oe_scripts = './oe-init-build-env'
-        if director.startswith('integration-Yocto'):
-            module = director.split('integration-')[1]
-            target_var = 'TARGET_{}'.format(module.replace('-', '_'))
-            target_value = self.get_config_value(target_var)
-            director = target_value
+        module = int_bb_target.split('integration-')[1].strip()
+        bb_cmd_dir = director
+        if module.startswith('Yocto') and module != 'Yocto':
             oe_scripts = 'poky/oe-init-build-env'
-        self.run_bitbake_cmd(director, int_bb_target, oe_scripts,
-                             '-g', int_bb_target)
-        env_file_path = os.path.join(
-            self.work_dir,
-            'build',
-            director,
-            '%s.env' % int_bb_target)
-        self.run_bitbake_cmd(director,
-                             int_bb_target,
-                             oe_scripts,
-                             '-e',
-                             int_bb_target,
-                             '>',
-                             env_file_path)
+        else:
+            bb_cmd_dir = 'integration-{}'.format(bb_cmd_dir)
+        self.run_bitbake_cmd(bb_cmd_dir, oe_scripts, '-g', int_bb_target)
         dep_file_path = os.path.join(
             self.work_dir,
             'build',
-            director,
-            '%s.dep' % int_bb_target)
+            bb_cmd_dir,
+            '%s.dep' % director)
         shutil.copyfile(
             os.path.join(
                 self.work_dir,
                 'build',
-                director,
+                bb_cmd_dir,
                 'recipe-depends.dot'),
             dep_file_path)
-        env_file_path = os.path.join(
-            self.work_dir,
-            'build',
-            director,
-            '%s.env' % int_bb_target)
         self.dep_file_list.append(dep_file_path)
-        self.dep_env_list.append(env_file_path)
 
     def get_int_targets(self):
         int_targets = []
@@ -161,58 +147,26 @@ class INTEGRATION_REPO(object):
 
     def get_dep_files(self):
         logging.info('get dep files for integration')
-        int_top_dir = os.path.join(
-            self.work_dir,
-            'meta-5g-cb/recipes-integration')
-        directories = utils.get_sub_dirs(int_top_dir, r'integration-')
+        modules = self.get_config_value('MODULES').split()
         self.dep_file_list = []
-        logging.info(directories)
-        for director in directories:
-            if director in self.int_targets:
-                int_bb_files = utils.get_sub_files(
-                    os.path.join(
-                        int_top_dir,
-                        director),
-                    regex=r'^%s.*.bb' % director)
-                for int_bb_file in int_bb_files:
-                    int_bb_target = int_bb_file.strip('.bb')
-                    logging.info(
-                        'create dep file for %s', int_bb_target)
-                    self.run_dep_cmd(director, int_bb_target)
+        logging.info(modules)
+        plat_targets = {}
+        for module in modules:
+            int_bb_target = 'integration-{}'.format(module)
+            try:
+                plat_value = self.get_config_value(
+                    'TARGET_{}'.format(module.replace('-', '_')))
+            except Exception:
+                plat_value = 'NATIVE'
+            if plat_value not in plat_targets:
+                plat_targets[plat_value] = [int_bb_target]
+            else:
+                plat_targets[plat_value].append(int_bb_target)
+                logging.info('plat targets: %s', plat_targets)
+        for plat, targets in plat_targets.items():
+            int_bb_targets = ' '.join(targets)
+            self.run_dep_cmd(plat, int_bb_targets)
         logging.info('dep file list:%s', self.dep_file_list)
-
-    def get_dep_regex_list(self):
-        comp_regex_list = []
-        regex_tmp = {}
-        for env_file in self.dep_env_list:
-            env_content = ''
-            logging.info('get dep info from %s', env_file)
-            plat = env_file.split('/')[-2].replace('integration-', '')
-            with open(env_file, 'r') as fr:
-                env_content = fr.read()
-            logging.debug('env info %s', env_content)
-            m = re.search(
-                r'^\s*DEPENDS\s*=\s*"([^"]+)"|\n\s*DEPENDS\s*=\s*"([^"]+)"',
-                env_content)
-            if m and m.group(1):
-                for regex_str in m.group(1).split():
-                    if plat not in regex_tmp:
-                        regex_tmp[plat] = []
-                    if regex_str not in regex_tmp[plat]:
-                        comp_regex_list.append({
-                            'platform': plat,
-                            'regex': regex_str})
-                        regex_tmp[plat].append(regex_str)
-            if m and m.group(2):
-                for regex_str in m.group(2).split():
-                    if plat not in regex_tmp:
-                        regex_tmp[plat] = []
-                    if regex_str not in regex_tmp[plat]:
-                        comp_regex_list.append({
-                            'platform': plat,
-                            'regex': regex_str})
-                        regex_tmp[plat].append(regex_str)
-        return comp_regex_list
 
     def get_git_changes(self, git_obj):
         """
@@ -321,15 +275,15 @@ class INTEGRATION_REPO(object):
             logging.info(
                 'get %s, platform:%s in dep file %s',
                 comp_name, platform, dep_file)
-            if platform:
-                logging.info(
-                    'fetch dep file only match paltform: %s', platform)
-                m = re.search('.*/integration-%s/' % platform, dep_file)
-                if not m:
-                    continue
             logging.info('search comp: %s from file:%s', comp_name, dep_file)
             with open(dep_file, 'r') as fr:
-                for line in fr.read().splitlines():
+                file_content = fr.read()
+                if platform:
+                    if '"integration-{}"'.format(platform) not in file_content:
+                        logging.info(
+                            'fetch dep file only match paltform: %s', platform)
+                        continue
+                for line in file_content.splitlines():
                     logging.debug('line is : %s', line)
                     m = re.match(regx_str, line)
                     if m:
@@ -347,7 +301,7 @@ class INTEGRATION_REPO(object):
     def get_comp_info(self, comp_name, platform=''):
         return self.get_comp_info_by_regx(
             comp_name,
-            r'"%s" \[label="([^\\]+)\\n([^\\]+)\\n([^\\]+)"\]' %
+            r'"%s" \[label="([^\\]+)\\n:([^\\]+)\\n([^\\]+)"\]' %
             comp_name,
             [2, 3],
             platform)
@@ -355,7 +309,7 @@ class INTEGRATION_REPO(object):
     def get_comp_bb(self, comp_name, platform=''):
         return self.get_comp_info_by_regx(
             comp_name,
-            r'"%s" \[label="([^\\]+)\\n([^\\]+)\\n([^\\]+)"\]' %
+            r'"%s" \[label="([^\\]+)\\n:([^\\]+)\\n([^\\]+)"\]' %
             comp_name,
             [3],
             platform)
@@ -387,15 +341,19 @@ class INTEGRATION_REPO(object):
     def get_version_for_comp(self, comp_name, platform=''):
         possible_subpath = os.path.join(self.work_dir, comp_name)
         if os.path.exists(possible_subpath):
-            g = git.Git(self.work_dir)
-            repo_msg = g.remote('-v')
-            sub_g = git.Git(possible_subpath)
-            sub_repo_msg = sub_g.remote('-v')
-            if sub_repo_msg != repo_msg:
-                comp_hash = sub_g.log('-1', '--pretty=format:%H').strip('"')
-                return {'repo_ver': comp_hash}
+            try:
+                g = git.Git(self.work_dir)
+                repo_msg = g.remote('-v')
+                sub_g = git.Git(possible_subpath)
+                sub_repo_msg = sub_g.remote('-v')
+                if sub_repo_msg != repo_msg:
+                    comp_hash = sub_g.log('-1', '--pretty=format:%H').strip('"')
+                    return {'repo_ver': comp_hash}
+            except Exception:
+                logging.warn('Not able to find hash in %s', possible_subpath)
         bb_target = 'integration-%s' % platform if platform else ''
         comp_info = self.get_comp_info(comp_name, platform)
+        logging.info('comp_info %s', comp_info)
         comp_dict = self.get_version_from_bb(
             comp_info[0][1], comp_name, comp_info[0][0], bb_target)
         return comp_dict.values()[0]
@@ -464,8 +422,8 @@ class INTEGRATION_REPO(object):
                                                 bb_dict['svn_branch'])
         if 'repo_url' not in bb_dict and 'srcuri' in bb_dict:
             if bb_dict['srcuri'].startswith('git:') or \
-                bb_dict['srcuri'].startswith('gitsm:') or \
-                bb_dict['srcuri'].startswith('http:') or \
+                    bb_dict['srcuri'].startswith('gitsm:') or \
+                    bb_dict['srcuri'].startswith('http:') or \
                     bb_dict['srcuri'].startswith('https:'):
                 bb_dict['repo_url'] = bb_dict['srcuri']
                 self.replace_var_in_bb(bb_dict, bb_pn, bb_pv)
@@ -517,16 +475,6 @@ class INTEGRATION_REPO(object):
             logging.info('dep info: %s', comp_info_list)
             if comp_info_list:
                 base_dep_dict[target.split('.')[0]] = comp_info_list
-            if 'asik_abik' in self.pipeline and 'AirScale' in target:
-                comp_info_list = []
-                for dep_file in self.dep_file_list:
-                    if 'integration-AirScale-' in dep_file:
-                        int_name = os.path.basename(dep_file).strip('.dep')
-                        logging.info('find extra dep comp from %s', int_name)
-                        for comp_bb_file in self.get_deped_comp_bb(int_name):
-                            comp_info_list.append(
-                                self.get_version_from_bb(comp_bb_file))
-                base_dep_dict['fsip-arm-ps_lfs'] = comp_info_list
         logging.info('base_dep_dict: %s', base_dep_dict)
         return base_dep_dict
 
