@@ -56,19 +56,22 @@ class INTEGRATION_REPO(object):
         self.git_user = GIT_USER
         self.git_email = GIT_EMAIL
 
-    def run_bitbake_cmd(self, build_dir, prefix_path,
-                        int_bb_target, *bitbake_args):
+    def run_bitbake_cmd(self, prefix_path, int_bb_target,
+                        oe_scripts, *bitbake_args):
         bitbake_arg_str = ' '.join(list(bitbake_args))
-        bash_cmd = 'mkdir -p {} && '.format(build_dir)
+        bash_cmd = ''
+        bash_cmd += '{ mkdir -p build && '
         bash_cmd += 'source ./.config-{} && '.format(self.pipeline)
-        bash_cmd += 'source ./oe-init-build-env build/{} && '.format(
-            prefix_path)
-        bash_cmd += '../../env/prefix-root-gen-script.d/"${{TARGET_{}:-NATIVE}}" ./prefix_root && '.format(
-            int_bb_target.split('integration-')[1])
-        bash_cmd += 'source ./prefix_root/environment-setup.sh && '
+        bash_cmd += 'source {} build/{} && '.format(
+            oe_scripts, prefix_path)
+        if prefix_path.startswith('integration-'):
+            bash_cmd += '../../env/prefix-root-gen-script.d/"${{TARGET_{}:-NATIVE}}" ./prefix_root && '.format(
+                int_bb_target.split('integration-')[1])
+            bash_cmd += 'source ./prefix_root/environment-setup.sh && '
         bash_cmd += 'PIPELINE={} bitbake {};'.format(
             self.pipeline,
             bitbake_arg_str)
+        bash_cmd += '}'
         logging.info(bash_cmd)
         old_wkdir = os.getcwd()
         os.chdir(self.work_dir)
@@ -87,8 +90,9 @@ class INTEGRATION_REPO(object):
             'build',
             int_bb_target,
             '{}.env'.format(comp_name_with_ver))
+        oe_scripts = './oe-init-build-env'
         try:
-            self.run_bitbake_cmd('build', int_bb_target, int_bb_target,
+            self.run_bitbake_cmd(int_bb_target, int_bb_target, oe_scripts,
                                  '-e', '-b', bb_file, '>', env_file_path)
         except Exception:
             return repo_url, repo_ver
@@ -107,16 +111,23 @@ class INTEGRATION_REPO(object):
     def run_dep_cmd(self, director, int_bb_target=''):
         if not int_bb_target:
             int_bb_target = director
-        self.run_bitbake_cmd('build', director, int_bb_target,
+        oe_scripts = './oe-init-build-env'
+        if director.startswith('integration-Yocto'):
+            module = director.split('integration-')[1]
+            target_var = 'TARGET_{}'.format(module.replace('-', '_'))
+            target_value = self.get_config_value(target_var)
+            director = target_value
+            oe_scripts = 'poky/oe-init-build-env'
+        self.run_bitbake_cmd(director, int_bb_target, oe_scripts,
                              '-g', int_bb_target)
         env_file_path = os.path.join(
             self.work_dir,
             'build',
             director,
             '%s.env' % int_bb_target)
-        self.run_bitbake_cmd('build',
-                             director,
+        self.run_bitbake_cmd(director,
                              int_bb_target,
+                             oe_scripts,
                              '-e',
                              int_bb_target,
                              '>',

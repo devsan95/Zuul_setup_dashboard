@@ -47,6 +47,7 @@ def rebase_gitlab_branch(repo, branch, org_branch, comp_hash, token):
         repo_url = 'https://gitlab-ci-token:{}@{}.git'.format(token, repo)
         print('repo_url: {}'.format(repo_url))
         print('repo_path: {}'.format(repo_path))
+        print('repo_branch: {}'.format(branch))
         git.Repo.clone_from(repo_url, repo_path)
         g = git.Git(repo_path)
         g.checkout(org_branch)
