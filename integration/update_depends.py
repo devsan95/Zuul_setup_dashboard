@@ -156,21 +156,28 @@ def replace_depdends_content(old_recipe_content, component, version):
     # list == 0 , skip
     # list > 1, raise Exception
     matched = False
+    version_regex = ''
     for ver_regex in common_regex.COMP_VERSION_REGEX:
-        prefer_regex = re.compile(r'{}{}[\s"]'.format(component, ver_regex))
-        last_regex = re.compile(r'{}{}'.format(component, ver_regex))
-        new_regex = r"{}-{}".format(component, version)
-        for cur_regex in [prefer_regex, last_regex]:
-            match_elems = re.findall(cur_regex, old_recipe_content)
-            if len(match_elems) == 1:
-                old_component_str = match_elems[0].rstrip().rstrip('"')
-                return re.sub(old_component_str, new_regex, old_recipe_content)
-            if len(match_elems) > 1:
-                logging.warn('Get multi match elems %s for %s',
-                             match_elems, cur_regex)
-                matched = True
-            if len(match_elems) == 0:
-                continue
+        match_new_version = re.match(ver_regex, version)
+        if match_new_version:
+            version_regex = ver_regex
+            break
+    if not version_regex:
+        logging.warn('No match version_regex for %s', version)
+    prefer_regex = re.compile(r'{}{}[\s"]'.format(component, version_regex))
+    last_regex = re.compile(r'{}{}'.format(component, version_regex))
+    new_regex = r"{}-{}".format(component, version)
+    for cur_regex in [prefer_regex, last_regex]:
+        match_elems = re.findall(cur_regex, old_recipe_content)
+        if len(match_elems) == 1:
+            old_component_str = match_elems[0].rstrip().rstrip('"')
+            return re.sub(old_component_str, new_regex, old_recipe_content)
+        if len(match_elems) > 1:
+            logging.warn('Get multi match elems %s for %s',
+                         match_elems, cur_regex)
+            matched = True
+        if len(match_elems) == 0:
+            continue
     if not matched:
         logging.warn('No match elem for %s %s',
                      component, common_regex.COMP_VERSION_REGEX)
