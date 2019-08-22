@@ -592,14 +592,14 @@ class LayoutGroup(object):
                             regular_filter['name'], regular_filter['path'])
                     warning_list.append(warning_msg)
 
-                if string_filter and string_filter['folder'] != info['folder']:
+                if string_filter and string_filter['folder'] != info['folder'] and string_filter['folder'] not in info['folder']:
                     error_list.append('Filter [{}] in [{}] should not affect job [{}] in [{}], because they are not in the same folder'.format(
                         string_filter['name'], string_filter['path'],
                         job, info['path']
                     ))
                 if regular_filter_list:
                     for regular_filter in regular_filter_list:
-                        if regular_filter and regular_filter['folder'] != info['folder']:
+                        if regular_filter and regular_filter['folder'] != info['folder'] and regular_filter['folder'] not in info['folder']:
                             error_list.append('Filter [{}] in [{}] should not affect job [{}] in [{}], because they are not in the same folder'.format(
                                 regular_filter['name'], regular_filter['path'],
                                 job, info['path']
