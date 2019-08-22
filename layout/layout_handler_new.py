@@ -57,7 +57,7 @@ class LayoutSnippet(object):
     def get_folder(self):
         if self.path is None:
             return None
-        return os.path.dirname(os.path.abspath(self.path))
+        return os.path.dirname(os.path.abspath(self.path)) + os.sep
 
 
 def get_project_node(project, projects):
