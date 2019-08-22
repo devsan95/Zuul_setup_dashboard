@@ -526,6 +526,17 @@ class LayoutGroup(object):
             yaml_ = snippet.obj
             job_list = []
 
+            project_list = yaml_.get('projects')
+            if project_list:
+                for project_ in project_list:
+                    if not project_.get('name'):
+                        error_list.append(
+                            'Project {} in file {} has no name'.format(
+                                project_list.index(project_),
+                                path
+                            ))
+                        continue
+
             if 'projects' in yaml_ and yaml_['projects']:
                 job_list = list_job_in_projects(yaml_['projects'], pipelines)
 
