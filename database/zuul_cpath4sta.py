@@ -36,17 +36,21 @@ class JobTreeOper(object):
             log.debug("No connection exist.")
 
     def _get_records_amount(self, tdate=''):
+        cd = datetime.datetime.strptime(tdate, "%Y-%m-%d")
+        nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
         with self.connection.cursor() as cursor:
-            sql = "select count(*) from item_jobtree where " \
-                  "created_at > str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)
+            sql = "select count(*) from item_jobtree where created_at  >= '{0} 00:00:00' and " \
+                  "created_at  < '{1} 00:00:00'".format(cd, nd)
             cursor.execute(sql)
             result = cursor.fetchone()
         return result['count(*)']
 
     def get_records(self, tdate=''):
+        cd = datetime.datetime.strptime(tdate, "%Y-%m-%d")
+        nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
         with self.connection.cursor() as cursor:
-            sql = "select * from item_jobtree where created_at " \
-                  "> str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)
+            sql = "select * from item_jobtree where created_at  >= '{0} 00:00:00' and " \
+                  "created_at  < '{1} 00:00:00'".format(cd, nd)
             cursor.execute(sql)
             results = cursor.fetchall()
         if not results:
@@ -281,7 +285,7 @@ class JobTreeOper(object):
                       " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}',{8},{9},{10})".format(*sdata)
                 log.debug(sql)
                 cursor.execute(sql)
-            self.connection.commit()
+            # self.connection.commit()
         except Exception as err:
             log.debug(str(err))
             # self.connection.rollback()
@@ -318,13 +322,17 @@ class Runner(object):
                                 format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                                 datefmt='%a, %d %b %Y %H:%M:%S')
         if self.jto_args.tdate:
-            tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
+            tdate = self.jto_args.tdate.strip()
+            # tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
         else:
-            tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
+            # tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
+            tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d")
+        print tdate
         jto_ins = JobTreeOper(self.jto_args.zuul_host,
                               self.jto_args.zuul_usr,
                               self.jto_args.zuul_passwd,
                               self.jto_args.zuul_table)
+        # cnt = jto_ins._get_records_amount(tdate)
         jto_ins.get_records(tdate)
         jto_ins.update_data()
         log.debug(jto_ins.datas)
@@ -357,6 +365,7 @@ class Runner(object):
                     except Exception as sky_err:
                         log.debug(sky_err)
                         continue
+            sky_ins.connection.commit()
         except Exception as sky_err:
             log.debug(str(sky_err))
         finally:
