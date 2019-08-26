@@ -82,7 +82,10 @@ def get_release_date(package):
     rs = WFT.get_build_content(package_name)
     tree = ET.fromstring(rs)
     for one in tree.findall("delivery_date"):
-        return package, one.text
+        release_date = one.text
+    if not release_date:
+        release_date = get_planed_delivery_date(package_name)
+    return package, release_date
 
 
 def get_newer_base_load(base_load_list):
