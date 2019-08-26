@@ -69,6 +69,7 @@ def update_depends(rest, change_id, dep_file_list,
         comp_project = int_change_obj.get_project()
         if project and comp_project != project:
             logging.info('%s is not same as project %s', comp_project, project)
+            continue
         ticket_comps = int_change_obj.get_components()
         logging.info('Interface_infos: {}'.format(interface_infos))
         for interface_info in interface_infos:
@@ -101,6 +102,11 @@ def update_depends(rest, change_id, dep_file_list,
                 else:
                     logging.warn('%s not in dep submodule dict %s',
                                  component, dep_submodule_dict)
+                if 'meta-5g' in dep_submodule_dict:
+                    meta_5g_revision = rest.get_latest_commit_from_branch(
+                        project='MN/5G/COMMON/meta-5g', branch='master')['revision']
+                    replace_submodule_content(rest, comp_change, dep_submodule_dict['meta-5g'],
+                                              meta_5g_revision)
                 try:
                     rest.publish_edit(comp_change)
                 except Exception as e:
