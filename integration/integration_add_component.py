@@ -161,6 +161,19 @@ def add_tmp_file(rest, change_number, files, topic):
         rest.publish_edit(change_number)
 
 
+def check_external_change(rest, root_change):
+    root_change_obj = inte_change.RootChange(rest, root_change)
+    comp_change_list, manager_change = root_change_obj.get_components_changes_by_comments()
+    parent_commit = None
+    for comp in comp_change_list:
+        comp_change_obj = inte_change.IntegrationChange(rest, comp)
+        change_type = comp_change_obj.get_type()
+        if 'external' in change_type:
+            parent_commit = rest.get_parent(comp)
+            break
+    return parent_commit
+
+
 def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_path, base_commit=None):
     comp_config = yaml.load(open(component_config),
                             Loader=yaml.Loader, version='1.1')
@@ -209,6 +222,11 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     if not base_commit:
         base_commit, base_change = get_base_commit(rest, comp, root)
+    parent_commit = None
+    if comp['repo'] == 'MN/SCMTA/zuul/inte_ric':
+        parent_commit = check_external_change(rest, root_change)
+        if parent_commit:
+            base_commit = parent_commit
     comp_list = []
     for i in component_list:
         comp_list.append(i[0])
