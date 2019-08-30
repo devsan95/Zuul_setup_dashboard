@@ -30,7 +30,11 @@ def check_user_label_from_detail(detail_json, username, label):
                 all_labels = label_dict[label]['all']
                 for lab in all_labels:
                     if lab['username'] == username:
-                        value = lab['value']
+                        if 'value' in lab:
+                            value = lab['value']
+                        else:
+                            print("ERROR: {} value missing!".format(label))
+                            value = 0
                         break
     return value
 
