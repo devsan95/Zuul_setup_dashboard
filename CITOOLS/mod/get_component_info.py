@@ -27,13 +27,22 @@ def init_integration(base_pkg):
     return int_repo
 
 
+def find_bb_target(comp_name, dep_dict):
+    if comp_name in dep_dict:
+        up_comp = dep_dict[comp_name]
+        if up_comp.startswith('integration-'):
+            return up_comp
+        else:
+            return find_bb_target(up_comp, dep_dict)
+    return ''
+
+
 def get_comp_hash(int_repo, comp_name):
     dep_all_file = os.path.join(int_repo.work_dir, 'build/dep_all', 'all.dep')
     regex_deps = r'"([^"]+)" -> "([^"]+)"'
     # regex_dep_file = r'dep_file:\s*(\S+)'
     # int_bb_target = ''
     dep_dict = dict()
-    srch_comp = comp_name
     with open(dep_all_file, 'r') as fr:
         content = fr.read()
         for line in content.splitlines():
@@ -42,16 +51,8 @@ def get_comp_hash(int_repo, comp_name):
             if m_d:
                 up_comp = m_d.group(1)
                 down_comp = m_d.group(2)
-                logging.info('Up_comp: %s Down_comp: %s', up_comp, down_comp)
                 dep_dict[down_comp] = up_comp
-                if down_comp == srch_comp:
-                    if up_comp.startswith('integration-'):
-                        dep_dict[comp_name] = up_comp
-                        logging.info('Find target name %s for %s', up_comp, comp_name)
-                        break
-                    else:
-                        srch_comp = up_comp
-    platform = dep_dict[comp_name].split('integration-')[-1] if comp_name in dep_dict else ''
+    platform = find_bb_target(comp_name, dep_dict).split('integration-')[-1]
     logging.info('Get %s version on %s', comp_name, platform)
     version_dict = int_repo.get_version_for_comp(comp_name, platform=platform)
     return version_dict['repo_ver']
