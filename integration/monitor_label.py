@@ -142,6 +142,67 @@ def _check_if_external(rest, ticket_id):
     return if_external
 
 
+def check_interface(rest, tickets_dict):
+    ticket_interface = dict()
+    interface_ci = dict()
+    interface = ['cpnbcm', 'cpnrtcm', 'cprtcm', 'internal']
+    has_interface = False
+    for ticket in tickets_dict['tickets']:
+        sc = rest.get_ticket(ticket)['project'].split('/')[-1]
+        print('-----check {}:{} ----'.format(sc, ticket))
+        if sc in interface:
+            print('is interface')
+            has_interface = True
+            commit_hash = rest.get_commit(ticket)['commit']
+            parent_ci = rest.get_commit(ticket)['parents'][0]['commit']
+            ticket_info = rest.get_ticket(ticket)
+            project = ticket_info['project']
+            if sc == 'internal':
+                interface_ci['interfaces'] = commit_hash
+            else:
+                interface_ci[sc] = commit_hash
+            branch = ticket_info['branch']
+            head_hash = rest.get_latest_commit_from_branch(project, branch)['revision']
+            print('{} {}'.format(head_hash, parent_ci))
+            if head_hash != parent_ci:
+                return False
+        else:
+            print('is common')
+            ticket_interface_ci = dict()
+            start = False
+            comp_name = None
+            complete = True
+            for line in rest.get_commit(ticket)['message'].split('\n'):
+                if start:
+                    if comp_name:
+                        if 'commit-ID:' in line:
+                            ticket_interface_ci[comp_name] = line.split(':')[-1].strip()
+                            comp_name = None
+                            complete = True
+                    else:
+                        if 'comp_name' in line:
+                            comp_name = re.split('[:-]', line)[-1].strip()
+                            complete = False
+                else:
+                    if line == 'interface info:':
+                        start = True
+            if start:
+                if not complete:
+                    return False
+                elif ticket_interface_ci:
+                    ticket_interface[ticket] = ticket_interface_ci
+    print(ticket_interface)
+    if has_interface:
+        for ticket in ticket_interface:
+            if set(ticket_interface[ticket].keys()) ^ set(interface_ci.keys()):
+                return False
+            else:
+                for item in ticket_interface[ticket]:
+                    if ticket_interface[ticket][item] != interface_ci[item]:
+                        return False
+    return True
+
+
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
           rest_url, rest_user, rest_pwd, auth_type, backup_topic):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
@@ -265,7 +326,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     sys.stdout.flush()
     sys.stderr.flush()
     check_result = True
-    if _if_checklist_all_pass(pass_list, skytrack_log_collector):
+    if _if_checklist_all_pass(pass_list, skytrack_log_collector) and check_interface(rest, targets):
         print('All component changes match the verified+1 and code review+1/+2 requirement.')
         skytrack_log_collector.append('Validation succeed! Ready to merge to production now.')
     else:
