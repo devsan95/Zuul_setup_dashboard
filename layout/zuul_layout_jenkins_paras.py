@@ -19,6 +19,8 @@ def zuul_external_params_default(item, params):
     params['ZUULEX_CHANGE_AUTHOR_NAME'] = item.change._data['currentPatchSet']['author']['name']
     params['ZUULEX_CHANGE_AUTHOR_EMAIL'] = item.change._data['currentPatchSet']['author']['email']
 
+    params['ZUULEX_CURRENT_CHANGE_FILES'] = ':'.join(item.change.files)
+
 
 def temp_params(item, params):
     zuul_external_params_default(item, params)
