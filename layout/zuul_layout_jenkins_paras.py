@@ -13,7 +13,7 @@ def zuul_external_params_default(item, params):
 
     params['ZUULEX_CHANGE_UPLOADER_USERNAME'] = item.change._data['currentPatchSet']['uploader']['username']
     params['ZUULEX_CHANGE_UPLOADER_NAME'] = item.change._data['currentPatchSet']['uploader']['name']
-    params['ZUULEX_CHANGE_UPLOADER_EMAIL'] = item.change._data['currentPatchSet']['uploader']['email']
+#    params['ZUULEX_CHANGE_UPLOADER_EMAIL'] = item.change._data['currentPatchSet']['uploader']['email']
 
     params['ZUULEX_CHANGE_AUTHOR_USERNAME'] = item.change._data['currentPatchSet']['author']['username']
     params['ZUULEX_CHANGE_AUTHOR_NAME'] = item.change._data['currentPatchSet']['author']['name']
