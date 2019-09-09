@@ -58,6 +58,8 @@ def remove_stream(change_number, stream_list, rest, commit_message):
 
 def set_stream(change_number, stream_list, rest, commit_message):
     need_publish = False
+    need_publish_remove = False
+    need_publish_add = False
     current_file_list = rest.get_file_list(change_number)
     if current_file_list:
         for current_file in current_file_list:
