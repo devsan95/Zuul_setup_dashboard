@@ -216,6 +216,9 @@ class DbHandler(object):
             # fail
             if item['type'] == 'fail':
                 status_str = 'fail'
+            # promotion
+            if item['type'] == 'cancel jobs for promotion':
+                status_str = 'dequeued for promotion'
 
             if not end_id and item['type'] == 'remove from queue':
                 end_id = item['id']
