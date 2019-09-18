@@ -284,6 +284,9 @@ class DbHandler(object):
                         log.debug('no launch time, status is %s', status_str)
                         pre_launch_duration = (finish_time - merged_time).total_seconds() * 1000
                         dequeue_duration = 0
+                        if status_str == 'merge fail':
+                            pre_launch_duration = 0
+                            dequeue_duration = (finish_time - merged_time).total_seconds() * 1000
                 else:
                     log.debug('error, no merged time')
                     merge_duration = (finish_time - merge_time).total_seconds() * 1000
