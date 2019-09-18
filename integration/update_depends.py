@@ -164,12 +164,13 @@ def replace_depdends_content(old_recipe_content, component, version):
     matched = False
     version_regex = ''
     for ver_regex in common_regex.COMP_VERSION_REGEX:
-        match_new_version = re.match(ver_regex, version)
+        match_new_version = re.match('^{}$'.format(ver_regex), '-{}'.format(version))
         if match_new_version:
             version_regex = ver_regex
             break
     if not version_regex:
         logging.warn('No match version_regex for %s', version)
+        return old_recipe_content
     prefer_regex = re.compile(r'{}{}[\s"]'.format(component, version_regex))
     last_regex = re.compile(r'{}{}'.format(component, version_regex))
     new_regex = r"{}-{}".format(component, version)
