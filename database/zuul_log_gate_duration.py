@@ -255,7 +255,8 @@ class DbHandler(object):
                 window_waiting_duration = (waiting_for_window_time - start_time).total_seconds() * 1000
             if not waiting_for_window_time:
                 log.debug('error, no waiting_for_window_time')
-                dequeue_duration = (finish_time - start_time).total_seconds() * 1000
+                window_waiting_duration = (finish_time - start_time).total_seconds() * 1000
+                dequeue_duration = 0
             if merge_time:
                 if merged_time:
                     merge_duration = (merged_time - merge_time).total_seconds() * 1000
@@ -277,13 +278,16 @@ class DbHandler(object):
                                 job_running_duration = (finish_time - launched_job_time).total_seconds() * 1000
                         else:
                             log.debug('error, no launched job time')
-                            dequeue_duration = (finish_time - launch_job_time).total_seconds() * 1000
+                            first_launch_duration = (finish_time - launch_job_time).total_seconds() * 1000
+                            dequeue_duration = 0
                     else:
                         log.debug('no launch time, status is %s', status_str)
-                        dequeue_duration = (finish_time - merged_time).total_seconds() * 1000
+                        pre_launch_duration = (finish_time - merged_time).total_seconds() * 1000
+                        dequeue_duration = 0
                 else:
                     log.debug('error, no merged time')
-                    dequeue_duration = (finish_time - merge_time).total_seconds() * 1000
+                    merge_duration = (finish_time - merge_time).total_seconds() * 1000
+                    dequeue_duration = 0
         total_duration = (finish_time - start_time).total_seconds() * 1000
         obj = self.GateStatistics(
             changeset=changeset,
