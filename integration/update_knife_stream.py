@@ -68,7 +68,7 @@ def set_stream(change_number, stream_list, rest, commit_message):
                 stream = current_file.split('/', 2)[1]
             else:
                 continue
-            if stream != "default" and current_file != "/COMMIT_MSG":
+            if stream != "default" and current_file != "/COMMIT_MSG" and stream not in stream_list:
                 print("[Info] File {} is going to be removed from the change {}".format(current_file, change_number))
                 rest.restore_file_to_change(change_number, current_file)
                 need_publish_remove = True
