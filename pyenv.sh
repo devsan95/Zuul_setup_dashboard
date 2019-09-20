@@ -159,7 +159,7 @@ cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
 pip install jenkins-job-builder PyZMQ ruamel.yaml networkx requests configobj jenkinsapi
 pip install gitpython arrow sh pyyaml ptpython pydocstyle python-slugify pymysql
-pip install jinja2 fire jira python-gitlab jsonschema click mysql-connector pytz xlwt docker==2.0.0
+pip install jinja2 fire jira python-gitlab jsonschema click mysql-connector pytz xlwt
 pip install -U flake8
 pip install -U pylint
 pip install -U git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
