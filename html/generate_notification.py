@@ -119,13 +119,13 @@ def main(title, content, author, alert_type, icon, label, label_type,
                        archiving_path, history_count,
                        archiving_threshold, show_in_history)
         try:
-            rest.add_file_to_change(rest_id, file_path, output)
-            rest.publish_edit(rest_id)
-            rest.review_ticket(rest_id, codecs.encode(u'Author is {}'.format(author), 'utf-8'), {'Code-Review': 2, 'Verified': 1, 'Gatekeeper': 1})
-            rest.submit_change(rest_id)
+            rest.add_file_to_change(change_id, file_path, output)
+            rest.publish_edit(change_id)
+            rest.review_ticket(change_id, codecs.encode(u'Author is {}'.format(author), 'utf-8'), {'Code-Review': 2, 'Verified': 1, 'Gatekeeper': 1})
+            rest.submit_change(change_id)
         except Exception as e:
             print('Exception happened: {}'.format(e))
-            rest.abandon_change(rest_id)
+            rest.abandon_change(change_id)
             raise e
 
 
