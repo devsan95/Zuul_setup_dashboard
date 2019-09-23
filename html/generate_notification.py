@@ -119,7 +119,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
     print("DEBUG_INFO: main: Output is: {}".format(output))
 
     # copy list.yaml from docker container
-    subprocess.check_call("sudo docker cp {}:/ephemeral/zuul/www/notification/list.yaml notification_changed/".format(zuul_server_name), shell=True)
+    subprocess.check_call("rm -rf notification_changed;mkdir notification_changed;sudo docker cp {}:/ephemeral/zuul/www/notification/list.yaml notification_changed/".format(zuul_server_name), shell=True)
     print("DEBUG_INFO: main: copy list.yaml from docker container success!")
 
     if gerrit_available:
