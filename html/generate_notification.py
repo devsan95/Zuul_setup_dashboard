@@ -119,7 +119,8 @@ def main(title, content, author, alert_type, icon, label, label_type,
     print("DEBUG_INFO: main: Output is: {}".format(output))
 
     # copy list.yaml from docker container
-    subprocess.check_call("rm -rf notification_changed;mkdir notification_changed;sudo docker cp {}:/ephemeral/zuul/www/notification/list.yaml notification_changed/".format(zuul_server_name), shell=True)
+    subprocess.check_call("rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;"
+                          "sudo docker cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/".format(zuul_server_name), shell=True)
     print("DEBUG_INFO: main: copy list.yaml from docker container success!")
 
     if gerrit_available:
@@ -192,7 +193,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
         print("DEBUG_INFO: main: Gerrit is not available!")
         # get content from list.yaml
         # file address need to be more accurate
-        with open("notification_changed/list.yaml", 'r') as f:
+        with open("origin_notification/list.yaml", 'r') as f:
             list_yaml = f.read()
         list_list = yaml.load(list_yaml, Loader=yaml.Loader, version='1.1')
 
@@ -305,7 +306,7 @@ def update_history(current_dict, rest, change_no, history_path, list_path,
     else:
         print("DEBUG_INFO: update_history: merge_conflict = False !")
         # get content from list.yaml
-        with open("notification_changed/list.yaml", 'r') as f:
+        with open("origin_notification/list.yaml", 'r') as f:
             list_yaml = f.read()
         list_list = yaml.load(list_yaml, Loader=yaml.Loader, version='1.1')
 
