@@ -192,7 +192,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
         print("DEBUG_INFO: main: Gerrit is not available!")
         # get content from list.yaml
         # file address need to be more accurate
-        with open("list.yaml", 'r') as f:
+        with open("notification_changed/list.yaml", 'r') as f:
             list_yaml = f.read()
         list_list = yaml.load(list_yaml, Loader=yaml.Loader, version='1.1')
 
@@ -305,7 +305,7 @@ def update_history(current_dict, rest, change_no, history_path, list_path,
     else:
         print("DEBUG_INFO: update_history: merge_conflict = False !")
         # get content from list.yaml
-        with open("list.yaml", 'r') as f:
+        with open("notification_changed/list.yaml", 'r') as f:
             list_yaml = f.read()
         list_list = yaml.load(list_yaml, Loader=yaml.Loader, version='1.1')
 
