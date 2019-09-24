@@ -878,7 +878,7 @@ class IntegrationChangesCreation(object):
 
         # handle integration topic
         utc_dt = datetime.utcnow()
-        timestr = utc_dt.replace(microsecond=0).isoformat()
+        timestr = utc_dt.replace(microsecond=0).isoformat().replace(':', '_')
         if not topic_prefix:
             topic = 't_{}'.format(timestr)
         else:
