@@ -131,7 +131,7 @@ else
 fi
 
 export http_proxy=http://10.158.100.1:8080
-export https_proxy=http://10.158.100.1:8080
+export https_proxy=https://10.158.100.1:8080
 
 prepare_python_env(){
 if [ ! -e "$VENV_PATH"/envs/python2/bin/python ];
@@ -160,8 +160,8 @@ source "$VENV_PATH"/bin/activate python2
 pip install jenkins-job-builder PyZMQ ruamel.yaml networkx requests configobj jenkinsapi
 pip install gitpython arrow sh pyyaml ptpython pydocstyle python-slugify pymysql
 pip install jinja2 fire jira python-gitlab jsonschema click mysql-connector pytz xlwt
-pip install -U flake8
-pip install -U pylint
+pip uninstall -y flake8 pylint
+pip install  --no-cache-dir  -U flake8 pylint
 pip install -U git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
 pip install -U git+https://gerrite1.ext.net.nokia.com:443/scm_tools
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
