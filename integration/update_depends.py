@@ -8,6 +8,7 @@ from mod import common_regex
 from mod.integration_change import RootChange
 from mod.integration_change import IntegrationChange
 from integration_trigger import get_comp_obj
+from update_submodule_by_change import update_commitmsg
 
 
 def update_depends(rest, change_id, dep_file_list,
@@ -207,6 +208,7 @@ def replace_submodule_content(rest, change_id, file_path, version):
     m = submodule_regex.match(submodule_content)
     if m:
         rest.add_file_to_change(change_id, file_path, version)
+        update_commitmsg(rest, change_id)
     else:
         raise Exception(
             'Cannot find matched submodule format for {}'.format(file_path))
