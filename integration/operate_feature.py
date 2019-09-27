@@ -8,12 +8,25 @@ import urllib3
 from api import gerrit_rest
 from api import log_api
 from api import file_api
-
+from api import mysql_api
 from mod import integration_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 log = log_api.get_console_logger('OPF')
+
+
+def set_is_submission(feature_id, info_path):
+    search_sql = 'SELECT issue_key FROM t_issue WHERE summary like "%{}%" and status="open";'
+    update_sql = 'UPDATE t_integration_issue_stream SET is_submission=1 WHERE integration_name="{}";'
+    mysql_yaml = os.path.join(file_api.get_file_dir(info_path), 'ext_mysql.yaml')
+    mysql = mysql_api.init_from_yaml(mysql_yaml, 'skytrack')
+    mysql.init_database('skytrack')
+    result = mysql.executor(search_sql.format(feature_id), output=True)
+    if len(result) == 1:
+        mysql.executor(update_sql.format(result[0][0]))
+    else:
+        log.error("Find {}'s jira ID faild.".format(feature_id))
 
 
 class OperateFeature(object):
@@ -161,6 +174,7 @@ class OperateFeature(object):
                                          'Gatekeeper': 1})
                 self.rest.submit_change(ticket_id)
                 print(self.rest.get_change_address(ticket_id))
+                set_is_submission(feature_id)
                 ticket_id = None
         finally:
             if ticket_id:
