@@ -178,11 +178,11 @@ def rebase_by_load(rest, change_no, base_package,
                 traceback.print_exc()
                 # if is env:
                 if comp_name == 'env':
-                    env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
+                    env_path = get_env_repo.get_env_repo_info(rest, comp_change)[1]
                     try:
-                        clear_and_rebase_file(rest, change_no,
+                        clear_and_rebase_file(rest, comp_change,
                                               env_path, comp_hash)
-                        rebase_succeed['env {}'.format(change_no)] = comp_hash
+                        rebase_succeed['env {}'.format(comp_change)] = comp_hash
                     except Exception:
                         traceback.print_exc()
                         rebase_failed[comp_name_with_change] = comp_hash
