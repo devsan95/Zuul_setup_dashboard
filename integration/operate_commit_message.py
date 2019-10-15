@@ -39,7 +39,13 @@ class OperateCommitMessage(object):
                 self.rest.delete_edit(change)
             except Exception as e:
                 print(e)
-            self.rest.change_commit_msg_to_edit(change, commit_msg_obj.get_msg())
+            try:
+                self.rest.change_commit_msg_to_edit(change, commit_msg_obj.get_msg())
+            except Exception as e:
+                if "New commit message cannot be same as existing commit message" in str(e):
+                    pass
+                else:
+                    raise Exception(e)
             self.rest.publish_edit(change)
             self.rest.review_ticket(change, 'update interface info')
 
