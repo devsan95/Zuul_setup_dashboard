@@ -40,9 +40,15 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
         change_info['comp_name'], comp_ver))
     update_interfaces_refs(rest, comp_change_list, comp_name, change_info['commit_id'])
     op_commit_msg = OperateCommitMessage(gerrit_info_path, change_no)
-    op_commit_msg.update_interface_information(
-        '{}-{}'.format(comp_name, comp_ver),
-        change_info['commit_id'], comp_name)
+    try:
+        op_commit_msg.update_interface_information(
+            '{}-{}'.format(comp_name, comp_ver),
+            change_info['commit_id'], comp_name)
+    except Exception as e:
+        if "New commit message cannot be same as existing commit message" in str(e):
+            pass
+        else:
+            raise Exception(e)
     if database_info_path:
         skytrack_database_handler.update_events(
             database_info_path=database_info_path,
