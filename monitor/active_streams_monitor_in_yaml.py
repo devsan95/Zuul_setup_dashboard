@@ -16,20 +16,22 @@ class MonitorStreams(object):
         return streams_in_yaml
 
     def send_mail(self, need_update_streams, need_delete_streams):
-        sender = '5g_hz.scm@nokia.com'
-        receivers = ['I_HZ_5G_CB_SCM@internal.nsn.com']
-        # receivers = ['I_5G_CB_SCM@internal.nsn.com']
+        sender = "5g_hz.scm@nokia.com"
+        receivers = ["I_HZ_5G_CB_SCM@internal.nsn.com"]
         mail_msg = """
-        <p>***below streams need to be added to yaml file:</p>
-        <p>{}</p>
-        <p>***below streams need to remove from yaml file:</p>
-        <p>{}</p>
-        """.format(need_update_streams, need_delete_streams)
+        <p>Hello guys:</p>
+        <p>when you receive this email, it means there is new stream added.</p>
+        <p>below streams need to be added to yaml file</p>
+        <p><b>{}</b></p>
+        <p>below streams need to be deleted from yaml file</p>
+        <p><b>{}</b></p>
+        <p>yaml file:comp-deps/config/component-config.yaml</p>
+        """.format(list(need_update_streams), list(need_delete_streams))
         message = MIMEText(mail_msg, 'html', 'utf-8')
-        subject = "There maybe new streams active, please update yaml file"
+        subject = "{} active, please update yaml file".format(list(need_update_streams))
         message['Subject'] = subject
         message['From'] = sender
-        message['To'] = receivers
+        message['To'] = ";".join(receivers)
         try:
             smtpObj = smtplib.SMTP('mail.emea.nsn-intra.net')
             smtpObj.sendmail(sender, receivers, message.as_string())
