@@ -142,16 +142,14 @@ def _check_if_external(rest, ticket_id):
     return if_external
 
 
-def check_interface(rest, tickets_dict):
+def check_interface(rest, tickets_dict, skytrack_log):
     ticket_interface = dict()
     interface_ci = dict()
     interface = ['cpnbcm', 'cpnrtcm', 'cprtcm', 'internal']
     has_interface = False
     for ticket in tickets_dict['tickets']:
         sc = rest.get_ticket(ticket)['project'].split('/')[-1]
-        print('-----check {}:{} ----'.format(sc, ticket))
         if sc in interface:
-            print('is interface')
             has_interface = True
             commit_hash = rest.get_commit(ticket)['commit']
             parent_ci = rest.get_commit(ticket)['parents'][0]['commit']
@@ -163,11 +161,11 @@ def check_interface(rest, tickets_dict):
                 interface_ci[sc] = commit_hash
             branch = ticket_info['branch']
             head_hash = rest.get_latest_commit_from_branch(project, branch)['revision']
-            print('{} {}'.format(head_hash, parent_ci))
             if head_hash != parent_ci:
+                skytrack_log.append(str(ticket) + "'s parent commit is out of date!")
+                skytrack_log.append('head_hash:{} != parent_hash:{}'.format(head_hash, parent_ci))
                 return False
         else:
-            print('is common')
             ticket_interface_ci = dict()
             start = False
             comp_name = None
@@ -188,6 +186,7 @@ def check_interface(rest, tickets_dict):
                         start = True
             if start:
                 if not complete:
+                    skytrack_log.append(str(ticket) + "'s interface info is incomplete!")
                     return False
                 elif ticket_interface_ci:
                     ticket_interface[ticket] = ticket_interface_ci
@@ -195,10 +194,15 @@ def check_interface(rest, tickets_dict):
     if has_interface:
         for ticket in ticket_interface:
             if set(ticket_interface[ticket].keys()) ^ set(interface_ci.keys()):
+                skytrack_log.append(str(ticket) + "'s interface info error!")
+                skytrack_log.append(set(ticket_interface[ticket].keys()) ^ set(interface_ci.keys()))
                 return False
             else:
                 for item in ticket_interface[ticket]:
                     if ticket_interface[ticket][item] != interface_ci[item]:
+                        skytrack_log.append(str(ticket) + "'s interface version mismatch!")
+                        skytrack_log.append("{} {}'s version:{}".format(ticket, item, ticket_interface[ticket][item]))
+                        skytrack_log.append("{}'s true version:{}".format(item, interface_ci[item]))
                         return False
     return True
 
@@ -326,7 +330,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     sys.stdout.flush()
     sys.stderr.flush()
     check_result = True
-    if _if_checklist_all_pass(pass_list, skytrack_log_collector) and check_interface(rest, targets):
+    if _if_checklist_all_pass(pass_list, skytrack_log_collector) and check_interface(rest, targets, skytrack_log_collector):
         print('All component changes match the verified+1 and code review+1/+2 requirement.')
         skytrack_log_collector.append('Validation succeed! Ready to merge to production now.')
     else:
