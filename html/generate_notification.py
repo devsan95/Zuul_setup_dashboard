@@ -158,7 +158,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
                 rest.submit_change(change_id)
                 print("DEBUG_INFO: main: push file to change and submit finished!")
                 # result = zuul_server_container.exec_run(cmd="cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git pull")
-                update_git_repo(zuul_server_name=zuul_server_name)
+                update_git_repo(zuul_server_name=zuul_server_name, branch=branch)
             except Exception as e:
                 print("DEBUG_INFO: main: submit with merge_conflict=False failed!")
                 print("DEBUG_INFO: main: set merge_conflict=True, and retry with push file to change and submit")
@@ -184,7 +184,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
                                        {'Code-Review': 2, 'Verified': 1, 'Gatekeeper': 1})
                     rest.submit_change(new_change_id)
                     print("DEBUG_INFO: main: retry with merge_conflict=True, push file to change and submit finished!")
-                    update_git_repo(zuul_server_name=zuul_server_name)
+                    update_git_repo(zuul_server_name=zuul_server_name, branch=branch)
                 except Exception as e:
                     rest.abandon_change(new_change_id)
                     print("DEBUG_INFO: main: change {} has been abandoned!".format(new_change_id))
@@ -269,18 +269,17 @@ def add_files_to_change(history_path, history_str, list_save, rest, change_no,
     print("DEBUG_INFO: add_files_to_change: end!")
 
 
-def update_git_repo(zuul_server_name):
+def update_git_repo(zuul_server_name, branch):
     print("DEBUG_INFO: update_git_repo: start!")
     result = subprocess.call(
-        'sudo docker exec {} bash -c "cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git pull"'.format(zuul_server_name),
+        'sudo docker exec {} bash -c "cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull"'.format(zuul_server_name, branch),
         shell=True)
     if result == 0:
         print("DEBUG_INFO: update_git_repo: update notification REPO in container")
     else:
         print("DEBUG_INFO: update_git_repo: update notification REPO in container failed!")
-        return False
+        raise Exception("update notification REPO in container failed")
     print("DEBUG_INFO: update_git_repo: end!")
-    return True
 
 
 def update_history(current_dict, rest, change_no, history_path, list_path,
