@@ -851,7 +851,11 @@ class IntegrationChangesCreation(object):
             if not change_id:
                 raise Exception('Failed to set depends on for base component {}'.format(comp))
             for node in self.info_index['nodes'].values():
-                if node is not self.info_index['root'] and node is not self.info_index['mn'] and comp not in node['name']:
+                for base_name in base_comp:
+                    if base_name in node['name']:
+                        print('{} is in base component list'.format(node['name']))
+                        continue
+                if node is not self.info_index['root'] and node is not self.info_index['mn']:
                     comp_change = inte_change.IntegrationChange(self.gerrit_rest, node['ticket_id'])
                     commit_msg_obj = inte_change.IntegrationCommitMessage(comp_change)
                     begin_line = -1
