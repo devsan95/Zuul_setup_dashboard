@@ -18,6 +18,7 @@ bb_version_reg = re.compile(r'\s+bb_version: ')
 commit_ID_reg = re.compile(r'\s+commit-ID: ')
 comp_reg = re.compile(r'  - COMP <(.*?)>')
 fifi_reg = re.compile(r'%FIFI=(.*)')
+create_feature = re.compile(r'create_feature_yaml=(.*)\b')
 ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
 depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
 depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
@@ -212,6 +213,13 @@ class RootChange(IntegrationChange):
             if len(result_list) > 0:
                 return json.loads(result_list[-1])
         return None
+
+    def get_create_feature_yaml(self):
+        msg = self.commit_info.get('message')
+        m = create_feature.search(msg)
+        if m:
+            return m.groups()[0]
+        return 'true'
 
 
 class ManageChange(IntegrationChange):

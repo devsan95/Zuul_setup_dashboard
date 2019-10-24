@@ -100,6 +100,10 @@ class OperateFeature(object):
 
     def generate(self, root_change_no, config_yaml_file, save_path=None, add=False):
         root_change = integration_change.RootChange(self.rest, root_change_no)
+        create_feature_yaml = root_change.get_create_feature_yaml()
+        if create_feature_yaml.lower() == 'false':
+            print("create_feature_yaml is false,skip create feature yaml.")
+            return
         try:
             root_change.get_topic()
         except AttributeError:
