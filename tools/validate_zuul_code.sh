@@ -16,3 +16,4 @@ fi
 set -e
 # python ${SCRIPT_DIR}/layout/update_layout_with_patch_set.py $@
 python ${SCRIPT_DIR}/pipeline/validate_zuul_code_pipeline.py
+python ${SCRIPT_DIR}/pipeline/validate_zuul_forbunch.py
