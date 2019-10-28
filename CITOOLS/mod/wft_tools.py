@@ -56,6 +56,14 @@ def get_latest_qt_passed_build(stream):
     return build_name, release_date
 
 
+def get_build_list(stream):
+    return WFT.get_build_list(branch_name=stream)
+
+
+def get_build_list_from_custom_filter(custom_filter):
+    return WFT.get_build_list_from_custom_filter(custom_filter)
+
+
 def get_stream_name(version):
     stream = ''
     r = requests.get(BUILD_FILTER.format(wft_url=WFT.url, access_key=WFT.key, version=version))
@@ -116,3 +124,8 @@ def get_latest_qt_load(stream_list):
 def get_planed_delivery_date(baseline):
     build_content = BuildContent.get(baseline)
     return build_content.get_planned_delivery_date()
+
+
+def get_ps(baseline):
+    build_content = BuildContent.get(baseline)
+    return build_content.get_ps()
