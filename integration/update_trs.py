@@ -37,16 +37,15 @@ def get_trs_with_ps(ps_ver):
                     'custom_filter[sorting_direction]=desc'
     build_list = wft_tools.get_build_list_from_custom_filter(custom_filter)
     root = ET.fromstring(build_list)
-    baseline = ''
 
     for build in root.findall('build'):
-        baseline = build.find('baseline').text.strip()
-        if ps_ver in wft_tools.get_ps(baseline):
-            print ('{} with {} found in WFT CPI branch'.format(baseline, ps_ver))
-            return baseline
+        trs = build.find('baseline').text.strip()
+        if ps_ver in wft_tools.get_ps(trs):
+            print ('{} with {} found in WFT CPI branch'.format(trs, ps_ver))
+            return trs
 
     print ('No TRS with {} found in WFT CPI branch'.format(ps_ver))
-    return baseline
+    return None
 
 
 def update_trs_in_root(rest, trs_ver, root_change):
