@@ -189,7 +189,24 @@ class JobTreeOper(object):
                                     addJobIndex = _item_first_run_layer(addJob, ljobs)
                                     if addJob not in fpath and addJobIndex > preJobinFpathFirstRun:
                                         fpath.insert(curJobIndexInCPath, addJob)
-                return fpath
+
+                ffpath = list()
+                for layer, jobs in sorted(ljobs.items(), key=lambda x: x[0]):
+                    pjobs = set(jobs) & set(fpath)
+                    if len(pjobs) < 1:
+                        continue
+                    elif len(pjobs) < 2:
+                        ffpath.append(list(pjobs)[0])
+                        fpath.remove(list(pjobs)[0])
+                    else:
+                        last_finished = max([buildsinfo[p][3] for p in pjobs])
+                        for pjob in pjobs:
+                            if buildsinfo[pjob][3] == last_finished:
+                                log.debug("Adding {0} {1}".format(pjob, buildsinfo[pjob][3]))
+                                ffpath.append(pjob)
+                            fpath.remove(pjob)
+
+                return ffpath
 
             fcpath = list()
             cpath_ls = cpath.split(' -> ')
