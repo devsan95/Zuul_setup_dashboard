@@ -116,7 +116,7 @@ def get_ps_sub_builds(ps_version):
 
 
 def write_parameters(action, env_change, structure_file,
-                     streams, promoted_user_id, integraiton_mode,
+                     streams, promoted_user_id, integration_mode,
                      version_name, root_changes):
     file_name = "create_feature.pop" if action == 'create' else "rebase_env.pop"
     with open(file_name, 'w+') as parameters_file:
@@ -125,14 +125,14 @@ def write_parameters(action, env_change, structure_file,
 env_change={env_change}
 streams={streams}
 PROMOTED_USER_ID={promoted_user_id}
-integraiton_mode={integraiton_mode}
+integration_mode={integration_mode}
 root_change={root_change}
 version_name={version_name}""".format(
                 structure_file=structure_file,
                 env_change=env_change,
                 streams=streams,
                 promoted_user_id=promoted_user_id,
-                integraiton_mode=integraiton_mode,
+                integration_mode=integration_mode,
                 root_change=root_changes[version_name] if version_name in root_changes else '',
                 version_name=version_name
             )
@@ -140,7 +140,7 @@ version_name={version_name}""".format(
 
 
 def cpi_topic_handler(cpi_topics, structure_file, streams,
-                      promoted_user_id, integraiton_mode,
+                      promoted_user_id, integration_mode,
                       root_changes):
     for ps_version, action in cpi_topics.items():
         ps_sub_builds = get_ps_sub_builds(ps_version)
@@ -157,7 +157,7 @@ def cpi_topic_handler(cpi_topics, structure_file, streams,
             structure_file=structure_file,
             streams=streams,
             promoted_user_id=promoted_user_id,
-            integraiton_mode=integraiton_mode,
+            integration_mode=integration_mode,
             root_changes=root_changes,
             version_name=ps_version
         )
@@ -166,7 +166,6 @@ def cpi_topic_handler(cpi_topics, structure_file, streams,
 def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, baseline=None):
     mb_releases = [baseline] if baseline else filter_mb_ps_from_wft()
     on_going_cpi_topics = get_on_going_cpi_topics(sql_yaml=sql_yaml)
-    print on_going_cpi_topics
     actions, root_changes = if_create(
         on_going_cpi_topics=on_going_cpi_topics,
         mb_ps_releases=mb_releases,
@@ -174,7 +173,7 @@ def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, b
     )
     cpi_topic_handler(cpi_topics=actions, structure_file=structure_file,
                       streams=','.join([str(stream) for stream in streams]),
-                      promoted_user_id=promoted_user_id, integraiton_mode=integration_mode,
+                      promoted_user_id=promoted_user_id, integration_mode=integration_mode,
                       root_changes=root_changes)
 
 
