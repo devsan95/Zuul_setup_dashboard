@@ -114,21 +114,25 @@ def _main(ticket, conf_path, action, branch):
     mr_title, mr_comp, base_commit = get_int_info(ticket, rest_obj)
     mr_project_comm, mr_title_comm, mr_branch_comm, mr_id_comm = get_mr_from_comments(
         ticket, rest_obj)
-    if mr_title_comm:
-        mr_title = mr_title_comm
-    mr_id = ''
-    if mr_id_comm:
-        mr_id = mr_id_comm
     comp_branch, comp_repo_srv, project = get_branch_and_srv(mr_comp, branch)
-    new_branch = 'int_{}'.format(mr_title)
+    gitlab_obj = gitlab_tools.Gitlab_Tools(path=conf_path, repo=comp_repo_srv)
+    if mr_id_comm and mr_title != mr_title_comm:
+        parameters_new = {'title': mr_title}
+        parameters_old = {
+            'title': mr_title_comm,
+            'project': project,
+            'mr_id': mr_id_comm}
+        getattr(gitlab_obj, 'update_mr')(parameters_old, parameters_new)
+
+    new_branch = 'int_{}'.format(mr_title_comm if mr_id_comm else mr_title)
     parameters = {
         'title': mr_title,
         'project': project,
         'ref': base_commit if base_commit else comp_branch,
         'target_branch': comp_branch,
         'branch': new_branch,
-        'mr_id': mr_id}
-    gitlab_obj = gitlab_tools.Gitlab_Tools(path=conf_path, repo=comp_repo_srv)
+        'mr_id': mr_id_comm}
+
     print('Info: set project {}'.format(project))
     print('Info: parameters {}'.format(parameters))
     gitlab_obj.gitlab_client.set_project(project)

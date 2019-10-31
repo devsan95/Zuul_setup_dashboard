@@ -89,3 +89,24 @@ class Gitlab_Tools(object):
             else:
                 print(e)
                 sys.exit(2)
+
+    def update_mr(self, params, params_new):
+        mandatory_params = ['title', 'project']
+        self.chk_mandatory_params(params, mandatory_params)
+        project = params['project']
+        title = params['title']
+        iids = []
+        if 'mr_id' in params:
+            iids = [params['mr_id']]
+        srch_dict = {'title': title}
+        print('mr_id is: {}'.format(iids))
+        self.gitlab_client.set_project(project)
+        mr_list = self.gitlab_client.get_mr(srch_dict, iids=iids)
+        if len(mr_list) != 1:
+            print('Error: find MR {} error!'.format(title))
+            sys.exit(2)
+        mr = mr_list[0]
+        for item in params_new:
+            print('Info: update MR {} to {}'.format(item, params_new[item]))
+            exec("mr.{} = '{}'".format(item, params_new[item]))
+        mr.save()
