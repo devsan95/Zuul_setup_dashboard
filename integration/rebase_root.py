@@ -147,6 +147,7 @@ def run(gerrit_info_path, change_no,
 
     if auto_recheck:
         # 5 recheck all changes
+        time.sleep(60)
         print('recheck all changes')
         if 'tickets' in change_list and change_list['tickets']:
             comp_list = change_list['tickets']
