@@ -35,12 +35,17 @@ def create_file_change_by_env_change(env_change_split, file_content, filename):
     return ret_dict
 
 
-def clear_change(rest, change_id):
+def clear_change(rest, change_id, only_clear_env=True):
+    env_related = ['env/env-config.d/ENV', 'env-config.d/ENV', 'meta-ps-rel', 'meta-rcp']
     flist = rest.get_file_list(change_id)
     for file_path in flist:
         file_path = file_path.split('\n', 2)[0]
-        if file_path != '/COMMIT_MSG':
-            rest.restore_file_to_change(change_id, file_path)
+        if only_clear_env:
+            if file_path in env_related:
+                rest.restore_file_to_change(change_id, file_path)
+        else:
+            if file_path != '/COMMIT_MSG':
+                rest.restore_file_to_change(change_id, file_path)
     rest.publish_edit(change_id)
 
 
@@ -156,6 +161,7 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
         # add new env
         print('add new env for change {}'.format(change_no))
         old_env = rest.get_file_content(env_path, change_no)
+        # update env/env-config.d/ENV content
         change_map = create_file_change_by_env_change(
             env_change_list,
             old_env,
