@@ -21,7 +21,7 @@ def filter_mb_ps_from_wft():
                 "&custom_filter[sorting_direction]=desc" \
                 "&(custom_filter[state][]=pre_released|" \
                 "custom_filter[state][]=released|" \
-                "custom_filter[state][]=released_with_restrictions)&custom_filter[items]=50"
+                "custom_filter[state][]=released_with_restrictions&custom_filter[items]=50"
     url = WFT.url + ps_filter
     r = requests.get(url, params={'access_key': WFT.key}, verify=False)
     if r.status_code != 200:
@@ -89,11 +89,11 @@ def if_create(on_going_cpi_topics, mb_ps_releases, sql_yaml):
                     results[mb_release] = 'update'
                     root_change[mb_release] = get_cpi_root_change(on_going_cpi_topics[cpi_topic],
                                                                   sql_yaml=sql_yaml)
-                    break
                 else:
                     LOG.info('Current on going CPI: {0}'.format(cpi_topic))
                     LOG.info('Latest PS MB release {0}'.format(mb_release))
                     LOG.info('No need to update')
+                break
             if mb_ps_regex.match(mb_release).group(2) \
                     > mb_ps_regex.match(cpi_topic).group(2):
                 results[mb_release] = 'create'
@@ -171,6 +171,11 @@ def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, b
         mb_ps_releases=mb_releases,
         sql_yaml=sql_yaml
     )
+    if not actions:
+        LOG.info('No action needed in this round')
+    else:
+        LOG.info('will take action for below versions:')
+        LOG.info(actions)
     cpi_topic_handler(cpi_topics=actions, structure_file=structure_file,
                       streams=','.join([str(stream) for stream in streams]),
                       promoted_user_id=promoted_user_id, integration_mode=integration_mode,
