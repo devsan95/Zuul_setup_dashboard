@@ -15,6 +15,33 @@ from generate_bb_json import get_description
 JENKINS_URL = "http://wrlinb147.emea.nsn-net.net:9090"
 
 
+def get_specified_ticket(change_no, database_info_path, gerrit_info_path, ticket_type='root'):
+    '''
+    get root ticket or get integration tocket.
+    :param ticket_type: root or integration
+    :return ticket id or None
+    '''
+    print("Getting {} ticket according to the {}".format(ticket_type, change_no))
+    if ticket_type == "root":
+        reg = re.compile(r'\bROOT CHANGE\b')
+    elif ticket_type == "integration":
+        reg = re.compile(r'\bMANAGER CHANGE\b')
+    else:
+        raise Exception('ticket_type just can be root or integration!')
+    rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    msg = " ".join(rest.get_commit(change_no)['message'].split('\n'))
+    if reg.search(msg):
+        return change_no
+    else:
+        change_list = get_changes_from_db(change_no, database_info_path, gerrit_info_path)
+        for change in change_list:
+            msg = " ".join(rest.get_commit(change)['message'].split('\n'))
+            if reg.search(msg):
+                print('The {} ticket is: {}'.format(ticket_type, change))
+                return change
+        raise Exception("Can't get {} ticket!".format(ticket_type))
+
+
 def get_jira_id(integration_change, gerrit_info_path):
     print("Getting JIRA ID from {0} commit message".format(integration_change))
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
@@ -251,6 +278,17 @@ def if_issue_exist(database_info_path, issue_key):
     mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
     sql = "SELECT * FROM t_issue WHERE issue_key='{0}'".format(issue_key)
     return True if mydb.executor(sql, output=True) else False
+
+
+def get_changes_from_db(change_no, database_info_path, gerrit_info_path):
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
+    jira_key = get_jira_id(change_no, gerrit_info_path)
+    sql = 'SELECT distinct `change` FROM t_commit_info where issue_key="{}";'.format(jira_key)
+    changes = mydb.executor(sql, output=True)
+    changes_list = list()
+    for change in changes:
+        changes_list.append(change[0])
+    return changes_list
 
 
 if __name__ == '__main__':

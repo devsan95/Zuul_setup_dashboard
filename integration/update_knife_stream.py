@@ -1,8 +1,10 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf8 -*-
+import os
 import re
 import fire
 import urllib3
+import skytrack_database_handler
 from api import gerrit_rest
 from datetime import datetime
 from submodule_handle import get_topic_from_commit_message
@@ -105,6 +107,13 @@ def main(change_number, action, stream_number, gerrit_info_path, auto_reexperime
             print('[Error] {} is not stream number, please input stream number only!'.format(stream))
 
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    database_info_path = "{}/ext_mysql.yaml".format(os.path.dirname(gerrit_info_path))
+    change_number = skytrack_database_handler.get_specified_ticket(
+        change_number,
+        database_info_path,
+        gerrit_info_path,
+        ticket_type="integration"
+    )
     commit_message = rest.get_commit(change_number)['message']
 
     need_publish = False
