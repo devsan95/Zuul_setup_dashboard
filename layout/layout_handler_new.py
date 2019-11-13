@@ -36,18 +36,69 @@ class LayoutNotExistException(Exception):
     pass
 
 
+def flatten(list_):
+    if not isinstance(list_, yaml.comments.CommentedSeq):
+        return list_
+
+    list_out = yaml.comments.CommentedSeq()
+    for item_ in list_:
+        if isinstance(item_, yaml.comments.CommentedSeq):
+            for item__ in item_:
+                list_out.append(item__)
+        else:
+            list_out.append(item_)
+    return list_out
+
+
 class LayoutSnippet(object):
+    list_list = ['tags', 'branch', 'files']
+    skip_if_list = ['all-files-match-any']
+
     def __init__(self, path=None, obj=None):
         self.path = path
         self.obj = obj
         if self.obj is None:
             self.load_from_path()
+        if self.obj:
+            jobs = self.obj.get('jobs')
+            if jobs:
+                for job in jobs:
+                    for name in self.list_list:
+                        item_ = job.get(name)
+                        if item_:
+                            job[name] = flatten(item_)
+                    skip_if = job.get('skip-if')
+                    if skip_if:
+                        for skip_if_item in skip_if:
+                            for name in self.skip_if_list:
+                                item_ = skip_if_item.get(name)
+                                if item_:
+                                    skip_if_item[name] = flatten(item_)
+            if 'meta' in self.obj:
+                del self.obj['meta']
 
     def load_from_path(self):
         if self.path is None:
             self.obj = None
         else:
             self.obj = yaml.round_trip_load(open(self.path), version='1.1')
+            if self.obj:
+                jobs = self.obj.get('jobs')
+                if jobs:
+                    for job in jobs:
+                        for name in self.list_list:
+                            item_ = job.get(name)
+                            if item_:
+                                job[name] = flatten(item_)
+                        skip_if = job.get('skip-if')
+                        if skip_if:
+                            for skip_if_item in skip_if:
+                                for name in self.skip_if_list:
+                                    item_ = skip_if_item.get(name)
+                                    if item_:
+                                        skip_if_item[name] = flatten(item_)
+                if 'meta' in self.obj:
+                    del self.obj['meta']
 
     def get_identity(self):
         if self.path is None:
@@ -188,12 +239,12 @@ def check_layout_d_duplication(snippet_list, section='projects'):
 def list_job_in_projects(projects_section, pipelines):
     ret_list = []
 
-    def _scan_jobs_recursive(joblist, retlist):
+    def _scan_jobs_recursive_p(joblist, retlist):
         for item in joblist:
             if isinstance(item, yaml.comments.CommentedMap):
                 for k, v in list(item.items()):
                     retlist.append(k)
-                    _scan_jobs_recursive(v, retlist)
+                    _scan_jobs_recursive_p(v, retlist)
             else:
                 retlist.append(item)
 
@@ -201,7 +252,7 @@ def list_job_in_projects(projects_section, pipelines):
         if isinstance(item, yaml.comments.CommentedMap):
             for k, v in list(item.items()):
                 if isinstance(v, yaml.comments.CommentedSeq) and k in pipelines:
-                    _scan_jobs_recursive(v, ret_list)
+                    _scan_jobs_recursive_p(v, ret_list)
 
     return list(set(ret_list))
 
@@ -209,14 +260,14 @@ def list_job_in_projects(projects_section, pipelines):
 def list_job_in_one_repo_by_pipeline(projects_section, pipelines):
     ret_list = {}
 
-    def _scan_jobs_recursive(pipeline, joblist, ret_list):
+    def _scan_jobs_recursive_op(pipeline, joblist, ret_list):
         for item in joblist:
             if isinstance(item, yaml.comments.CommentedMap):
                 for k, v in list(item.items()):
                     if pipeline not in ret_list:
                         ret_list[pipeline] = []
                     ret_list[pipeline].append(k)
-                    _scan_jobs_recursive(pipeline, v, ret_list)
+                    _scan_jobs_recursive_op(pipeline, v, ret_list)
             else:
                 if pipeline not in ret_list:
                     ret_list[pipeline] = []
@@ -228,7 +279,7 @@ def list_job_in_one_repo_by_pipeline(projects_section, pipelines):
                 continue
             for k, v in list(item.items()):
                 if isinstance(v, yaml.comments.CommentedSeq) and k in pipelines:
-                    _scan_jobs_recursive(k, v, ret_list)
+                    _scan_jobs_recursive_op(k, v, ret_list)
 
     for k in ret_list:
         ret_list[k] = list(set(ret_list[k]))
@@ -430,8 +481,10 @@ class LayoutGroup(object):
         self._main_file_path = main_file_path
         self._layout_d_path = os.path.join(
             os.path.dirname(main_file_path), 'layout.d')
+        self._rule_root = os.path.abspath(os.path.join(self._layout_d_path, '..'))
         self._yaml = {}
         self.pipelines = []
+        self._rules = {}
         self._clear_yaml()
         self._load_all_file()
 
@@ -439,6 +492,18 @@ class LayoutGroup(object):
         self._yaml['layout'] = None
         self._yaml['layout.d'] = []
         self.pipelines = []
+        self._rules = {}
+        self.init_root_rule()
+
+    def init_root_rule(self):
+        key = os.path.abspath(self._rule_root)
+        if key not in self._rules:
+            self._rules[key] = {}
+        self._rules[key]['treat_as_error'] = {
+            'filter_is_not_used': False,
+            'job_affected_by_multiple_filters': False,
+            'job_affected_by_filter_in_other_directory': True
+        }
 
     def _load_all_file(self):
         self._clear_yaml()
@@ -468,6 +533,40 @@ class LayoutGroup(object):
                             LayoutSnippet(file_path, yaml.round_trip_load(fp,
                                                                           version='1.1')))
                         fp.close()
+                    elif f == 'rule.manifest':
+                        file_path = os.path.join(root, f)
+                        if os.path.islink(file_path):
+                            fp = os.readlink(file_path)
+                        else:
+                            fp = open(file_path)
+                        self._rules[os.path.abspath(root)] = yaml.round_trip_load(fp, version='1.1')
+                        fp.close()
+
+    def _get_rule(self, path, section, rule):
+        try:
+            if path in self._rules:
+                obj = self._rules.get(path)
+                if section in obj:
+                    section_obj = obj.get(section)
+                    if rule in section_obj:
+                        return section_obj.get(rule)
+        except Exception as e:
+            print('_get_rule {} {} {} fail because {}'.format(path, section, rule, e))
+        return None
+
+    def get_rule(self, path, section, rule):
+        root_path = self._rule_root
+        work_path = os.path.abspath(path)
+        value = None
+        while True:
+            value = self._get_rule(work_path, section, rule)
+            if work_path == root_path:
+                break
+            if value is None:
+                work_path = os.path.abspath(os.path.join(work_path, '..'))
+            else:
+                break
+        return value
 
     def _set_head_comments(self, snippet):
         obj = snippet.obj
@@ -601,20 +700,35 @@ class LayoutGroup(object):
                     for regular_filter in regular_filter_list:
                         warning_msg += '\t->[{}] in [{}],\n'.format(
                             regular_filter['name'], regular_filter['path'])
-                    warning_list.append(warning_msg)
+                    is_error = self.get_rule(info['folder'], 'treat_as_error', 'job_affected_by_multiple_filters')
+                    if is_error:
+                        error_list.append(warning_msg)
+                    else:
+                        warning_list.append(warning_msg)
 
                 if string_filter and string_filter['folder'] != info['folder'] and string_filter['folder'] not in info['folder']:
-                    error_list.append('Filter [{}] in [{}] should not affect job [{}] in [{}], because they are not in the same folder'.format(
+                    error_msg = 'Filter [{}] in [{}] should not affect job [{}] in [{}], because they are not in the same folder'.format(
                         string_filter['name'], string_filter['path'],
                         job, info['path']
-                    ))
+                    )
+                    is_error = self.get_rule(info['folder'], 'treat_as_error', 'job_affected_by_filter_in_other_directory')
+                    if is_error:
+                        error_list.append(error_msg)
+                    else:
+                        warning_list.append(error_msg)
                 if regular_filter_list:
                     for regular_filter in regular_filter_list:
-                        if regular_filter and regular_filter['folder'] != info['folder'] and regular_filter['folder'] not in info['folder']:
-                            error_list.append('Filter [{}] in [{}] should not affect job [{}] in [{}], because they are not in the same folder'.format(
+                        if regular_filter and \
+                                regular_filter['folder'] != info['folder'] and regular_filter['folder'] not in info['folder']:
+                            error_msg = 'Filter [{}] in [{}] should not affect job [{}] in [{}], because they are not in the same folder'.format(
                                 regular_filter['name'], regular_filter['path'],
                                 job, info['path']
-                            ))
+                            )
+                            is_error = self.get_rule(info['folder'], 'treat_as_error', 'job_affected_by_filter_in_other_directory')
+                            if is_error:
+                                error_list.append(error_msg)
+                            else:
+                                warning_list.append(error_msg)
 
         reg_using = 0
         using = 0
@@ -622,7 +736,12 @@ class LayoutGroup(object):
         for fname, filter_ in job_filters.iteritems():
 
             if not filter_.get('used'):
-                warning_list.append('Filter [{}] in [{}] is not used!'.format(fname, filter_['path']))
+                warning_msg = 'Filter [{}] in [{}] is not used!'.format(fname, filter_['path'])
+                is_error = self.get_rule(filter_['folder'], 'treat_as_error', 'filter_is_not_used')
+                if is_error:
+                    error_list.append(warning_msg)
+                else:
+                    warning_list.append(warning_msg)
                 not_using += 1
             else:
                 if fname.startswith('^'):
