@@ -10,6 +10,7 @@ from api import gerrit_rest
 from api import mysql_api
 from mod import wft_tools
 from generate_bb_json import get_description
+from mod.integration_change import RootChange
 
 
 JENKINS_URL = "http://wrlinb147.emea.nsn-net.net:9090"
@@ -280,15 +281,39 @@ def if_issue_exist(database_info_path, issue_key):
     return True if mydb.executor(sql, output=True) else False
 
 
-def get_changes_from_db(change_no, database_info_path, gerrit_info_path):
+def get_changes_from_db(change_no, database_info_path, gerrit_info_path, only_id=True):
     mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
     jira_key = get_jira_id(change_no, gerrit_info_path)
-    sql = 'SELECT distinct `change` FROM t_commit_info where issue_key="{}";'.format(jira_key)
+    sql = 'SELECT distinct `change`, project  FROM t_commit_info where issue_key="{}";'.format(jira_key)
     changes = mydb.executor(sql, output=True)
     changes_list = list()
-    for change in changes:
-        changes_list.append(change[0])
-    return changes_list
+    if only_id:
+        for change in changes:
+            changes_list.append(change[0])
+        return changes_list
+    return changes
+
+
+def get_env_change(change_no, database_info_path, gerrit_info_path):
+    integration_change = None
+    env_change = None
+    changes = get_changes_from_db(change_no, database_info_path, gerrit_info_path, only_id=False)
+    root_change = get_specified_ticket(change_no, database_info_path, gerrit_info_path)
+    rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    commits = RootChange(rest, root_change).get_all_changes_by_comments(with_root=True)
+    for change_id, project in changes:
+        if change_id in commits:
+            if project == 'MN/5G/COMMON/integration':
+                print("Get integration change {}: {}".format(change_id, project))
+                integration_change = change_id
+            if project == 'MN/5G/COMMON/env':
+                print("Get env change {}: {}".format(change_id, project))
+                env_change = change_id
+    if env_change:
+        return env_change
+    if integration_change:
+        return integration_change
+    raise Exception("Can't get env ticket!")
 
 
 if __name__ == '__main__':

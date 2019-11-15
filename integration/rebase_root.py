@@ -6,6 +6,7 @@ import shlex
 from pprint import pprint
 from requests.structures import CaseInsensitiveDict
 
+import skytrack_database_handler
 import rebase_env
 import rebase_interface
 from api import gerrit_api
@@ -69,8 +70,19 @@ def run(gerrit_info_path, change_no,
     if 'bb_version' in change_info_dict:
         comp_name = change_info_dict['bb_version'].split('_', 1)[0]
     if comp_name == 'env':
+        env_change = change_no
+        if rest.get_change(change_no)['project'] not in ['MN/5G/COMMON/integration', 'MN/5G/COMMON/env']:
+            env_change = skytrack_database_handler.get_env_change(
+                change_no,
+                database_info_path,
+                gerrit_info_path
+            )
         rebase_env.run(
-            gerrit_info_path, change_no, change_info=change_info, database_info_path=database_info_path)
+            gerrit_info_path,
+            env_change,
+            change_info=change_info,
+            database_info_path=database_info_path
+        )
     else:
         rebase_interface.run(
             gerrit_info_path, change_no, change_info=change_info_dict, database_info_path=database_info_path)

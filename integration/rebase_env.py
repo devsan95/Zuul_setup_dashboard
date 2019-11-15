@@ -165,14 +165,21 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
         change_map = create_file_change_by_env_change(
             env_change_list,
             old_env,
-            env_path)
+            env_path
+        )
 
+        # get root ticket
+        root_change = skytrack_database_handler.get_specified_ticket(
+            change_no,
+            database_info_path,
+            gerrit_info_path
+        )
         # replace commit message
-        op = RootChange(rest, change_no)
+        op = RootChange(rest, root_change)
         commits = op.get_all_changes_by_comments()
         change_message = partial(change_message_by_env_change, env_change_list=env_change_list, rest=rest)
         map(change_message, commits)
-        old_str, new_str = change_message(change_no)
+        old_str, new_str = change_message(root_change)
         # replace jira title.
         try:
             origin_msg = get_commit_msg(change_no, rest)
