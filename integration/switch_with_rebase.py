@@ -182,6 +182,7 @@ def rebase_by_load(rest, change_no, base_package,
                     try:
                         clear_and_rebase_file(rest, comp_change,
                                               env_path, comp_hash)
+                        rest.rebase(comp_change, comp_hash)
                         rebase_succeed['env {}'.format(comp_change)] = comp_hash
                     except Exception:
                         traceback.print_exc()
