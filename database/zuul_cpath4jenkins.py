@@ -147,13 +147,7 @@ class JobTreeOper(object):
                     if _current_job_starttime > _last_job_endtime:
                         fcpath.append(p)
             timeslots = list()
-            try:
-                total = int(buildsinfo[fcpath[-1]][3] - buildsinfo[fcpath[0]][1])
-            except Exception as time_err:
-                log.debug("total time with exception: {}".format(str(time_err)))
-                return None, None, None
             firstJobLaunch = buildsinfo[fcpath[0]][1]
-            timeslots.append(total)
             for n, fcp in enumerate(fcpath):
                 try:
                     running_time = buildsinfo[fcp][3] - buildsinfo[fcp][2]
@@ -161,6 +155,8 @@ class JobTreeOper(object):
                     log.debug("job item time with exception: {}".format(str(time_err)))
                     return None, None, None
                 timeslots.append(running_time)
+            total = sum(timeslots)
+            timeslots.insert(0, total)
             dyn_path = ' -> '.join(fcpath)
             tlstr = ','.join([str(tls) for tls in timeslots])
             return dyn_path, firstJobLaunch, tlstr
