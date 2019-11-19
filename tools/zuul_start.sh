@@ -46,6 +46,10 @@ function main(){
       if [ x"$(hostname)" == x"eslinb49.emea.nsn-net.net" ]; then
         check_and_start_docker_container "$container_name"
       fi
+    elif [ x"$container_name" == x"jenkins-prod" ]; then
+        check_and_start_docker_container "$container_name"
+    elif [ x"$container_name" == x"zuul-server-qa" ]; then
+        check_and_start_docker_container "$container_name"
     fi
   done
 
