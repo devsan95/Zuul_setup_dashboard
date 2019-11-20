@@ -31,6 +31,7 @@ def set_is_submission(feature_id, info_path):
 
 class OperateFeature(object):
     def __init__(self, info_path, gerrit_path=None):
+        self.info_path = info_path
         self.info = yaml.load(open(info_path, 'r'), Loader=yaml.Loader)
         if not gerrit_path:
             try:
@@ -178,7 +179,7 @@ class OperateFeature(object):
                                          'Gatekeeper': 1})
                 self.rest.submit_change(ticket_id)
                 print(self.rest.get_change_address(ticket_id))
-                set_is_submission(feature_id)
+                set_is_submission(feature_id, self.info_path)
                 ticket_id = None
         finally:
             if ticket_id:
