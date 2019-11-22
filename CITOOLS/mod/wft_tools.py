@@ -42,14 +42,15 @@ def get_lasted_success_build(stream):
     return None, None
 
 
-def get_latest_qt_passed_build(stream):
+def get_latest_qt_passed_build(stream, status=None):
     build_list = WFT.get_build_list(branch_name=stream)
     root = ET.fromstring(build_list)
     build_name = ''
     release_date = ''
+    release_status = [status] if status else RELEASED_STATUS
     for build in root.findall('build'):
         build_state = build.find('state').text
-        if build_state in RELEASED_STATUS:
+        if build_state in release_status:
             release_date = build.find('date').text
             build_name = build.find('baseline').text
             break
