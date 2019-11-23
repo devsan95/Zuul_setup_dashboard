@@ -63,6 +63,8 @@ function restart_zuule1(){
   # restart docker container
   check_and_start_docker_container "$container_name"
   if [ x"$CONTAINER_STATUS" == x"Up" ]; then
+    # stop zuul-merger progress
+    stop_progress_in_container "$container_name" "zuul-merger"
     # restart progress in container
     check_start_progress_in_container "$container_name" "zuul-server"
     check_start_progress_in_container "$container_name" "httpd"
@@ -109,6 +111,9 @@ function restart_zuul_merger() {
   merger_name=$1
   check_and_start_docker_container "$container_name"
   if [ x"$CONTAINER_STATUS" == x"Up" ]; then
+    # stop zuul-server progress
+    stop_progress_in_container "$container_name" "zuul-server"
+    # start progress
     check_start_progress_in_container "$container_name" "httpd"
     check_start_progress_in_container "$container_name" "zuul-merger"
     if [ x"${PROGRESS_STATUS}" == x"NORMAL" ]; then
@@ -169,6 +174,22 @@ function check_start_progress_in_container() {
       PROGRESS_STATUS="UNNORMAL"
     fi
   fi
+}
+
+# stop progress in container
+function stop_progress_in_container() {
+  container_name=$1
+  progress_name=$2
+  sudo docker exec "$container_name" bash -c "supervisorctl stop $progress_name"
+  sleep 10
+  progress_status=$(sudo docker exec "$container_name" bash -c "supervisorctl status"|grep "$progress_name"|awk '{print $2}')
+  if [ x"$progress_status" == x"STOPPED" ]; then
+      echo "$progress_name stop success!"
+      echo "Progress: $progress_name stop-> <font color='green'><b>success</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
+    else
+      echo "$progress_name stop failed!"Failed
+      echo "Progress: $progress_name stop-> <font color='red'><b>Failed</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
+    fi
 }
 
 # check_zuul_server_running_status
