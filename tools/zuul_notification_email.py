@@ -16,14 +16,15 @@ def arguments():
     :return:dict{params}
     """
     parse = argparse.ArgumentParser()
-    parse.add_argument('--result-file', '-r', required=True, help='restart result information file')
+    parse.add_argument('--resultFile', '-r', required=True, help='restart result information file')
     return parse.parse_args()
 
 
 if __name__ == '__main__':
     args = arguments()
-    result_file = args.version
+    result_file = args.resultFile
     isRestartSuccess = True
+    host_server = ""
     with open(result_file, 'r') as f:
         message = f.read()
         lines = f.readlines()
