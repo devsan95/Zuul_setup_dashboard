@@ -40,7 +40,7 @@ function main(){
       restart_zuul_merger "$container_name"
     elif [ x"$container_name" == x"mysql" ]; then
       check_and_start_docker_container "$container_name"
-    elif [ x"$container_name" == x"nginx-set" ]; then
+    elif [ x"$container_name" == x"nginx_set" ]; then
       check_and_start_docker_container "$container_name"
     elif [ x"$container_name" == x"nginx" ]; then
       if [ x"$(hostname)" == x"eslinb49.emea.nsn-net.net" ]; then
