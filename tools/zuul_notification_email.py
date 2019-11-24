@@ -27,7 +27,7 @@ if __name__ == '__main__':
     host_server = ""
     with open(result_file, 'r') as f:
         message = f.read()
-        lines = f.readlines()
+        lines = message.split("/n")
         for line in lines:
             if "Host" in line:
                 host_server = line.split(":")[1].strip().split("<")[0]
