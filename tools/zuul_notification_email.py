@@ -30,7 +30,7 @@ if __name__ == '__main__':
         lines = f.readlines()
         for line in lines:
             if "Host" in line:
-                host_server = line.split(":")[1].strip()
+                host_server = line.split(":")[1].strip().split("<")[0]
             if "Failed" in line:
                 isRestartSuccess = False
                 break

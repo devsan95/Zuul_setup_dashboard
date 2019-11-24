@@ -148,6 +148,7 @@ function check_and_start_docker_container() {
       CONTAINER_STATUS="Off"
     fi
   fi
+  sleep 10
 }
 
 # check progress status in docker container and restart it when it was not running
@@ -181,7 +182,6 @@ function stop_progress_in_container() {
   container_name=$1
   progress_name=$2
   sudo docker exec "$container_name" bash -c "supervisorctl stop $progress_name"
-  sleep 10
   progress_status=$(sudo docker exec "$container_name" bash -c "supervisorctl status"|grep "$progress_name"|awk '{print $2}')
   if [ x"$progress_status" == x"STOPPED" ]; then
       echo "$progress_name stop success!"
