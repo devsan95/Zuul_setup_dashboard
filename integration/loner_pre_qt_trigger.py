@@ -1,25 +1,28 @@
 import re
 import fire
 import json
+from copy import deepcopy
 from xml.etree import ElementTree
 
 from scm_tools.wft.api import WftAPI
 from scm_tools.wft import json_releasenote
 
-from api import mysql_api, gerrit_rest
+from operate_commit_message import OperateCommitMessage
+from api import mysql_api, gerrit_rest, jira_api
 from mod import wft_tools
 
 
-def get_loner_from_wft(loner_prefix):
+def get_loner_from_wft(loner_prefix, status):
     wft = WftAPI()
     custom_filter = "custom_filter[baseline_regexp]=1"\
                     "&custom_filter[baseline]=^{loner_prefix}" \
                     "&custom_filter[sorting_field]=date" \
                     "&custom_filter[sorting_direction]=desc" \
-                    "&custom_filter[state][]=released_with_restrictions" \
+                    "&custom_filter[state][]={status}" \
                     "&custom_filter[items]=1"
     latest_loner_release = wft.get_build_list_from_custom_filter(custom_filter.format(
-        loner_prefix=loner_prefix
+        loner_prefix=loner_prefix,
+        status=status
     ))
     et = ElementTree.fromstring(latest_loner_release)
     return et.find('build/baseline').text
@@ -56,19 +59,20 @@ def get_loner_ticket(mysql, component, topic_info):
     return search_result[0][1]
 
 
-def update_loner_info(loner_version, sql_yaml, gerrit_yaml, stream, topic_info=None,
-                      topic_info_file=None):
-    print('Updating Loner information in skytrack')
-    mysql = mysql_api.init_from_yaml(sql_yaml, server_name='skytrack_test')
+def update_loner_topic(loner_version, sql_yaml, gerrit_yaml, stream, topic_info=None):
+    print('Will update {0} in skytrack'.format(loner_version))
+    mysql = mysql_api.init_from_yaml(sql_yaml, server_name='skytrack')
     mysql.init_database('skytrack')
     rest = gerrit_rest.init_from_yaml(gerrit_yaml)
-    loner_artifactory_link = get_loner_artifactory_link(loner_version)
-    print('Loner artifactory link: {0}'.format(loner_artifactory_link))
-    topic_info = topic_info if topic_info else json.load(topic_info_file)
-    loner_ticket = get_loner_ticket(mysql,
-                                    component=loner_version.split('_')[0],
-                                    topic_info=topic_info)
-    print('Loner ticket: {0}'.format(loner_ticket))
+
+    # Update topic info in all tickets and JIRA
+    root_ticket = get_loner_ticket(mysql, component='root_monitor', topic_info=topic_info)
+    msg_obj = OperateCommitMessage(gerrit_info_path=gerrit_yaml, root_change=root_ticket)
+    old_topic, new_topic = msg_obj.update_topic(loner_version)
+    jira_op = jira_api.JIRAPI("autobuild_c_ou", "a4112fc4")
+    jira_op.replace_issue_title(topic_info['issue_key'], old_topic, new_topic)
+
+    # Update base build in integration change
     integration_ticket = get_loner_ticket(mysql, component='integration', topic_info=topic_info)
     print('Integration ticket: {0}'.format(integration_ticket))
     latest_l3_call_build = wft_tools.get_latest_qt_passed_build(stream, status='released')
@@ -77,14 +81,37 @@ def update_loner_info(loner_version, sql_yaml, gerrit_yaml, stream, topic_info=N
         latest_l3_call_build[0].split('_')[-1]
     ))
     print('Updated {0} as new base in {1}'.format(latest_l3_call_build[0], integration_ticket))
-    src_uri = loner_artifactory_link + '/' + 'L1SW-{0}.tgz'.format(loner_version)
+    topic_info_content = deepcopy(topic_info)
+    topic_info_content['loner_version'] = loner_version
+    topic_info_content['integration_ticket'] = integration_ticket
+    with open('topic_info.json') as json_file:
+        json.dump(topic_info_content, json_file)
+    update_loner_info(sql_yaml, gerrit_yaml, 'topic_info.json')
 
-    rest.review_ticket(loner_ticket, message='', labels={'Code-Review': 0})
+
+def update_loner_info(sql_yaml, gerrit_yaml, topic_info_file):
+    topic_info = json.load(open(topic_info_file))
+    loner_version = topic_info['loner_version']
+    integration_ticket = topic_info['integration_ticket']
+    mysql = mysql_api.init_from_yaml(sql_yaml, server_name='skytrack')
+    mysql.init_database('skytrack')
+    rest = gerrit_rest.init_from_yaml(gerrit_yaml)
+    # update loner version in fake loner change
+    loner_ticket = get_loner_ticket(mysql,
+                                    component=loner_version.split('_')[0],
+                                    topic_info=topic_info)
+    print('Loner ticket: {0}'.format(loner_ticket))
+    loner_artifactory_link = get_loner_artifactory_link(loner_version)
+    print('Loner artifactory link: {0}'.format(loner_artifactory_link))
+    src_uri = loner_artifactory_link + '/' + 'L1SW-{0}.tgz'.format(loner_version)
     rest.review_ticket(loner_ticket, message='update_component:{loner},SRC_URI,{src_uri}'.format(
         loner=loner_version.split('_')[0].lower(),
         src_uri=src_uri
     ), labels={'Code-Review': 1})
     print('Updated {0} in {1}'.format(loner_version, loner_ticket))
+
+    # Retrigger integration build
+    rest.review_ticket(integration_ticket, message='reexperiment')
 
 
 def parameter_creator(integration_yaml, loner_version, stream, mode, promoted_user_id):
@@ -104,10 +131,11 @@ version_name={version_name}""".format(structure_file=integration_yaml,
         )
 
 
-def trigger(loner_prefix, stream, integration_yaml, sql_yaml, gerrit_yaml, mode, promoted_user_id):
+def trigger(loner_prefix, stream, integration_yaml, sql_yaml, gerrit_yaml, mode, promoted_user_id,
+            status, baseline=None):
     mysql = mysql_api.init_from_yaml(sql_yaml, server_name='skytrack_test')
     mysql.init_database('skytrack')
-    loner_version = get_loner_from_wft(loner_prefix)
+    loner_version = baseline if baseline else get_loner_from_wft(loner_prefix, status)
     print('Latest Loner Release: {0}'.format(loner_version))
     loner_topics = get_loner_topic_from_skytrack(mysql, stream)
     if not loner_version or loner_version in loner_topics:
@@ -116,11 +144,11 @@ def trigger(loner_prefix, stream, integration_yaml, sql_yaml, gerrit_yaml, mode,
     loner_handled = False
     for topic, topic_info in loner_topics.items():
         if stream in topic_info['stream']:
-            update_loner_info(loner_version, sql_yaml, gerrit_yaml, stream=stream,
-                              topic_info=topic_info)
+            update_loner_topic(loner_version, sql_yaml, gerrit_yaml, stream=stream,
+                               topic_info=topic_info)
             loner_handled = True
     if not loner_handled:
-        print('Will create loner pre-QT topic for {0}'.format(loner_version))
+        print('Will create {0} in skytrack'.format(loner_version))
         parameter_creator(integration_yaml, loner_version, stream, mode, promoted_user_id)
 
 

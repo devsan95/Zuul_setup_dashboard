@@ -6,6 +6,7 @@ import urllib3
 
 from api import gerrit_rest
 from mod import integration_change as inte_change
+from mod import common_regex
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -48,6 +49,30 @@ class OperateCommitMessage(object):
                     raise Exception(e)
             self.rest.publish_edit(change)
             self.rest.review_ticket(change, 'update interface info')
+
+    def update_topic(self, new_topic):
+        for change in self.all_changes:
+            try:
+                origin_msg = self.rest.get_commit(change)
+                msg = " ".join(origin_msg.split("\n"))
+                reg = common_regex.int_firstline_reg
+                to_be_replaced = reg.search(msg).groups()[1]
+                to_replace = new_topic
+                if to_be_replaced == to_replace:
+                    return to_be_replaced, to_replace
+                print(u"replace |{}| with |{}|...".format(to_be_replaced, to_replace))
+                try:
+                    self.rest.delete_edit(change)
+                except Exception as e:
+                    print('delete edit failed, reason:')
+                    print(str(e))
+
+                new_msg = origin_msg.replace(to_be_replaced, to_replace)
+                self.rest.change_commit_msg_to_edit(change, new_msg)
+                self.rest.publish_edit(change)
+                return to_be_replaced, to_replace
+            except Exception as e:
+                print(e)
 
 
 if __name__ == '__main__':
