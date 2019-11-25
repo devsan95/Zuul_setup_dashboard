@@ -51,6 +51,17 @@ class OperateIntegrationChange(object):
         )
         self.add_ticket_list(self.root_change, component_change, 'remove')
 
+        comp_commit_msg_obj = inte_change.IntegrationCommitMessage(to_remove)
+        root_change_obj = inte_change.RootChange(self.rest, self.root_change)
+        root_change_id = str(root_change_obj.get_info().get('change_id'))
+        comp_commit_msg_obj.remove_depends_on_root(root_change_id)
+        try:
+            self.rest.delete_edit(to_remove)
+        except Exception as e:
+            print(e)
+        self.rest.change_commit_msg_to_edit(component_change, comp_commit_msg_obj.get_msg())
+        self.rest.publish_edit(component_change)
+
     def add(self, component_change):
         commit_msg_obj = inte_change.IntegrationCommitMessage(self.inte_change)
         to_add = inte_change.IntegrationChange(self.rest, component_change)

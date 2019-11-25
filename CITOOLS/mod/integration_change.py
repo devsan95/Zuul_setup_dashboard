@@ -423,3 +423,8 @@ class IntegrationCommitMessage(object):
             line_value = 'Depends-on: {}'.format(root_change_id)
             if line_value not in self.msg_lines:
                 self.msg_lines.insert(begin_line, line_value)
+
+    def remove_depends_on_root(self, root_change_id):
+        line_value = 'Depends-on: {}'.format(root_change_id)
+        if line_value in self.msg_lines:
+            self.msg_lines.remove(line_value)
