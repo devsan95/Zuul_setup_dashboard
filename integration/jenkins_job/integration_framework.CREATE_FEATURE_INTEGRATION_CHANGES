@@ -82,3 +82,4 @@ python ${WORKSPACE}/script/integration/create_integration_changes.py \
                                       --ext_commit_msg """${ext_msg_param}""" \
                                       --mysql_info "${MYSQL_INFO}" \
                                       --comp_config "${WORKSPACE}/yaml/config/component-config.yaml"
+                                      --version_name "${version_name}"

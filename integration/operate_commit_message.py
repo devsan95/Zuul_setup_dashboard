@@ -50,16 +50,17 @@ class OperateCommitMessage(object):
             self.rest.publish_edit(change)
             self.rest.review_ticket(change, 'update interface info')
 
-    def update_topic(self, new_topic):
+    def update_topic(self, to_replace):
+        to_be_replaced = ''
         for change in self.all_changes:
+            print change
             try:
-                origin_msg = self.rest.get_commit(change)
+                origin_msg = self.rest.get_commit(change)['message']
                 msg = " ".join(origin_msg.split("\n"))
                 reg = common_regex.int_firstline_reg
                 to_be_replaced = reg.search(msg).groups()[1]
-                to_replace = new_topic
                 if to_be_replaced == to_replace:
-                    return to_be_replaced, to_replace
+                    continue
                 print(u"replace |{}| with |{}|...".format(to_be_replaced, to_replace))
                 try:
                     self.rest.delete_edit(change)
@@ -70,9 +71,9 @@ class OperateCommitMessage(object):
                 new_msg = origin_msg.replace(to_be_replaced, to_replace)
                 self.rest.change_commit_msg_to_edit(change, new_msg)
                 self.rest.publish_edit(change)
-                return to_be_replaced, to_replace
             except Exception as e:
                 print(e)
+        return to_be_replaced, to_replace
 
 
 if __name__ == '__main__':
