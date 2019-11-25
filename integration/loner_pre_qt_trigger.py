@@ -1,6 +1,5 @@
 import re
 import fire
-import json
 from copy import deepcopy
 from xml.etree import ElementTree
 
@@ -84,13 +83,10 @@ def update_loner_topic(loner_version, sql_yaml, gerrit_yaml, stream, topic_info=
     topic_info_content = deepcopy(topic_info)
     topic_info_content['loner_version'] = loner_version
     topic_info_content['integration_ticket'] = integration_ticket
-    with open('topic_info.json') as json_file:
-        json.dump(topic_info_content, json_file)
-    update_loner_info(sql_yaml, gerrit_yaml, 'topic_info.json')
+    update_loner_info(sql_yaml, gerrit_yaml, topic_info_content)
 
 
-def update_loner_info(sql_yaml, gerrit_yaml, topic_info_file):
-    topic_info = json.load(open(topic_info_file))
+def update_loner_info(sql_yaml, gerrit_yaml, topic_info):
     loner_version = topic_info['loner_version']
     integration_ticket = topic_info['integration_ticket']
     mysql = mysql_api.init_from_yaml(sql_yaml, server_name='skytrack')
@@ -133,7 +129,7 @@ version_name={version_name}""".format(structure_file=integration_yaml,
 
 def trigger(loner_prefix, stream, integration_yaml, sql_yaml, gerrit_yaml, mode, promoted_user_id,
             status, baseline=None):
-    mysql = mysql_api.init_from_yaml(sql_yaml, server_name='skytrack_test')
+    mysql = mysql_api.init_from_yaml(sql_yaml, server_name='skytrack')
     mysql.init_database('skytrack')
     loner_version = baseline if baseline else get_loner_from_wft(loner_prefix, status)
     print('Latest Loner Release: {0}'.format(loner_version))
