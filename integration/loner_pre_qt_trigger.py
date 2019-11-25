@@ -94,7 +94,7 @@ def update_loner_info(sql_yaml, gerrit_yaml, topic_info):
     rest = gerrit_rest.init_from_yaml(gerrit_yaml)
     # update loner version in fake loner change
     loner_ticket = get_loner_ticket(mysql,
-                                    component=loner_version.split('_')[0],
+                                    component=loner_version.split('_')[0].lower(),
                                     topic_info=topic_info)
     print('Loner ticket: {0}'.format(loner_ticket))
     loner_artifactory_link = get_loner_artifactory_link(loner_version)
