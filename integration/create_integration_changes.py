@@ -1080,6 +1080,7 @@ def cli(ctx, yaml_path, gerrit_path, zuul_user, zuul_key):
 @click.option('--comp_config', default=None, type=unicode)
 @click.option('--open-jira', default=False, type=bool)
 @click.option('--skip-jira', default=False, type=bool)
+@click.option('--version_name', default=None, type=unicode)
 @click.pass_context
 def create_changes(ctx, version_name=None,
                    topic_prefix=None, streams=None,
