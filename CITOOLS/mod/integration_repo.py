@@ -88,7 +88,11 @@ class INTEGRATION_REPO(object):
         target_var = 'TARGET_{}'.format(module.replace('-', '_'))
         director = self.get_config_value(target_var)
         if module.startswith('Yocto') and module != 'Yocto':
-            oe_scripts = 'poky/oe-init-build-env'
+            try:
+                if self.get_config_value('TOOLSET_POKY'):
+                    oe_scripts = 'meta-toolset/poky/oe-init-build-env'
+            except Exception:
+                oe_scripts = 'poky/oe-init-build-env'
         else:
             director = 'integration-{}'.format(director)
         env_file_path = os.path.join(
@@ -259,7 +263,7 @@ class INTEGRATION_REPO(object):
         g.checkout(self.repo_ver)
         g.submodule('init')
         try:
-            g.submodule('update', '--init')
+            g.submodule('update', '--init', '--recursive')
         except Exception:
             # wa, skip poky clone issue
             logging.warn("#### update submodule failed ###")
