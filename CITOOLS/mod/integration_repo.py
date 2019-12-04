@@ -77,6 +77,13 @@ class INTEGRATION_REPO(object):
         os.chdir(old_wkdir)
         return bash_output
 
+    def get_yocto_oe_dir(self):
+        try:
+            if self.get_config_value('TOOLSET_POKY'):
+                return 'meta-toolset/poky/oe-init-build-env'
+        except Exception:
+            return 'poky/oe-init-build-env'
+
     def get_comp_info_by_bitbake(self, int_bb_target, comp_name, comp_ver, bb_file):
         comp_name_with_ver = '{}-{}'.format(comp_name, comp_ver)
         regex_repo = r'^(GIT_URI|GIT_REPO|SRC_URI)="([^"]+)"'
@@ -88,11 +95,7 @@ class INTEGRATION_REPO(object):
         target_var = 'TARGET_{}'.format(module.replace('-', '_'))
         director = self.get_config_value(target_var)
         if module.startswith('Yocto') and module != 'Yocto':
-            try:
-                if self.get_config_value('TOOLSET_POKY'):
-                    oe_scripts = 'meta-toolset/poky/oe-init-build-env'
-            except Exception:
-                oe_scripts = 'poky/oe-init-build-env'
+            oe_scripts = self.get_yocto_oe_dir()
         else:
             director = 'integration-{}'.format(director)
         env_file_path = os.path.join(
@@ -124,7 +127,7 @@ class INTEGRATION_REPO(object):
         module = int_bb_target.split('integration-')[1].strip()
         bb_cmd_dir = director
         if module.startswith('Yocto') and module != 'Yocto':
-            oe_scripts = 'poky/oe-init-build-env'
+            oe_scripts = self.get_yocto_oe_dir()
         else:
             bb_cmd_dir = 'integration-{}'.format(bb_cmd_dir)
         self.run_bitbake_cmd(bb_cmd_dir, oe_scripts, '-g', int_bb_target)
