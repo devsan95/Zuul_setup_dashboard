@@ -96,20 +96,19 @@ def get_base_commit(rest, comp, root):
         commit_hash = commit_info['revision']
     elif 'without-zuul-rebase' in int_mode:
         base_load = get_base_load(rest, root['manager_change'])
+        get_comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
         if 'MN/SCMTA/zuul/inte_ric' in comp['repo']:
             commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
             commit_hash = commit_info['revision']
-            inte_repo = get_component_info.init_integration(base_load)
-            base_commit = get_component_info.get_comp_hash(inte_repo, comp['ric'])
+            base_commit = get_comp_info.get_comp_hash(comp['ric'])
         else:
-            inte_repo = get_component_info.init_integration(base_load)
             if isinstance(comp['ric'], str):
                 if comp['ric'] == 'integration':
                     commit_hash = base_load
                 else:
-                    commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'])
+                    commit_hash = get_comp_info.get_comp_hash(comp['ric'])
             if isinstance(comp['ric'], list):
-                commit_hash = get_component_info.get_comp_hash(inte_repo, comp['ric'][0])
+                commit_hash = get_comp_info.get_comp_hash(comp['ric'][0])
     if commit_hash:
         change_info = rest.query_ticket('commit:{}'.format(commit_hash), count=1)
         if change_info:

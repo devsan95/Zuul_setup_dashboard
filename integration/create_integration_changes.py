@@ -729,9 +729,9 @@ class IntegrationChangesCreation(object):
             module_ver = build
             if module_ver == base_load:
                 continue
-            inte_repo = get_component_info.init_integration(module_ver)
+            get_comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
             try:
-                comp_ver = get_component_info.get_comp_hash(inte_repo, ric_com)
+                comp_ver = get_comp_info.get_comp_hash(ric_com)
             except Exception as e:
                 print e
                 print "[WARNING]Can't get base commit from {0}".format(module_ver)
@@ -741,14 +741,14 @@ class IntegrationChangesCreation(object):
 
     def parse_base_load(self, base_load):
         base_commits = {}
-        inte_repo = get_component_info.init_integration(base_load)
+        get_comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
         node_list = self.info_index['nodes'].values()
-        print("[Info] Start to parse base load")
+        print("[Info] Start to parse base load for node_list: {}".format(node_list))
         for node in node_list:
             print("[Info] Parse component: {}".format(node['name']))
             if 'type' in node and 'root' in node['type']:
                 if 'MN/5G/COMMON/env' in node['repo']:
-                    com_ver = get_component_info.get_comp_hash(inte_repo, 'env')
+                    com_ver = get_comp_info.get_comp_hash('env')
                     base_commits['env'] = com_ver
                     print("[Info] Base commit for env is: {}".format(com_ver))
                     continue
@@ -759,7 +759,7 @@ class IntegrationChangesCreation(object):
                 continue
             if 'airphone' in node['repo']:
                 try:
-                    com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
+                    com_ver = get_comp_info.get_comp_hash(node['ric'][0])
                     base_commits[node['ric'][0]] = com_ver
                     print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
                 except Exception as e:
@@ -771,7 +771,7 @@ class IntegrationChangesCreation(object):
                     for ric_com in node['ric']:
                         com_ver = ''
                         try:
-                            com_ver = get_component_info.get_comp_hash(inte_repo, ric_com)
+                            com_ver = get_comp_info.get_comp_hash(ric_com)
                             print("[Info] Base commit for component {} is {}".format(ric_com, com_ver))
                         except Exception as e:
                             print e
@@ -787,7 +787,7 @@ class IntegrationChangesCreation(object):
                 if 'ric' in node and node['ric']:
                     com_ver = ''
                     try:
-                        com_ver = get_component_info.get_comp_hash(inte_repo, node['ric'][0])
+                        com_ver = get_comp_info.get_comp_hash(node['ric'][0])
                     except Exception as e:
                         print e
                     if not com_ver:

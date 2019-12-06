@@ -55,6 +55,25 @@ class INTEGRATION_REPO(object):
         self.git_user = GIT_USER
         self.git_email = GIT_EMAIL
 
+    def get_env_submodule_ver(self):
+        g = git.Git(self.work_dir)
+        output = g.submodule('status')
+        env_version = ''
+        for line in output:
+            if line.split()[0].strip() == 'env':
+                env_version = output.split()[0].strip()
+        if env_version:
+            return env_version
+        raise Exception('[Error] Cannot find env submodule')
+
+    def get_integration_branch(self):
+        g_repo = git.Git(self.work_dir)
+        branch_data = g_repo.branch('--contains', 'HEAD')
+        for line in branch_data.splitlines():
+            if line == 'master' or line.startswith('rel/'):
+                return line
+        return ''
+
     def run_bitbake_cmd(self, prefix_path, oe_scripts, *bitbake_args):
         bitbake_arg_str = ' '.join(list(bitbake_args))
         bash_cmd = ''
@@ -81,6 +100,8 @@ class INTEGRATION_REPO(object):
         try:
             if self.get_config_value('TOOLSET_POKY'):
                 return 'meta-toolset/poky/oe-init-build-env'
+            else:
+                return 'poky/oe-init-build-env'
         except Exception:
             return 'poky/oe-init-build-env'
 

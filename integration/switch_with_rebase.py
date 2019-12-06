@@ -106,9 +106,8 @@ def rebase_by_load(rest, change_no, base_package,
     int_change_obj = IntegrationChange(rest, int_change)
     topic = '{} of {}'.format(int_change_obj.get_version(),
                               int_change_obj.get_title())
-    base_int_obj = None
     if base_package != 'HEAD':
-        base_int_obj = get_component_info.init_integration(base_package)
+        get_comp_info = get_component_info.GET_COMPONENT_INFO(base_package)
     rebase_failed = {}
     rebase_succeed = {}
     comp_change_list.append(change_no)
@@ -135,17 +134,15 @@ def rebase_by_load(rest, change_no, base_package,
                     comp_hash = rest.get_tag(
                         'MN/5G/COMMON/integration', base_package)['object']
                 else:
-                    comp_hash = get_component_info.get_comp_hash(
-                        base_int_obj, comp_name)
+                    comp_hash = get_comp_info.get_comp_hash(comp_name)
             except Exception:
                 print('Cannot get hash for {}'.format(comp_name))
                 print('Try get hash from {}'.format(extra_bases))
                 for extra_base in extra_bases:
                     if extra_base not in extra_base_repos:
-                        extra_base_repos[extra_base] = get_component_info.init_integration(extra_base)
+                        extra_base_get_comp_info = get_component_info.GET_COMPONENT_INFO(extra_base)
                     try:
-                        comp_hash = get_component_info.get_comp_hash(
-                            extra_base_repos[extra_base], comp_name)
+                        comp_hash = extra_base_get_comp_info.get_comp_hash(comp_name)
                     except Exception:
                         print('Exception when get hash from {}'.format(extra_base))
                         continue
