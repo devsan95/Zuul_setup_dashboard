@@ -36,7 +36,7 @@ def create_file_change_by_env_change(env_change_split, file_content, filename):
 
 
 def clear_change(rest, change_id, only_clear_env=True):
-    env_related = ['env/env-config.d/ENV', 'env-config.d/ENV', 'meta-ps-rel', 'meta-rcp']
+    env_related = ['env/env-config.d/ENV', 'env-config.d/ENV', 'meta-ps-rel', 'meta-rcp', 'config.yaml']
     flist = rest.get_file_list(change_id)
     for file_path in flist:
         file_path = file_path.split('\n', 2)[0]
