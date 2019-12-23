@@ -104,6 +104,10 @@ def update_loner_info(sql_yaml, gerrit_yaml, topic_info):
         loner=loner_version.split('_')[0].lower(),
         src_uri=src_uri
     ), labels={'Code-Review': 1})
+    rest.review_ticket(loner_ticket, message='update_component:{loner},WFT_NAME,{wft_name}'.format(
+        loner=loner_version.split('_')[0].lower(),
+        wft_name=loner_version
+    ), labels={'Code-Review': 1})
     print('Updated {0} in {1}'.format(loner_version, loner_ticket))
 
     # Retrigger integration build
