@@ -40,6 +40,22 @@ reg_remove = re.compile(
     r' in (?P<pipeline>.*)> from queue'
 )
 
+reg_remove_bunch_1 = re.compile(
+    r'Removing change '
+    r'<QueueItem '
+    r'(?P<queue_item>.*) for '
+    r'<Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)>'
+    r' in (?P<pipeline>.*)> from queue, while this change was bunched with others'
+)
+
+reg_remove_bunch_2 = re.compile(
+    r'Removing change '
+    r'<QueueItem '
+    r'(?P<queue_item>.*) for '
+    r'<Change (?P<item>.*) (?P<change>\d*),(?P<patchset>\d*)>'
+    r' in (?P<pipeline>.*)> from queue, while this change was bunching others'
+)
+
 reg_remove_item = re.compile(
     r'Canceling builds behind change: '
     r'<QueueItem '
@@ -321,6 +337,8 @@ reg_list = [
     {'reg': reg_result_fail, 'type': 'fail'},
     {'reg': reg_window, 'type': 'go in window'},
     {'reg': reg_cancel_job_new, 'type': 'cancel jobs with reason'},
+    {'reg': reg_remove_bunch_1, 'type': 'remove from queue while bunched'},
+    {'reg': reg_remove_bunch_2, 'type': 'remove from queue while bunching'},
 ]
 
 
@@ -437,7 +455,10 @@ class LogLine(object):
                         self._handle_window,
                     'cancel jobs with reason':
                         self._handle_cancel_jobs_new,
-
+                    'remove from queue while bunched':
+                        self._handle_type_remove_from_queue,
+                    'remove from queue while bunching':
+                        self._handle_type_remove_from_queue,
                 }[self.type](m)
 
                 print('{} {}.{} {} [{}] {}'.format(
