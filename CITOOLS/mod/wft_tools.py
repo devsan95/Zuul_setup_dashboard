@@ -81,26 +81,29 @@ def get_stream_name(version):
 
 
 def get_release_date(package):
-    package = package.strip()
-    if package.startswith('5.3'):
-        package_name = '5G19_' + package
-    elif package.startswith('6.'):
-        package_name = '5G19A_' + package
-    else:
-        package_name = '5G_' + package
-    rs = WFT.get_build_content(package_name)
+    rs = WFT.get_build_content(package)
     tree = ET.fromstring(rs)
     for one in tree.findall("delivery_date"):
         release_date = one.text
     if not release_date:
-        release_date = get_planed_delivery_date(package_name)
+        release_date = get_planed_delivery_date(package)
     return package, release_date
+
+
+def get_wft_release_name(version):
+    stream_name = get_stream_name(version)
+    latest_build, release_date = get_lasted_success_build(stream_name)
+    if latest_build:
+        return latest_build.split('_')[0] + '_' + version
+    else:
+        raise Exception("Can't find WFT name for {0}".format(version))
 
 
 def get_newer_base_load(base_load_list):
     stream_build = dict()
     for base_load in base_load_list:
-        build_name, release_date = get_release_date(base_load)
+        package_name = get_wft_release_name(base_load)
+        build_name, release_date = get_release_date(package_name)
         if release_date:
             stream_build[release_date] = build_name
     release_time = stream_build.keys()
