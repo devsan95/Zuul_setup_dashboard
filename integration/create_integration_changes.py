@@ -1041,11 +1041,12 @@ class IntegrationChangesCreation(object):
                     retry -= 1
                     print "Retry left {0} times".format(retry)
                     continue
+                wft_build_list = [wft_tools.get_wft_release_name(build) for build in self.base_load_list]
                 skytrack_database_handler.update_integration_mode(
                     database_info_path=mysql_info,
                     issue_key=self.meta["jira_key"],
                     integration_mode=integration_mode,
-                    fixed_build=','.join(self.base_load_list),)
+                    fixed_build=','.join(wft_build_list),)
                 break
             skytrack_database_handler.update_events(
                 database_info_path=mysql_info,
