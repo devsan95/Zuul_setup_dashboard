@@ -158,6 +158,7 @@ fi
 cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
 pip install --no-cache-dir jenkins-job-builder PyZMQ ruamel.yaml networkx requests configobj jenkinsapi python-jenkins
+pip install --no-cache-dir paramiko beautifulsoup4
 pip install --no-cache-dir gitpython arrow sh pyyaml ptpython pydocstyle python-slugify pymysql pygerrit2
 pip install --no-cache-dir jinja2 fire jira python-gitlab jsonschema click mysql-connector pytz xlwt
 pip uninstall -y flake8 pylint
