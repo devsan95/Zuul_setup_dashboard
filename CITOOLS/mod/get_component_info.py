@@ -11,6 +11,15 @@ logging.basicConfig(level=logging.INFO)
 INTEGRTION_URL = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 
 
+def get_production_branch(int_repo):
+    g_repo = git.Git(int_repo.work_dir)
+    branch_data = g_repo.branch('--contains', 'HEAD')
+    for line in branch_data.splitlines():
+        if line == 'master' or line.startswith('rel/'):
+            return line
+    return ''
+
+
 def init_integration(base_pkg):
     integration_dir = os.path.join(
         os.getcwd(), 'Integration_{}'.format(base_pkg))
@@ -18,10 +27,13 @@ def init_integration(base_pkg):
         INTEGRTION_URL, base_pkg, work_dir=integration_dir)
     int_repo.get_dep_files()
     int_repo.gen_dep_all()
+    branch = get_production_branch(int_repo)
+    if not branch:
+        branch = 'master'
     try:
         print('Base tag: {} add to gerrit'.format(base_pkg))
         g = git.Git(integration_dir)
-        g.push('origin', '{}:refs/for/master%merged'.format(base_pkg))
+        g.push('origin', '{}:refs/for/{}%merged'.format(base_pkg, branch))
     except Exception:
         traceback.print_exc()
     return int_repo
