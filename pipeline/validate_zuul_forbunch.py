@@ -66,7 +66,7 @@ def _main():
 
     # check if the first change is passed check pipeline
     print('Patchset1 is {}'.format(patchset1))
-    for i in range(1, 20):
+    for i in range(1, 30):
         print('Waiting for 5 secs...')
         time.sleep(5)
         if gerrit_api.does_patch_set_match_condition(
@@ -91,7 +91,7 @@ def _main():
 
     # check if the second change is passed check pipeline
     print('Patchset2 is {}'.format(patchset2))
-    for i in range(1, 20):
+    for i in range(1, 30):
         print('Waiting for 5 secs...')
         time.sleep(5)
         if gerrit_api.does_patch_set_match_condition(
@@ -116,7 +116,7 @@ def _main():
 
     # check if the third change is passed check pipeline
     print('Patchset3 is {}'.format(patchset3))
-    for i in range(1, 20):
+    for i in range(1, 30):
         print('Waiting for 5 secs...')
         time.sleep(5)
         if gerrit_api.does_patch_set_match_condition(
@@ -140,7 +140,7 @@ def _main():
     auth = HTTPBasicAuth('rihu', '$264531Hx$')
     rest = GerritRestAPI(url="http://" + ssh_server, auth=auth, verify=False)
     gate_bunch_topic = False
-    for i in range(1, 20):
+    for i in range(1, 30):
         print('Waiting for 5 secs...')
         time.sleep(5)
         if rest.get("/changes/{}/topic".format(patchset2)):
