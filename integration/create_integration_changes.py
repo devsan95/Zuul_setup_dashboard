@@ -166,6 +166,7 @@ class IntegrationChangesCreation(object):
         self.gerrit_ssh_user = None
         self.gerrit_ssh_key = None
         self.gerrit_rest = None
+        self.comp_config = None
 
         self.load_yaml(yaml_path)
         self.load_gerrit(gerrit_path, zuul_user, zuul_key)
@@ -197,6 +198,25 @@ class IntegrationChangesCreation(object):
 
     def update_meta(self, update_dict):
         collection_api.dict_merge(self.meta, update_dict)
+
+    def check_coam_integration(self):
+        coam_components = list()
+        pit_impacted_components = self.comp_config['pit_impacted']
+        branch = None
+        for node in self.info_index['nodes'].values():
+            if 'type' in node and 'root' in node['type']:
+                branch = node['branch']
+            if node['name'] in pit_impacted_components:
+                coam_components.append(node['name'])
+        if len(coam_components) > 1:
+            self.info_index['structure'].append({
+                'branch': branch,
+                'name': 'integration_coam',
+                'type': 'integration_coam',
+                'repo': 'MN/SCMTA/zuul/inte_mn_coam',
+                'title': 'Coam Integration Manager',
+                'depends': coam_components
+            })
 
     def handle_auto_branch(self, repo, branch_):
         branch = 'refs/heads/' + branch_
@@ -370,7 +390,7 @@ class IntegrationChangesCreation(object):
                 lines.append('ROOT CHANGE')
                 lines.append('Please do not modify this change.')
             elif node_obj['type'] == 'integration' or \
-                    node_obj['type'] == 'integration_all':
+                    node_obj['type'] == 'integration_all' or node_obj['type'] == 'integration_coam':
                 lines.append('MANAGER CHANGE')
                 lines.append('Please do not modify this change.')
         if 'submodules' in node_obj and node_obj['submodules']:
@@ -828,9 +848,8 @@ class IntegrationChangesCreation(object):
                     else:
                         self.info_index['nodes'][node['name']]['comments'] = ['use_default_base']
 
-    def get_base_comp(self, comp_config):
-        con = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
-        base_comp_list = con['depends_components']
+    def get_base_comp(self):
+        base_comp_list = self.comp_config['depends_components']
         base_comp = []
         for node in self.info_index['nodes'].values():
             if 'type' in node and 'root' in node['type']:
@@ -882,6 +901,8 @@ class IntegrationChangesCreation(object):
         # handle integration topic
         utc_dt = datetime.utcnow()
         timestr = utc_dt.replace(microsecond=0).isoformat().replace(':', '_')
+        if comp_config:
+            self.comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
         if not topic_prefix:
             topic = 't_{}'.format(timestr)
         else:
@@ -894,6 +915,8 @@ class IntegrationChangesCreation(object):
 
         if feature_owner and feature_owner != 'anonymous' and not self.meta['jira']['assignee']:
             self.meta['jira']['assignee'] = {'name': feature_owner}
+
+        self.check_coam_integration()
 
         # create graph
         root_node, integration_node, nodes, graph_obj = create_graph(self.info_index)
@@ -1020,7 +1043,7 @@ class IntegrationChangesCreation(object):
                                    commit_id=re.search(r'commit-ID:\W+(.*)', ext_commit_msg).group(1)
                                    )
         # handle node need to be depends on
-        base_comp = self.get_base_comp(comp_config)
+        base_comp = self.get_base_comp()
         if base_comp:
             self.update_base_depends(base_comp)
         self.print_result()
