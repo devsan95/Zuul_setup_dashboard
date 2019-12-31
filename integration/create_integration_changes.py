@@ -203,7 +203,7 @@ class IntegrationChangesCreation(object):
         coam_components = list()
         pit_impacted_components = self.comp_config['pit_impacted']
         branch = None
-        for node in self.info_index['nodes'].values():
+        for node in self.info_index['structure']:
             if 'type' in node and 'root' in node['type']:
                 branch = node['branch']
             if node['name'] in pit_impacted_components:
