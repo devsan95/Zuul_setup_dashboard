@@ -51,15 +51,14 @@ def get_cpi_root_change(issue_key, sql_yaml):
 
 
 def get_top_two_releases(releases):
-    mb_ps_regex = re.compile(r'MB_PS_REL_(\d+)_(\d+)*')
     top_two_releases = list()
     major_version = 0
     for topic in releases:
         if not major_version:
             top_two_releases.append(topic)
-            major_version = int(mb_ps_regex.match(topic).group(2))
+            major_version = get_major_version(topic)
             continue
-        topic_mv = int(mb_ps_regex.match(topic).group(2))
+        topic_mv = get_major_version(topic)
         if topic_mv == major_version:
             continue
         if topic_mv == (major_version - 1):
@@ -68,8 +67,13 @@ def get_top_two_releases(releases):
     return top_two_releases
 
 
-def if_create(on_going_cpi_topics, mb_ps_releases, sql_yaml):
+def get_major_version(ps_version):
     mb_ps_regex = re.compile(r'MB_PS_REL_(\d+)_(\d+)*')
+    version_match = mb_ps_regex.match(ps_version)
+    return int("{0}{1}".format(version_match.group(1), version_match.group(2)))
+
+
+def if_create(on_going_cpi_topics, mb_ps_releases, sql_yaml):
     root_change = {}
     if not on_going_cpi_topics:
         LOG.info('No on-going CPI topics, create CPI topic for {0}'.format(mb_ps_releases[0]))
@@ -83,8 +87,8 @@ def if_create(on_going_cpi_topics, mb_ps_releases, sql_yaml):
     results = {}
     for mb_release in top_two_mb_releases:
         for cpi_topic in top_two_cpi_topic:
-            if mb_ps_regex.match(mb_release).group(2) \
-                    == mb_ps_regex.match(cpi_topic).group(2):
+            if get_major_version(mb_release) \
+                    == get_major_version(cpi_topic):
                 if mb_release > cpi_topic:
                     results[mb_release] = 'update'
                     root_change[mb_release] = get_cpi_root_change(on_going_cpi_topics[cpi_topic],
@@ -94,8 +98,8 @@ def if_create(on_going_cpi_topics, mb_ps_releases, sql_yaml):
                     LOG.info('Latest PS MB release {0}'.format(mb_release))
                     LOG.info('No need to update')
                 break
-            if mb_ps_regex.match(mb_release).group(2) \
-                    > mb_ps_regex.match(cpi_topic).group(2):
+            if get_major_version(mb_release) \
+                    > get_major_version(cpi_topic):
                 results[mb_release] = 'create'
                 break
     return results, root_change
