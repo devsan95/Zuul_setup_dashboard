@@ -181,7 +181,7 @@ def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, b
         LOG.info('will take action for below versions:')
         LOG.info(actions)
     cpi_topic_handler(cpi_topics=actions, structure_file=structure_file,
-                      streams=','.join([str(stream) for stream in streams]),
+                      streams=streams,
                       promoted_user_id=promoted_user_id, integration_mode=integration_mode,
                       root_changes=root_changes)
 
