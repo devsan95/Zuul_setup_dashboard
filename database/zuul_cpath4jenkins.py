@@ -37,16 +37,14 @@ class JobTreeOper(object):
 
     def _get_records_amount(self, tdate=''):
         with self.connection.cursor() as cursor:
-            sql = "select count(*) from item_jobtree where " \
-                  "created_at > str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)
+            sql = "select count(*) from item_jobtree where datediff(created_at, date('{}'))=0".format(tdate)
             cursor.execute(sql)
             result = cursor.fetchone()
         return result['count(*)']
 
     def get_records(self, tdate=''):
         with self.connection.cursor() as cursor:
-            sql = "select * from item_jobtree where created_at " \
-                  "> str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate)
+            sql = "select * from item_jobtree where datediff(created_at, date('{}'))=0" .format(tdate)
             cursor.execute(sql)
             results = cursor.fetchall()
         if not results:
