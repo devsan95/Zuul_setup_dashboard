@@ -1,0 +1,81 @@
+#!/bin/sh
+
+
+#checks whether zull-server running or not if not runing it exit from the execution
+
+#docker inspect zuul-server | grep "running"
+rm -rf ./data.txt
+docker exec -it zuul-server bash -c "supervisorctl status zuul-server | grep "RUNNING""
+
+if test $? != 0 ; then
+
+echo "Zuul server is not running please check"
+
+   exit 1
+
+   fi
+#Number of gates
+
+curl $1/status.json > status.json
+
+an=`cat status.json | jq '.pipelines[].name' | wc -l`
+
+#sleep 5
+
+for (( i=0; i<${an}; i++))
+ do
+
+#sleep 5
+ type=`cat status.json | jq --arg a "$i" '.pipelines[$a|tonumber].name'`
+
+ echo "current list is for $type job"
+#reading the count number of project within specific pipeline
+ n_c=`cat status.json |  jq --arg a "$i"  '.pipelines[$a|tonumber].change_queues[].name' | wc -l`
+
+ for (( k=0; k<${n_c}; k++))
+ do
+
+ proj=`cat status.json | jq --arg b "$i" --arg c "$k" '.pipelines[$b|tonumber].change_queues[$c|tonumber].heads[][].project'`
+ change=`cat status.json | jq --arg b "$i" --arg c "$k" '.pipelines[$b|tonumber].change_queues[$c|tonumber].heads[][].id'`
+
+#if the jobs are check job and displaying only last patchset in that chnage id due to dependent pipeline
+ if test $type == "\"check"\" ; then
+ x=`echo $proj | rev | cut -d" " -f1 | rev`
+ y=`echo $change | rev | cut -d" " -f1 | rev`
+# echo "its the latest proj and quee in check pipeline $x $y"
+echo "zuul enqueue --trigger gerrit --pipeline "$type" --project $x --change $y" >> ./data.txt
+echo "zuul enqueue --trigger gerrit --pipeline $type --project $x --change $y" 
+continue
+ fi
+
+ #if the jobs gate and since they are independet pipeline dispaying all the queed jobs one by one
+  if test $type == "\"gate"\" ; then
+ x=`echo $proj | wc -w`
+if test $x != 0 ; then
+ for(( p=1; p<=$x; p++)) ; do
+m="$proj"
+n="$change"
+ proj_g=`echo $m | cut -d" " -f$p`
+ change_g=`echo $n | cut -d" " -f$p`
+# echo "chnage for gate is here $proj_g and $change_g"
+echo "zuul enqueue --trigger gerrit --pipeline $type --project $proj_g --change $change_g" >> ./data.txt
+echo "zuul enqueue --trigger gerrit --pipeline $type --project $proj_g --change $change_g" 
+ continue
+ done
+else
+continue
+fi
+fi
+q=`echo $proj | wc -w`
+if test $q == 0 ; then
+continue
+fi
+
+if test $type != "\"gate"\" ; then
+echo "zuul enqueue --trigger gerrit --pipeline $type --project $proj --change $change" >> ./data.txt
+echo "zuul enqueue --trigger gerrit --pipeline $type --project $proj --change $change"
+fi
+#sleep 1
+  done
+  done
+

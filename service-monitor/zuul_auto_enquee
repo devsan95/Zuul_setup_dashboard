@@ -1,0 +1,50 @@
+#uto_enquee!/bin/sh
+
+
+check_third()
+{
+docker exec -it zuul-server bash -c "supervisorctl status zuul-server | grep "RUNNING""
+
+if test $? != 0 ; then
+sleep 1m
+docker exec -it zuul-server bash -c "supervisorctl status zuul-server | grep "RUNNING""
+if test $? == 0 ; then
+docker cp ./data.txt zuul-server:/tmp/data.txt
+docker exec -it zuul-server bash -c "source /tmp/data.txt"
+exit 0
+else
+echo "server is not availbale in all three retries, try using jenkin job onsce server up http://jenkins-prod.zuulqa.dynamic.nsn-net.net/view/TOOLS/job/zuul_auto_enquee/ "
+fi
+else
+echo "server available in second retry"
+docker cp ./data.txt zuul-server:/tmp/data.txt
+docker exec -it zuul-server bash -c "source /tmp/data.txt"
+fi
+}
+
+
+check_server() 
+{
+docker exec -it zuul-server bash -c "supervisorctl status zuul-server | grep "RUNNING""
+if test $? != 0 ; then
+echo "waiting until server up, 1st try"
+sleep 1m
+docker exec -it zuul-server bash -c "supervisorctl status zuul-server | grep "RUNNING""
+if test $? == 0 ; then
+docker cp ./data.txt zuul-server:/tmp/data.txt
+docker exec -it zuul-server bash -c "source /tmp/data.txt"
+else
+echo "still its not running, trying second time"
+sleep 1m
+check_third
+fi
+
+else
+
+echo "zuul server is running No need for auto enquee"
+exit 1
+
+fi
+}
+
+check_server
