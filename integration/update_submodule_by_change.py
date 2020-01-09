@@ -142,8 +142,8 @@ def run(change_id, gerrit_info_path, repo_path):
 
         print('proceed {} in {}'.format(path, change))
 
-        clear_change(rest, change, path)
         if check_submodule(rest, change, path, commit_id, repo_path):
+            clear_change(rest, change, path)
             update_submodule(rest, change, path, commit_id)
 
 
