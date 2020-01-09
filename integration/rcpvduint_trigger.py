@@ -178,7 +178,7 @@ def generate_releasenote():
     downloads = list()
     elements = list()
     for item in old_downloads:
-        if not item["path"].startswith('http'):
+        if "/System_Release/" not in item["path"]:
             item['name'] = description
             item["path"] = item["path"].replace(
                 latest_build.replace('5G_', ''),
