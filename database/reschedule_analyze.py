@@ -241,8 +241,9 @@ class DbHandler(object):
                                         reschedule_reason=r_status)
         self.session.add(obj)
 
-    def get_cause_info(self, queue_item, change, patchset, time, id):
-        # log.debug('%s %s %s %s %s', queue_item, change, patchset, time, id)
+    def get_cause_info(self, queue_item, change, patchset, time, iid):
+        del time, iid
+        # log.debug('%s %s %s %s %s', queue_item, change, patchset, time, iid)
         query = self.session.query(LogAction).filter(LogAction.queue_item == queue_item,
                                                      LogAction.change == change,
                                                      LogAction.patchset == patchset).order_by(sa.desc(LogAction.id))
@@ -324,7 +325,7 @@ class DbHandler(object):
             r_status = 'Submit Error'
         if not status or not c_status or not reason_action or not r_status or not reason_cause:
             print '[{}], [{}], [{}] ,[{}] ,[{}]'.format(status, c_status, reason_action, r_status, reason_cause)
-            print item['text']
+            print list_[-1]['text']
             print '{},{} -> {},{}'.format(c_change, c_patchset, list_[0]['change'], list_[0]['patchset'])
         obj = self.RescheduleStatistics(change=list_[0]['change'],
                                         patchset=list_[0]['patchset'],
@@ -345,7 +346,7 @@ class DbHandler(object):
                                         c_project=None,
                                         c_branch=None,
                                         c_status=c_status,
-                                        c_job=c_job,
+                                        c_job=((c_job[:2500] + '..') if c_job and len(c_job) > 2500 else c_job),
                                         c_end_time=c_end_time,
                                         c_finish_id=c_finish_id,
                                         reschedule_reason=r_status)
@@ -410,7 +411,9 @@ def main(db_str, db_str_dest='', table_name=None, entry_num=5000, run_num=1):
                 op_list = db.get_op_list_from_end(end_item)
                 db2.process_op_list(op_list, db)
 
+            print('Commiting...')
             db2.commit()
+            print('Committed.')
     except Exception as ex:
         log.debug('Exception occurs:')
         log.debug(ex)
