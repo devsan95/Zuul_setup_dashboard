@@ -120,7 +120,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
 
     # copy list.yaml from docker container
     subprocess.check_call("rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;"
-                          "sudo docker cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/".format(zuul_server_name), shell=True)
+                          "docker cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/".format(zuul_server_name), shell=True)
     print("DEBUG_INFO: main: copy list.yaml from docker container success!")
 
     if gerrit_available:
@@ -212,7 +212,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
         create_changed_file(data_str=history_str, changed_file_name="history.html")
 
         # put list.yaml index.html history.html to docker container
-        subprocess.check_call("sudo docker cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(zuul_server_name), shell=True)
+        subprocess.check_call("docker cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(zuul_server_name), shell=True)
         print("DEBUG_INFO: main: Copy files into container success!")
 
 
@@ -272,7 +272,7 @@ def add_files_to_change(history_path, history_str, list_save, rest, change_no,
 def update_git_repo(zuul_server_name, branch):
     print("DEBUG_INFO: update_git_repo: start!")
     result = subprocess.call(
-        'sudo docker exec {} bash -c "cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull"'.format(zuul_server_name, branch),
+        'docker exec {} bash -c "cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull"'.format(zuul_server_name, branch),
         shell=True)
     if result == 0:
         print("DEBUG_INFO: update_git_repo: update notification REPO in container")
