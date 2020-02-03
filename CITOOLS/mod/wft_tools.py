@@ -108,7 +108,11 @@ def get_newer_base_load(base_load_list):
             stream_build[release_date] = build_name
     release_time = stream_build.keys()
     release_time.sort(reverse=True)
-    return stream_build[release_time[0]]
+    newer_base_load = stream_build[release_time[0]]
+    for base_load in base_load_list:
+        if base_load in newer_base_load:
+            return base_load
+    raise Exception("Can't find newer base load from {0}".format(base_load_list))
 
 
 def get_latest_qt_load(stream_list):
