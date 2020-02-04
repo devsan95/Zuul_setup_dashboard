@@ -584,7 +584,10 @@ def add_comps_to_knife_json(data, gnbList):
     if values:
         for i in gnbList:
             # add other gnb components
-            data[i].update(values)
+            if i in data:
+                data[i].update(values)
+            else:
+                data[i] = values
         return True
     return False
 
