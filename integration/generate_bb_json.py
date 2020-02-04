@@ -571,18 +571,20 @@ def rewrite_knife_json(knife_json_path, gnblist_path):
 
 
 def add_comps_to_knife_json(data, gnbList):
-    flag = False
+    values = {}
+    repo_keys = ['repo_ver', 'protocol', 'repo_url']
     for k in data:
-        if k in gnbList:
-            flag = True
+        if k in gnbList and 'repo_ver' in data.get(k):
             print('Include gnb component:***{}***,need update knife json'.format(k))
             # get gnb component's repo_ver/protocol/repo_url
-            values = data.get(k)
+            for repo_key in repo_keys:
+                if repo_key in data.get(k):
+                    values[repo_key] = data.get(k).get(repo_key)
             break
-    if flag:
+    if values:
         for i in gnbList:
             # add other gnb components
-            data[i] = values
+            data[i].update(values)
         return True
     return False
 
