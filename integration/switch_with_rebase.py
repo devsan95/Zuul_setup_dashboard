@@ -258,15 +258,16 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
             print(str(e))
         # rebase change
         print('rebase the change {}'.format(change_no))
+        rebase_result = False
         try:
             if env_hash != 'HEAD':
                 rest.rebase(change_no, env_hash)
             else:
                 rest.rebase(change_no)
+            rebase_result = True
         except Exception as e:
             print('Change cannot be rebased, reason: {}')
             print(str(e))
-            raise Exception(str(e))
         # add new env
         print('add new env for change {}'.format(change_no))
         env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
@@ -278,6 +279,8 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
         for key, value in change_map.items():
             rest.add_file_to_change(change_no, key, value)
         rest.publish_edit(change_no)
+        if not rebase_result:
+            raise Exception('Change {} rebase failed, add back ENV file content'.format(change_no))
 
 
 def init_gerrit_rest(gerrit_info_path):
