@@ -26,8 +26,8 @@ new_env="/var/fpwork/ca_5gcv/new.env"
 printenv > "${new_env}"
 grep -Fxvf "${origin_env}" "${new_env}" > "${result_env_file}"
 
-docker login mnp5gcb-docker-repo-local.esisoj70.emea.nsn-net.net --username 5gcvci --password AKCp5Z2hdAG6j8reEXRedwmbkFmFdaihpaHx1vhJKDS9DVrYt1XBt6NXaubyFn5LMxVtSQsBz
-DOCKER_IMAGE='mnp5gcb-docker-repo-local.esisoj70.emea.nsn-net.net/5g/cbbuild:3.2.1'
+docker login mnp5gcb-docker-repo-local.artifactory-espoo1.int.net.nokia.com --username 5gcvci --password AKCp5Z2hdAG6j8reEXRedwmbkFmFdaihpaHx1vhJKDS9DVrYt1XBt6NXaubyFn5LMxVtSQsBz
+DOCKER_IMAGE='mnp5gcb-docker-repo-local.artifactory-espoo1.int.net.nokia.com/5g/cbbuild:3.2.1'
 docker pull "${DOCKER_IMAGE}"
 
    VOLUMES="-v /sys/fs/cgroup:/sys/fs/cgroup:ro \
