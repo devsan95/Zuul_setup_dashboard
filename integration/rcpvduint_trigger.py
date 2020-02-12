@@ -99,16 +99,12 @@ def create_integration_change():
 '''
     latest_ver = get_latest_build("master_allincloud_int", version_filter)
     log.info("The latest released build is {}".format(latest_ver))
-    parent_id = rest.get_tag(
-        integration,
-        latest_ver.replace('5G_', '')
-    )['object']
     change = rest.create_ticket(
         integration,
         '',
         'master',
         'rcpvduint trigger',
-        base_change=parent_id
+        base_change=None
     )[1]
     log.info("ticket id is {}".format(change))
     return change, latest_ver
