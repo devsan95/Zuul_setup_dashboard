@@ -11,8 +11,7 @@ from integration_trigger import get_comp_obj
 from update_submodule_by_change import update_commitmsg
 
 
-def update_depends(rest, change_id, dep_file_list,
-                   dep_submodule_dict, comp_config, project):
+def search_interfaces(rest, change_id):
     # check if there is interfaces info in commit-msg
     commit_msg = rest.get_commit(change_id).get('message')
     commit_lines = commit_msg.splitlines()
@@ -57,7 +56,13 @@ def update_depends(rest, change_id, dep_file_list,
             interface_infos.append({"component": component,
                                     "comp_version": comp_version,
                                     "repo_version": repo_version})
+    return find_interfaces, interface_infos
 
+
+def update_depends(rest, change_id, dep_file_list,
+                   dep_submodule_dict, comp_config, project):
+    # check if there is interfaces info in commit-msg
+    find_interfaces, interface_infos = search_interfaces(rest, change_id)
     if not find_interfaces:
         logging.warn('Not find interfaces in commit-msg')
         return
