@@ -90,7 +90,18 @@ class GET_COMPONENT_INFO(object):
             recipe_list = src['recipes']
             for recipe in recipe_list:
                 if comp_name == recipe['component']:
-                    comp_hash = src['revision']
+                    if 'revision' in src:
+                        comp_hash = src['revision']
+                    else:
+                        for key_name in recipe.keys():
+                            if key_name.endswith('.bb'):
+                                # get comp_hash from bb file
+                                logging.info('Get commit hash for {}'.format(key_name))
+                                recipe_path = os.path.join(self.int_repo.work_dir, key_name)
+                                logging.info('Get commit hash from {}'.format(recipe_path))
+                                comp_dict = self.int_repo.get_version_from_bb(recipe_path).values()[0]
+                                if 'repo_ver' in comp_dict:
+                                    comp_hash = comp_dict['repo_ver']
         print("[Info] Get comp hash from bb mapping file for {} result is: {}".format(comp_name, comp_hash))
         return comp_hash
 

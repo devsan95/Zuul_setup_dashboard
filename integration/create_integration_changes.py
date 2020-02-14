@@ -370,6 +370,7 @@ class IntegrationChangesCreation(object):
                     if 'ticket_id' in node:
                         self.gerrit_rest.abandon_change(node['ticket_id'])
                         print ('ticket {} is abandoned'.format(node['ticket_id']))
+                traceback.print_exc()
                 raise Exception(str(e))
 
     def make_description_by_node(self, node_obj, ext_commit_msg=None):
