@@ -15,7 +15,7 @@ def update_config_yaml(rest, integration_repo_ticket, interface_infos):
     config_dict = yaml.safe_load(config_yaml_content)
     for interface_info in interface_infos:
         compoent_dict = {
-            'commit': interface_info['repo_version'],
+            'commit': interface_info['comp_version'],
             'version': interface_info['comp_version'],
             'location': 'config.yaml',
             'type': 'submodule_meta-5g'
