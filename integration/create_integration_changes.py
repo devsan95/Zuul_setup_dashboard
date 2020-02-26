@@ -400,6 +400,10 @@ class IntegrationChangesCreation(object):
             lines.append('Platform ID: <{}>'.format(
                 self.info_index['meta']['platform']))
 
+        if 'version_keyword' in self.info_index['meta'] and self.info_index['meta']['version_keyword']:
+            lines.append('Version Keyword: <{}>'.format(
+                self.info_index['meta']['version_keyword']))
+
         lines.append('  ')
         lines.append('  ')
 
@@ -967,32 +971,14 @@ class IntegrationChangesCreation(object):
 
         # handle version name
         if not version_name and env_change:
-            versions = set()
             env_change_split = shlex.split(env_change)
+            key_entry = self.meta.get('version_keyword')
             for line in env_change_split:
-                line = line.strip()
-                env_list = line.split('=', 2)
-                if len(env_list) >= 2:
-                    versions.add(env_list[1])
-
-            if versions:
-                vk = self.meta.get('version_keyword')
-                if vk:
-                    for value in versions:
-                        if vk in value and len(value) < 35:
-                            version_name = value
-                            break
-                else:
-                    for value in versions:
-                        if len(value) <= 35:
-                            if version_name:
-                                if len(version_name) + 1 + len(value) <= 50:
-                                    version_name += '/'
-                                    version_name += value
-                                else:
-                                    break
-                            else:
-                                version_name = value
+                if key_entry in line:
+                    line = line.strip()
+                    env_list = line.split('=', 2)
+                    if len(env_list) >= 2:
+                        version_name = env_list[1]
         if not version_name:
             if feature_id:
                 version_name = feature_id
