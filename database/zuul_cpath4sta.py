@@ -48,8 +48,9 @@ class JobTreeOper(object):
     def get_records(self, tdate=''):
         cd = datetime.datetime.strptime(tdate, "%Y-%m-%d")
         nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
+        log.debug("data is from {0} to {1}".format(cd, nd))
         with self.connection.cursor() as cursor:
-            sql = "select * from item_jobtree where created_at  >= '{0} 00:00:00' and " \
+            sql = "select * from item_jobtree where created_at  >= '{0}' and " \
                   "created_at  < '{1} 00:00:00'".format(cd, nd)
             cursor.execute(sql)
             results = cursor.fetchall()
@@ -63,6 +64,10 @@ class JobTreeOper(object):
             jobtree = ast.literal_eval(res.get('jobtree'))
             project = res.get('project')
             branch = res.get('branch')
+            enqueue_time = res.get('enqueue_time')
+            result = res.get('result')
+            retry_info = [rk + ',' + str(rv) for rk, rv in ast.literal_eval(res.get('retry_info')).items()]
+            none_info = [nk + ',' + str(nv) for nk, nv in ast.literal_eval(res.get('none_info'))]
             cpath = ''
             subsystem = ''
             timeslots = ''
@@ -76,6 +81,10 @@ class JobTreeOper(object):
                                                      project=project,
                                                      branch=branch,
                                                      cpath=cpath,
+                                                     enqueuetime=enqueue_time,
+                                                     result=result,
+                                                     retry_info=','.join(retry_info),
+                                                     none_info=','.join(none_info),
                                                      subsystem=subsystem,
                                                      pipelineWaiting=pipelineWaiting,
                                                      firstJobLaunch=firstJobLaunch,
@@ -297,9 +306,9 @@ class JobTreeOper(object):
             self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
                 sql = "INSERT INTO t_critical_path " \
-                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem,c_project,c_branch,end_time," \
-                      "pipeline_waiting_time,first_job_launch_time_in_zuul)" \
-                      " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}',{8},{9},{10})".format(*sdata)
+                      "(pipeline,queueitem,changeitem,status,build_retry,build_none_retry,timeslot,path,subsystem," \
+                      "c_project,c_branch,end_time,pipeline_waiting_time,first_job_launch_time_in_zuul)" \
+                      " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}',{11},{12},{13})".format(*sdata)
                 log.debug(sql)
                 cursor.execute(sql)
             # self.connection.commit()
@@ -344,7 +353,6 @@ class Runner(object):
         else:
             # tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
             tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d")
-        print tdate
         jto_ins = JobTreeOper(self.jto_args.zuul_host,
                               self.jto_args.zuul_usr,
                               self.jto_args.zuul_passwd,
@@ -360,23 +368,25 @@ class Runner(object):
                                   self.jto_args.sky_table)
             for k, v in jto_ins.datas.items():
                 if v['cpath']:
-                    pipeline, enqueuetime = v['pipeline'].split(',')
                     try:
-                        v['pipelineWaiting'] = v['firstJobLaunch'] - float(enqueuetime)
+                        v['pipelineWaiting'] = v['firstJobLaunch'] - float(v['enqueuetime'])
                     except Exception as time_err:
                         log.debug(time_err)
                         continue
                     fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'], tz=pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')
                     try:
-                        sky_ins.update_skytrack((pipeline,
-                                                v['queueitem'],
-                                                v['change'],
-                                                v['timeslots'],
-                                                v['cpath'],
-                                                v['subsystem'],
-                                                v['project'],
-                                                v['branch'],
-                                                "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate),
+                        sky_ins.update_skytrack((v['pipeline'],
+                                                 v['queueitem'],
+                                                 v['change'],
+                                                 v['result'],
+                                                 v['retry_info'],
+                                                 v['none_info'],
+                                                 v['timeslots'],
+                                                 v['cpath'],
+                                                 v['subsystem'],
+                                                 v['project'],
+                                                 v['branch'],
+                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate),
                                                  v['pipelineWaiting'],
                                                  "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
                     except Exception as sky_err:
