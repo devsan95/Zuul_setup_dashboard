@@ -67,7 +67,7 @@ class JobTreeOper(object):
             enqueue_time = res.get('enqueue_time')
             result = res.get('result')
             retry_info = [rk + ',' + str(rv) for rk, rv in ast.literal_eval(res.get('retry_info')).items()]
-            none_info = [nk + ',' + str(nv) for nk, nv in ast.literal_eval(res.get('none_info'))]
+            none_info = [nk + ',' + str(nv) for nk, nv in ast.literal_eval(res.get('none_info')).items()]
             cpath = ''
             subsystem = ''
             timeslots = ''
@@ -369,6 +369,8 @@ class Runner(object):
             for k, v in jto_ins.datas.items():
                 if v['cpath']:
                     try:
+                        if v['firstJobLaunch'] in ['N/A']:
+                            continue
                         v['pipelineWaiting'] = v['firstJobLaunch'] - float(v['enqueuetime'])
                     except Exception as time_err:
                         log.debug(time_err)
