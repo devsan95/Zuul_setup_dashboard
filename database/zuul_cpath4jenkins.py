@@ -57,6 +57,8 @@ class JobTreeOper(object):
             jobtree = ast.literal_eval(res.get('jobtree'))
             project = res.get('project')
             branch = res.get('branch')
+            enqueue_time = res.get('enqueue_time')
+            result = res.get('result')
             cpath = ''
             subsystem = ''
             timeslots = ''
@@ -70,6 +72,8 @@ class JobTreeOper(object):
                                                      project=project,
                                                      branch=branch,
                                                      cpath=cpath,
+                                                     result=result,
+                                                     enqueue_time=enqueue_time,
                                                      subsystem=subsystem,
                                                      pipelineWaiting=pipelineWaiting,
                                                      firstJobLaunch=firstJobLaunch,
@@ -243,18 +247,18 @@ class Runner(object):
                                   self.jto_args.sky_table)
             for k, v in jto_ins.datas.items():
                 if v['cpath']:
-                    pipeline, enqueuetime = v['pipeline'].split(',')
                     fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'], tz=pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')
                     try:
-                        sky_ins.update_skytrack((pipeline,
-                                                v['queueitem'],
-                                                v['change'],
-                                                v['timeslots'],
-                                                v['cpath'],
-                                                v['subsystem'],
-                                                v['project'],
-                                                v['branch'],
-                                                "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate), "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
+                        sky_ins.update_skytrack((v['pipeline'],
+                                                 v['queueitem'] + ',' + v['result'],
+                                                 v['change'],
+                                                 v['timeslots'],
+                                                 v['cpath'],
+                                                 v['subsystem'],
+                                                 v['project'],
+                                                 v['branch'],
+                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate),
+                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
                     except Exception as sky_err:
                         log.debug(sky_err)
                         continue
