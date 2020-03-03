@@ -69,6 +69,15 @@ class IntegrationChange(object):
                     return 'approved'
         return None
 
+    def get_root_change(self):
+        if self.get_type() == 'root':
+            return self.change_no
+        else:
+            for depend in self.get_depends():
+                if depend[0] == 'root_monitor':
+                    return depend[1]
+            return None
+
     def get_components(self):
         components = set()
         msg = self.commit_info.get('message')
