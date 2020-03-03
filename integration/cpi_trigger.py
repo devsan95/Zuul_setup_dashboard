@@ -165,13 +165,21 @@ def cpi_topic_handler(cpi_topics, structure_file, streams,
     for ps_version, action in cpi_topics.items():
         ps_sub_builds = get_ps_sub_builds(ps_version)
         bm_tags = get_bm_from_ps_assignments(ps_version)
-        env_change = \
-            "ENV_PS_REL={PS_REL}\\nENV_GLOBAL_ENV={GLOBAL_ENV}\\nENV_PS_LFS_REL={PS_LFS_REL}\\nENV_BM_TAG={BM_TAG}".format(
-                PS_REL=ps_version,
-                GLOBAL_ENV=ps_sub_builds['GLOBAL_ENV'],
-                PS_LFS_REL=ps_sub_builds['PS_LFS_REL'],
-                BM_TAG=bm_tags[0]
-            )
+        if bm_tags:
+            env_change = \
+                "ENV_PS_REL={PS_REL}\\nENV_GLOBAL_ENV={GLOBAL_ENV}\\nENV_PS_LFS_REL={PS_LFS_REL}\\nENV_BM_TAG={BM_TAG}".format(
+                    PS_REL=ps_version,
+                    GLOBAL_ENV=ps_sub_builds['GLOBAL_ENV'],
+                    PS_LFS_REL=ps_sub_builds['PS_LFS_REL'],
+                    BM_TAG=bm_tags[0]
+                )
+        else:
+            env_change = \
+                "ENV_PS_REL={PS_REL}\\nENV_GLOBAL_ENV={GLOBAL_ENV}\\nENV_PS_LFS_REL={PS_LFS_REL}".format(
+                    PS_REL=ps_version,
+                    GLOBAL_ENV=ps_sub_builds['GLOBAL_ENV'],
+                    PS_LFS_REL=ps_sub_builds['PS_LFS_REL']
+                )
         LOG.info('Will {0} CPI topic for {1}'.format(action, ps_version))
         write_parameters(
             action=action,
