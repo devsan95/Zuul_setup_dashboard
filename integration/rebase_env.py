@@ -76,19 +76,22 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         origin_msg = get_commit_msg(change_no, rest)
         msg = " ".join(origin_msg.split("\n"))
         version_reg = re.compile(r'Version Keyword: <(.*)>')
-        version_entry = version_reg.search(msg).groups()[0]
+        version_entry_search = version_reg.search(msg)
+        version_entry = version_entry_search.group()[0] if version_entry_search else None
         reg = common_regex.int_firstline_reg
         to_be_replaced = reg.search(msg).groups()[1]
         pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))
         result = reg.search('\n'.join(env_change_list))
+        to_replace = ''
         if result:
             to_replace = result.groups()[0]
         else:
-            for line in env_change_list:
-                if version_entry in line:
-                    to_replace = line.split('=')[1]
-                    break
+            if version_entry:
+                for line in env_change_list:
+                    if version_entry in line:
+                        to_replace = line.split('=')[1]
+                        break
             if not to_replace:
                 to_replace = find_new_version_by_distance(
                     to_be_replaced, env_change_list)
