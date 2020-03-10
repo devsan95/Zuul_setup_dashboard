@@ -974,11 +974,12 @@ class IntegrationChangesCreation(object):
             env_change_split = shlex.split(env_change)
             key_entry = self.meta.get('version_keyword')
             for line in env_change_split:
-                if key_entry in line:
-                    line = line.strip()
+                line = line.strip()
+                if key_entry == line.split('=')[0]:
                     env_list = line.split('=', 2)
                     if len(env_list) >= 2:
                         version_name = env_list[1]
+                        break
         if not version_name:
             if feature_id:
                 version_name = feature_id
