@@ -108,17 +108,20 @@ class INTEGRATION_REPO(object):
         except Exception:
             return 'poky/oe-init-build-env'
 
-    def get_comp_info_by_bitbake(self, int_bb_target, comp_name, comp_ver, bb_file):
-        comp_name_with_ver = '{}-{}'.format(comp_name, comp_ver)
+    def get_comp_info_by_bitbake(self, int_bb_target, comp_name, bb_file):
+        comp_name_with_ver = os.path.basename(bb_file)
+        regex_pv = r'^(PV)="([^"]+)"'
         regex_repo = r'^(GIT_URI|GIT_REPO|SRC_URI)="([^"]+)"'
         regex_ver = r'^(REVISION|SVNTAG|SVNREV|SRCREV|BIN_VER|SRC_REV)="([^"]+)"'
-        repo_url = ''
-        repo_ver = ''
+        comp_dict = {}
+        pv = ''
+        if comp_name in comp_name_with_ver:
+            pv = comp_name_with_ver.split(comp_name)[1].lstrip('_')
         oe_scripts = './oe-init-build-env'
         module = int_bb_target.split('integration-')[1]
         target_var = 'TARGET_{}'.format(module.replace('-', '_'))
         director = self.get_config_value(target_var)
-        if module.startswith('Yocto') and module != 'Yocto':
+        if module.startswith('Yocto'):
             oe_scripts = self.get_yocto_oe_dir()
         else:
             director = 'integration-{}'.format(director)
@@ -131,18 +134,22 @@ class INTEGRATION_REPO(object):
             self.run_bitbake_cmd(director, oe_scripts,
                                  '-e', '-b', bb_file, '>', env_file_path)
         except Exception:
-            return repo_url, repo_ver
+            return comp_dict
         with open(env_file_path, 'r') as fr:
             for line in fr.read().splitlines():
                 m_repo = re.match(regex_repo, line)
                 if m_repo:
-                    repo_url = m_repo.group(2).split(';')[0]
+                    comp_dict['repo_url'] = m_repo.group(2).split(';')[0]
                 m_ver = re.match(regex_ver, line)
                 if m_ver:
-                    repo_ver = m_ver.group(2)
-        if not repo_ver and repo_url:
-            repo_ver = 'HEAD'
-        return repo_url, repo_ver
+                    comp_dict['repo_ver'] = m_ver.group(2)
+                m_pv = re.match(regex_pv, line)
+                if m_pv:
+                    pv = m_pv.group(2)
+                comp_dict['pv'] = pv
+        if 'repo_ver' not in comp_dict and 'repo_url' in comp_dict:
+            comp_dict['repo_ver'] = 'HEAD'
+        return comp_dict
 
     def prepare_prefix_and_run_bitbake_cmd(self, target, is_yocto=False, *bitbake_args):
         oe_scripts = './oe-init-build-env'
@@ -477,14 +484,7 @@ class INTEGRATION_REPO(object):
             '$' in bb_dict['repo_url'] or
             'repo_ver' not in bb_dict or
                 '$' in bb_dict['repo_ver']):
-            repo_url, repo_ver = self.get_comp_info_by_bitbake(
-                int_bb_target,
-                bb_pn,
-                bb_pv,
-                bb_file)
-            if repo_url and repo_ver:
-                bb_dict['repo_url'] = repo_url
-                bb_dict['repo_ver'] = repo_ver
+            bb_dict.update(self.get_comp_info_by_bitbake(int_bb_target, bb_pn, bb_file))
         logging.info('repo info is %s', bb_dict)
         if 'repo_ver' in bb_dict and 'repo_url' in bb_dict:
             return {'{}_{}'.format(bb_pn, bb_pv): bb_dict}

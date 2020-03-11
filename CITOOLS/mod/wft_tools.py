@@ -118,7 +118,7 @@ def get_newer_base_load(base_load_list):
     raise Exception("Can't find newer base load from {0}".format(base_load_list))
 
 
-def get_latest_qt_load(stream_list, strip_prefix=True):
+def get_latest_loads_by_streams(stream_list, get_build_function, strip_prefix=True):
     stream_build = dict()
     for stream in stream_list:
         wft_stream = ''
@@ -132,9 +132,9 @@ def get_latest_qt_load(stream_list, strip_prefix=True):
         if not stream:
             continue
         print('Get pcakge for stream {}'.format(stream))
-        build_name, release_date = get_latest_qt_passed_build(stream)
+        build_name, release_date = get_build_function(stream)
         if not build_name:
-            build_name, release_date = get_lasted_success_build(stream)
+            build_name, release_date = get_build_function(stream)
         if build_name:
             if strip_prefix:
                 stream_build[release_date] = build_name.split('_')[-1]
@@ -143,6 +143,14 @@ def get_latest_qt_load(stream_list, strip_prefix=True):
     time_stamp = stream_build.keys()
     time_stamp.sort(reverse=True)
     return stream_build[time_stamp[0]], stream_build.values()
+
+
+def get_latest_build_load(stream_list, strip_prefix=True):
+    return get_latest_loads_by_streams(stream_list, get_lasted_success_build, strip_prefix)
+
+
+def get_latest_qt_load(stream_list, strip_prefix=True):
+    return get_latest_loads_by_streams(stream_list, get_lasted_success_build, strip_prefix)
 
 
 def get_planed_delivery_date(baseline):

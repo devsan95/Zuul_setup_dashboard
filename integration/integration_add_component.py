@@ -83,7 +83,7 @@ def get_base_load(rest, manager_change):
     return base_load
 
 
-def get_base_commit(rest, comp, root):
+def get_base_commit(rest, comp, root, base_load):
     int_mode = root['zuul_rebase']
     commit_hash = None
     base_commit = None
@@ -93,7 +93,8 @@ def get_base_commit(rest, comp, root):
         commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
         commit_hash = commit_info['revision']
     elif 'without-zuul-rebase' in int_mode:
-        base_load = get_base_load(rest, root['manager_change'])
+        if not base_load:
+            base_load = get_base_load(rest, root['manager_change'])
         get_comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
         if 'MN/SCMTA/zuul/inte_ric' in comp['repo']:
             commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
@@ -191,7 +192,7 @@ def add_depends_info(rest, comp_change, depends_change):
     rest.publish_edit(comp_change)
 
 
-def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_path, base_commit=None):
+def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_path, base_commit=None, base_load=None):
     comp_config = yaml.load(open(component_config),
                             Loader=yaml.Loader, version='1.1')
     comp = {}
@@ -239,7 +240,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     component_list = list_obj.get_all_components()
 
     if not base_commit:
-        base_commit, base_change = get_base_commit(rest, comp, root)
+        base_commit, base_change = get_base_commit(rest, comp, root, base_load=base_load)
     parent_commit = None
     if comp['repo'] == 'MN/SCMTA/zuul/inte_ric':
         parent_commit = check_external_change(rest, root_change)
@@ -262,6 +263,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
     int_operator.add(comp_change_number)
+    return comp_change_number
 
 
 if __name__ == '__main__':
