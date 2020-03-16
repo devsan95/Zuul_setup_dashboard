@@ -73,10 +73,9 @@ def _main(db_str, log_path=None, log_url=None):
         print(log_url_)
         res = requests.get(log_url_)
         if res.ok:
-            with open(res_path_, 'w') as f:
-                f.write(res.content)
-                res_path = res_path_
-                print('Save log to {}'.format(res_path))
+            file_api.save_file(res.content, res_path_)
+            res_path = res_path_
+            print('Save log to {}'.format(res_path))
         else:
             raise Exception('Fetch URL {} failed, error is {}{}'.format(log_url_, res.status_code, res.content))
 
