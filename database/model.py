@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.dialects.mysql import DATETIME, TINYINT
+from sqlalchemy.dialects.mysql import DATETIME, TINYINT, MEDIUMTEXT
 
 
 ModelBase = declarative_base()
@@ -23,7 +23,7 @@ class LogAction(ModelBase):
     job = sa.Column(sa.String(255), index=True)
     change_item = sa.Column(sa.String(50), index=True)
     queue_item = sa.Column(sa.String(50), index=True)
-    text = sa.Column(sa.Text())
+    text = sa.Column(MEDIUMTEXT())
 
 
 def get_log_duration_model(table_name):

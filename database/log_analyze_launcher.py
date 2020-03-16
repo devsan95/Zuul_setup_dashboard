@@ -8,6 +8,8 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from model import LogAction
+from api import file_api
+import requests
 
 
 class DbHandler(object):
@@ -34,7 +36,7 @@ class DbHandler(object):
         self.rollback()
 
 
-def _main(log_path, db_str):
+def _main(log_path, log_url, db_str):
     db = DbHandler(db_str)
     db.init_db()
     dt = db.get_last_date()
@@ -49,13 +51,34 @@ def _main(log_path, db_str):
     print('Plus one day')
     dta = dta.shift(days=+1)
     print(dta)
-    print('Get the path')
-    res_path = log_path + '.' + dta.format('YYYY-MM-DD')
-    print(res_path)
-    if os.path.exists(res_path):
-        print('[{}] exists, continue'.format(res_path))
-    else:
-        raise Exception('[{}] does not exist'.format(res_path))
+    res_path = None
+
+    if log_path:
+        print('Get the path')
+        res_path = log_path + '.' + dta.format('YYYY-MM-DD')
+        print(res_path)
+        if os.path.exists(res_path):
+            print('[{}] exists, continue'.format(res_path))
+        else:
+            raise Exception('[{}] does not exist'.format(res_path))
+
+    if log_url:
+        print('Get the url')
+        print('Create tmp folder')
+        tf = file_api.TempFolder()
+        tmp_folder = tf.get_directory('log')
+        print('Tmp folder is {}'.format(tmp_folder))
+        res_path_ = os.path.join(tmp_folder, dta.format('YYYY-MM-DD'))
+        log_url_ = log_url + '.' + dta.format('YYYY-MM-DD')
+        print(log_url_)
+        res = requests.get(log_url_)
+        if res.ok:
+            with open(res_path_, 'w') as f:
+                f.write(res.content)
+                res_path = res_path_
+                print('Save log to {}'.format(res_path))
+        else:
+            raise Exception('Fetch URL {} failed, error is {}{}'.format(log_url_, res.status_code, res.content))
 
     print('begin to analyze logs')
     import zuul_log_analyze
