@@ -36,7 +36,7 @@ class DbHandler(object):
         self.rollback()
 
 
-def _main(log_path, log_url, db_str):
+def _main(db_str, log_path=None, log_url=None):
     db = DbHandler(db_str)
     db.init_db()
     dt = db.get_last_date()
