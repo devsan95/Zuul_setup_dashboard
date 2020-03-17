@@ -14,6 +14,7 @@ there is two situation:
 
 import os
 import re
+import ssl
 import fire
 import json
 import urllib2
@@ -169,7 +170,10 @@ def trigger(meta_bb, branch, rest,
     m_jr = re.search(jr_regex, commit_msg)
     if m_jr:
         jira_id = m_jr.group(1)
-    response = urllib2.urlopen(INTEGRATION_LIST_REST)
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    response = urllib2.urlopen(INTEGRATION_LIST_REST, context=ctx)
     integration_list = json.loads(response.read())['result']['integrationList']
     integration_match = ''
     int_change = ''
