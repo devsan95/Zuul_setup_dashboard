@@ -747,7 +747,7 @@ class DbHandler(object):
     def init_db(self):
         LogAction.metadata.create_all(self.engine)
 
-    def write_log(self, log_line):
+    def write_log(self, log_line, first=False):
         ll = log_line
         timestr = '{}T{}.{:0>3}'.format(
             log_line.date,
@@ -765,22 +765,40 @@ class DbHandler(object):
             ll.change = '0'
         if not ll.patchset:
             ll.patchset = '0'
-        obj = LogAction(
-            datetime=udt.datetime,
-            level=ll.level,
-            thread_id=ll.thread,
-            logger=ll.logger,
-            type=ll.type,
-            change=int(ll.change),
-            patchset=int(ll.patchset),
-            queue=ll.queue,
-            pipeline=ll.pipeline,
-            project=ll.project,
-            change_item=ll.change_item,
-            queue_item=ll.queue_item,
-            text=text,
-            job=ll.job
-        )
+        if first:
+            obj = LogAction(
+                datetime=udt.datetime,
+                level=ll.level,
+                thread_id=ll.thread,
+                logger=ll.logger,
+                type='first log of file',
+                change=int(ll.change),
+                patchset=int(ll.patchset),
+                queue=ll.queue,
+                pipeline=ll.pipeline,
+                project=ll.project,
+                change_item=ll.change_item,
+                queue_item=ll.queue_item,
+                text=text,
+                job=ll.job
+            )
+        else:
+            obj = LogAction(
+                datetime=udt.datetime,
+                level=ll.level,
+                thread_id=ll.thread,
+                logger=ll.logger,
+                type=ll.type,
+                change=int(ll.change),
+                patchset=int(ll.patchset),
+                queue=ll.queue,
+                pipeline=ll.pipeline,
+                project=ll.project,
+                change_item=ll.change_item,
+                queue_item=ll.queue_item,
+                text=text,
+                job=ll.job
+            )
         self.session.add(obj)
 
     def commit(self):
@@ -814,10 +832,14 @@ def main(log_path, db_str, tz=None, ):
         log_line = LogLine()
         with open(log_path) as f:
             lines = f.readlines()
+            begin_to_parse = True
             for line in lines:
                 m = reg_log.match(line)
                 if m:
                     log_line.parse()
+                    if begin_to_parse:
+                        db.write_log(log_line, first=True)
+                        begin_to_parse = False
                     if log_line.type:
                         db.write_log(log_line)
                     log_line.set(m)
