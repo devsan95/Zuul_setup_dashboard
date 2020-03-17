@@ -842,7 +842,7 @@ def main(log_path, db_str, tz=None, ):
                 m = reg_log.match(line)
                 if m:
                     log_line.parse()
-                    if begin_to_parse:
+                    if begin_to_parse and log_line.infos:
                         db.write_log(log_line, first=True)
                         begin_to_parse = False
                     if log_line.type:
