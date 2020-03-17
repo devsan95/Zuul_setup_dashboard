@@ -70,7 +70,7 @@ reg_list = [
 
 
 class LogLine(object):
-    def __init__(self):
+    def __init__(self, tz):
         self.date = None
         self.time = None
         self.ms = None
@@ -81,6 +81,7 @@ class LogLine(object):
         self.detail = None
         self.type = None  # 0 lone line 1 start line 2 end line 3 Find matchline
         self.match_action = None
+        self.tz = tz
 
     def set(self, match):
         self.date = match.group('date')
@@ -123,7 +124,7 @@ class LogLine(object):
             self.ms
         )
         adt = arrow.get(timestr)
-        adt = adt.replace(tzinfo='America/New_York')
+        adt = adt.replace(tzinfo=self.tz)
         udt = adt.to('utc')
         return udt
 
@@ -250,11 +251,13 @@ def write_end(db, end):
     db.write_log(data)
 
 
-def main(log_path, db_str):
+def main(log_path, db_str, tz=None):
     try:
         db = DbHandler(db_str)
         db.init_db()
-        log_line = LogLine()
+        if not tz:
+            tz = 'America/New_York'
+        log_line = LogLine(tz=tz)
         main_thread = ''
         current_begin = None
         with open(log_path) as f:

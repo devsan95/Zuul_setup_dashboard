@@ -36,7 +36,7 @@ class DbHandler(object):
         self.rollback()
 
 
-def _main(log_path, db_str):
+def _main(log_path, db_str, tz=None):
     db = DbHandler(db_str)
     db.init_db()
     dt = db.get_last_date()
@@ -46,7 +46,9 @@ def _main(log_path, db_str):
     print('Last log time')
     print(dta)
     print('To zuul server timezone')
-    dta = dta.to('America/New_York')
+    if not tz:
+        tz = 'America/New_York'
+    dta = dta.to(tz)
     print(dta)
     print('Plus one day')
     dta = dta.shift(days=+1)
@@ -61,7 +63,7 @@ def _main(log_path, db_str):
 
     print('begin to analyze loop')
     import zuul_log_analyze_loop
-    zuul_log_analyze_loop.main(res_path, db_str)
+    zuul_log_analyze_loop.main(res_path, db_str, tz=tz)
 
     print('[LOGANA Result] All done, {}'.format(res_path))
 

@@ -738,10 +738,11 @@ class LogLine(object):
 
 
 class DbHandler(object):
-    def __init__(self, db_str):
+    def __init__(self, db_str, tz):
         self.engine = sa.create_engine(db_str)
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
+        self.tz = tz
 
     def init_db(self):
         LogAction.metadata.create_all(self.engine)
@@ -754,7 +755,7 @@ class DbHandler(object):
             log_line.ms
         )
         adt = arrow.get(timestr)
-        adt = adt.replace(tzinfo='America/New_York')
+        adt = adt.replace(tzinfo=self.tz)
         udt = adt.to('utc')
         if len(ll.infos) > 1:
             text = '\n'.join(ll.infos)
@@ -804,9 +805,11 @@ def _test():
     print(log_line)
 
 
-def main(log_path, db_str):
+def main(log_path, db_str, tz=None, ):
     try:
-        db = DbHandler(db_str)
+        if not tz:
+            tz = 'America/New_York'
+        db = DbHandler(db_str, tz)
         db.init_db()
         log_line = LogLine()
         with open(log_path) as f:
