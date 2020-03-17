@@ -1,10 +1,11 @@
+import copy
 import re
 import sys
 import traceback
-import copy
 
 import arrow
 import fire
+import pytz
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
@@ -257,6 +258,10 @@ def main(log_path, db_str, tz=None):
         db.init_db()
         if not tz:
             tz = 'America/New_York'
+        if tz not in pytz.all_timezones:
+            print('{} is not a valid timezone. Use default'.format(tz))
+            tz = 'America/New_York'
+        print('Using timezone of {}'.format(tz))
         log_line = LogLine(tz=tz)
         main_thread = ''
         current_begin = None

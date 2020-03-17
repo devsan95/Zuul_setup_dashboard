@@ -4,6 +4,7 @@ import traceback
 
 import arrow
 import fire
+import pytz
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
@@ -827,6 +828,10 @@ def main(log_path, db_str, tz=None, ):
     try:
         if not tz:
             tz = 'America/New_York'
+        if tz not in pytz.all_timezones:
+            print('{} is not a valid timezone. Use default'.format(tz))
+            tz = 'America/New_York'
+        print('Using timezone of {}'.format(tz))
         db = DbHandler(db_str, tz)
         db.init_db()
         log_line = LogLine()

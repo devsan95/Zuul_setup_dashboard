@@ -4,6 +4,7 @@ import traceback
 
 import arrow
 import fire
+import pytz
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
@@ -48,6 +49,10 @@ def _main(log_path, db_str, tz=None):
     print('To zuul server timezone')
     if not tz:
         tz = 'America/New_York'
+    if tz not in pytz.all_timezones:
+        print('{} is not a valid timezone. Use default'.format(tz))
+        tz = 'America/New_York'
+    print('Using timezone of {}'.format(tz))
     dta = dta.to(tz)
     print(dta)
     print('Plus one day')

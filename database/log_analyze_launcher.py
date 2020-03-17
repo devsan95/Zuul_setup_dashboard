@@ -4,12 +4,13 @@ import traceback
 
 import arrow
 import fire
+import pytz
+import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
-from model import LogAction
 from api import file_api
-import requests
+from model import LogAction
 
 
 class DbHandler(object):
@@ -39,6 +40,10 @@ class DbHandler(object):
 def _main(db_str, log_path=None, log_url=None, tz=None):
     if not tz:
         tz = 'America/New_York'
+    if tz not in pytz.all_timezones:
+        print('{} is not a valid timezone. Use default'.format(tz))
+        tz = 'America/New_York'
+    print('Using timezone of {}'.format(tz))
     db = DbHandler(db_str)
     db.init_db()
     dt = db.get_last_date()
