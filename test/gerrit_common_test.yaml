@@ -1,7 +1,7 @@
 gerrit:
   url: http://gerrit.common.dynamic.nsn-net.net
-  user: ca_5gtest
-  pwd: test
+  user: p9liu
+  pwd: YJAVSP6U5OytKDCOYymCZ2ZsHcAr+JykgFvH/HduLA
   auth: basic
   ssh_server: gerrit.common.dynamic.nsn-net.net
   ssh_port: 29418
