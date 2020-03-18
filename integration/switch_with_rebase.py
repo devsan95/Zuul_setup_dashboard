@@ -378,13 +378,21 @@ def run(root_change, gerrit_info_path,
     msg = " ".join(origin_msg.split("\n"))
     reg = re.compile(r'%JR=(\w+-\d+)')
     jira_ticket = reg.search(msg).groups()[0]
+    if ',' in base_package:
+        base_list = base_package.split(',')
+        base_package = ''
+        for base in base_list:
+            wft_name = wft_tools.get_wft_release_name(base)
+            base_package = base_package + wft_name + ','
+        base_package = base_package[:-1]
+    if base_package != 'HEAD' and ',' not in base_package:
+        base_package = wft_tools.get_wft_release_name(base_package)
     if database_info_path:
         skytrack_database_handler.update_integration_mode(
             database_info_path=database_info_path,
             issue_key=jira_ticket,
             integration_mode='HEAD' if base_package == 'HEAD' else 'FIXED_BASE',
-            fixed_build='' if base_package == 'HEAD' else wft_tools.get_wft_release_name(base_package)
-
+            fixed_build=base_package
         )
         skytrack_database_handler.update_events(
             database_info_path=database_info_path,
