@@ -47,6 +47,17 @@ repos:
       master:
         folders:
           - test/
+  darcy:
+    branches:
+      master:
+        folders:
+          - test/
+          
+  qa_dummy_job:
+    branches:
+      master:
+        folders:
+          - test/
   zuul_test:
     branches:
       master:
