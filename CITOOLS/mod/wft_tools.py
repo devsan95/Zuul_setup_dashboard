@@ -1,6 +1,5 @@
 import os
 import json
-import sys
 
 import requests
 import xml.etree.ElementTree as ET
@@ -67,16 +66,20 @@ def get_build_list_from_custom_filter(custom_filter):
 
 def get_stream_name(version):
     stream = ''
+    ignored_keywords = ['INT', 'lonerint', 'airphone']
     r = requests.get(BUILD_FILTER.format(wft_url=WFT.url, access_key=WFT.key, version=version))
     if r.status_code != 200:
-        print('Failed to get build list with filter {0}'.format(version))
-        sys.exit(1)
+        raise Exception('Failed to get build list with filter {0}'.format(version))
     build_list = json.loads(r.text.encode('utf-8'))
     for build in build_list['items']:
-        if "INT" in build['branch.title']:
-            continue
-        stream = build['branch.title']
-        break
+        for ignored_keyword in ignored_keywords:
+            if ignored_keyword in build['branch.title']:
+                break
+        else:
+            stream = build['branch.title']
+            break
+        continue
+    print(stream)
     return stream
 
 
@@ -115,15 +118,28 @@ def get_newer_base_load(base_load_list):
     raise Exception("Can't find newer base load from {0}".format(base_load_list))
 
 
-def get_latest_qt_load(stream_list):
+def get_latest_qt_load(stream_list, strip_prefix=True):
     stream_build = dict()
     for stream in stream_list:
+        wft_stream = ''
+        try:
+            wft_stream = get_stream_name(stream + '.')
+        except Exception:
+            print('Not find stream name for {}'.format(stream))
+            continue
         stream = 'master_classicalbts_l1r51_tdd' if stream == 'default' \
-            else get_stream_name(stream + '.')
+            else wft_stream
+        if not stream:
+            continue
+        print('Get pcakge for stream {}'.format(stream))
         build_name, release_date = get_latest_qt_passed_build(stream)
         if not build_name:
             build_name, release_date = get_lasted_success_build(stream)
-        stream_build[release_date] = build_name.split('_')[-1]
+        if build_name:
+            if strip_prefix:
+                stream_build[release_date] = build_name.split('_')[-1]
+            else:
+                stream_build[release_date] = build_name
     time_stamp = stream_build.keys()
     time_stamp.sort(reverse=True)
     return stream_build[time_stamp[0]], stream_build.values()
@@ -137,3 +153,37 @@ def get_planed_delivery_date(baseline):
 def get_ps(baseline):
     build_content = BuildContent.get(baseline)
     return build_content.get_ps()
+
+
+def get_subuild_from_wft(wft_name, component=None):
+    build_content = ''
+    sub_builds = []
+    try:
+        build_content = WFT.get_build_content(wft_name)
+    except Exception:
+        if component:
+            for project in ["5G", "Common", "ALL"]:
+                print('Try to get from WFT, version:%s, component:%s, project:%s',
+                      wft_name, component, project)
+                try:
+                    build_content = WFT.get_build_content(wft_name, component=component, project=project)
+                except Exception:
+                    print('Cannot get get from WFT, version:%s, component:%s, project:%s',
+                          wft_name, component, project)
+    if build_content:
+        tree = ET.fromstring(build_content)
+        for one in tree.findall("content/baseline"):
+            sub_build = {}
+            sub_build['version'] = one.text
+            sub_build['project'] = one.attrib['project']
+            sub_build['component'] = one.attrib['component']
+            sub_builds.append(sub_build)
+        for one in tree.findall("peg_revisions/peg_revision"):
+            sub_build = {}
+            sub_build['version'] = one.text
+            sub_build['project'] = one.attrib['project']
+            sub_build['component'] = one.attrib['sc']
+            sub_builds.append(sub_build)
+    else:
+        raise Exception('Cannot find from WFT version:{}, component:{}'.format(wft_name, component))
+    return sub_builds

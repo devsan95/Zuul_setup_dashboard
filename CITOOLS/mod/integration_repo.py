@@ -46,10 +46,11 @@ class INTEGRATION_REPO(object):
         self.work_dir = work_dir
         self.prepare_workspace()
         self.version_pattern = self.get_ver_pattern(version_pattern)
-        self.config_file = self.get_config_file()
-        self.pipeline = self.get_pipeline()
-        self.targets = self.get_targets()
-        self.int_targets = self.get_int_targets()
+        if self.version_pattern:
+            self.config_file = self.get_config_file()
+            self.pipeline = self.get_pipeline()
+            self.targets = self.get_targets()
+            self.int_targets = self.get_int_targets()
         self.add_if_no = add_if_no
         self.dep_file_list = []
         self.git_user = GIT_USER
@@ -142,13 +143,21 @@ class INTEGRATION_REPO(object):
             repo_ver = 'HEAD'
         return repo_url, repo_ver
 
+    def prepare_prefix_and_run_bitbake_cmd(self, target, is_yocto=False, *bitbake_args):
+        oe_scripts = './oe-init-build-env'
+        target_path = 'integration-{}'.format(target)
+        if is_yocto:
+            oe_scripts = self.get_yocto_oe_dir()
+            target_path = target
+        return self.run_bitbake_cmd(target_path, oe_scripts, *bitbake_args)
+
     def run_dep_cmd(self, director, int_bb_target=''):
         if not int_bb_target:
             int_bb_target = director
         oe_scripts = './oe-init-build-env'
         module = int_bb_target.split('integration-')[1].strip()
         bb_cmd_dir = director
-        if module.startswith('Yocto') and module != 'Yocto':
+        if module.startswith('Yocto'):
             oe_scripts = self.get_yocto_oe_dir()
         else:
             bb_cmd_dir = 'integration-{}'.format(bb_cmd_dir)
@@ -279,6 +288,9 @@ class INTEGRATION_REPO(object):
         """
         logging.info('prepare workspace in %s', self.work_dir)
         if os.path.exists(os.path.join(self.work_dir)):
+            if not self.repo_ver:
+                logging.warn("#### using existing workspace ###")
+                return
             shutil.rmtree(self.work_dir)
         git.Repo.clone_from(self.repo_url, self.work_dir)
         logging.info("checkout_ver: %s", self.repo_ver)
@@ -330,7 +342,7 @@ class INTEGRATION_REPO(object):
     def get_comp_info(self, comp_name, platform=''):
         return self.get_comp_info_by_regx(
             comp_name,
-            r'"%s" \[label="([^\\]+)\\n:([^\\]+)\\n([^\\]+)"\]' %
+            r'"%s" \[label="([^\\]+)\\n:([^\\]+)\\n[a-z:]*([^\\]+)"\]' %
             comp_name,
             [2, 3],
             platform)
@@ -338,7 +350,7 @@ class INTEGRATION_REPO(object):
     def get_comp_bb(self, comp_name, platform=''):
         return self.get_comp_info_by_regx(
             comp_name,
-            r'"%s" \[label="([^\\]+)\\n:([^\\]+)\\n([^\\]+)"\]' %
+            r'"%s" \[label="([^\\]+)\\n:([^\\]+)\\n[a-z:]*([^\\]+)"\]' %
             comp_name,
             [3],
             platform)
@@ -919,10 +931,17 @@ class INTEGRATION_REPO(object):
                 return m.group(1)
         return version_pattern
 
+    def set_config_file(self, config_file):
+        self.config_file = config_file
+        self.version_pattern = self.get_config_value('VERSION_PATTERN')
+        self.pipeline = self.get_config_value('PIPELINE')
+
     def get_config_file(self):
         """
         get config file
         """
+        if self.config_file:
+            return self.config_file
         if self.version_pattern:
             conf_list = utils.get_sub_files(self.work_dir, r'\.config-.*')
             for conf_file in conf_list:
