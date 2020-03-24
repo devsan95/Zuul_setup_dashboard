@@ -109,15 +109,17 @@ def if_create(on_going_cpi_topics, mb_ps_releases, sql_yaml):
 def get_ps_sub_builds(ps_version):
     releasenote = Releasenote.get(ps_version)
     baselines = releasenote.get_baselines()
-    global_env = ''
-    ps_lfs_rel = ''
+    global_env = []
+    ps_lfs_rel = []
     for item in baselines:
         if item['name'] == 'GLOBAL_ENV':
-            global_env = item['version']
+            global_env.append(item['version'])
+            global_env.sort()
         if item['name'] == 'PS_LFS_REL':
-            ps_lfs_rel = item['version']
-    LOG.info('Get {0}, {1} from {2}'.format(global_env, ps_lfs_rel, ps_version))
-    return {'GLOBAL_ENV': global_env, 'PS_LFS_REL': ps_lfs_rel}
+            ps_lfs_rel.append(item['version'])
+            ps_lfs_rel.sort()
+    LOG.info('Get {0}, {1} from {2}'.format(global_env[0], ps_lfs_rel[0], ps_version))
+    return {'GLOBAL_ENV': global_env[0], 'PS_LFS_REL': ps_lfs_rel[0]}
 
 
 def get_bm_from_ps_assignments(ps_version):
