@@ -36,17 +36,20 @@ class LayoutNotExistException(Exception):
     pass
 
 
+def flatten_recursive(list_, out_list_):
+    for item_ in list_:
+        if isinstance(item_, yaml.comments.CommentedSeq):
+            flatten_recursive(item_, out_list_)
+        else:
+            out_list_.append(item_)
+
+
 def flatten(list_):
     if not isinstance(list_, yaml.comments.CommentedSeq):
         return list_
 
     list_out = yaml.comments.CommentedSeq()
-    for item_ in list_:
-        if isinstance(item_, yaml.comments.CommentedSeq):
-            for item__ in item_:
-                list_out.append(item__)
-        else:
-            list_out.append(item_)
+    flatten_recursive(list_, list_out)
     return list_out
 
 
