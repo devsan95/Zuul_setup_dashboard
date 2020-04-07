@@ -18,6 +18,7 @@ class JobTreeOper(object):
         self.db = test_db
         self.connection = self._connect()
         self.datas = collections.defaultdict(dict)
+        self.allpaths = collections.defaultdict(dict)
 
     def _connect(self):
         conn = pymysql.connect(host=self.host,
@@ -36,15 +37,22 @@ class JobTreeOper(object):
             log.debug("No connection exist.")
 
     def _get_records_amount(self, tdate=''):
+        cd = datetime.datetime.strptime(tdate, "%Y-%m-%d")
+        nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
         with self.connection.cursor() as cursor:
-            sql = "select count(*) from item_jobtree where datediff(created_at, date('{}'))=0".format(tdate)
+            sql = "select count(*) from item_jobtree where created_at  >= '{0} 00:00:00' and " \
+                  "created_at  < '{1} 00:00:00'".format(cd, nd)
             cursor.execute(sql)
             result = cursor.fetchone()
         return result['count(*)']
 
     def get_records(self, tdate=''):
+        cd = datetime.datetime.strptime(tdate, "%Y-%m-%d")
+        nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
+        log.debug("data is from {0} to {1}".format(cd, nd))
         with self.connection.cursor() as cursor:
-            sql = "select * from item_jobtree where datediff(created_at, date('{}'))=0" .format(tdate)
+            sql = "select * from item_jobtree where created_at  >= '{0}' and " \
+                  "created_at  < '{1} 00:00:00'".format(cd, nd)
             cursor.execute(sql)
             results = cursor.fetchall()
         if not results:
@@ -59,7 +67,8 @@ class JobTreeOper(object):
             branch = res.get('branch')
             enqueue_time = res.get('enqueue_time')
             result = res.get('result')
-            cpath = ''
+            retry_info = [rk + ',' + str(rv) for rk, rv in ast.literal_eval(res.get('retry_info')).items()]
+            none_info = [nk + ',' + str(nv) for nk, nv in ast.literal_eval(res.get('none_info')).items()]
             subsystem = ''
             timeslots = ''
             pipelineWaiting = ''
@@ -71,27 +80,14 @@ class JobTreeOper(object):
                                                      jobtree=jobtree,
                                                      project=project,
                                                      branch=branch,
-                                                     cpath=cpath,
+                                                     enqueuetime=enqueue_time,
                                                      result=result,
-                                                     enqueue_time=enqueue_time,
+                                                     retry_info=';'.join(retry_info),
+                                                     none_info=';'.join(none_info),
                                                      subsystem=subsystem,
                                                      pipelineWaiting=pipelineWaiting,
                                                      firstJobLaunch=firstJobLaunch,
                                                      timeslots=timeslots)
-
-    def _get_longest_build(self, builds):
-        try:
-            longest = max([vitem[-1] for vitem in builds.values() if vitem[-1]])
-        except Exception as err:
-            longest = ''
-            log.debug(str(err))
-            log.debug('Selected data build time info is not complete.')
-        lbuild = ''
-        for k, v in builds.items():
-            if v[-1] == longest:
-                lbuild = k
-                break
-        return lbuild
 
     def get_paths(self, btree):
 
@@ -116,83 +112,59 @@ class JobTreeOper(object):
                 allpaths.append(build)
         return allpaths
 
-    def critical_path(self, builds, btree):
-        cpath = list()
-        lbuild = self._get_longest_build(builds)
-        allpaths = self.get_paths(btree)
-        for p in allpaths:
-            if p.endswith(lbuild):
-                cpath.append(p)
-        return cpath
-
     def update_data(self):
         """
-        update critical path and the timeslots, without build waiting time and running time.
+        update critical path and the timeslots, each build waiting time and running time.
         :param builds:
         :param cpath:
         :return:
         """
-
-        def _get_final_cpath(cpath, buildsinfo):
-            fcpath = list()
-            cpath_ls = cpath.split(' -> ')
-            for i, p in enumerate(cpath_ls):
-                if not i:
-                    fcpath.append(p)
-                else:
-                    try:
-                        _last_job_endtime = buildsinfo[fcpath[-1]][3]
-                        _current_job_starttime = buildsinfo[p][2]
-                    except Exception as job_err:
-                        log.debug("job time with exception: {}".format(str(job_err)))
-                        return None, None, None
-                    if _current_job_starttime > _last_job_endtime:
-                        fcpath.append(p)
-            timeslots = list()
-            firstJobLaunch = buildsinfo[fcpath[0]][1]
-            for n, fcp in enumerate(fcpath):
-                try:
-                    running_time = buildsinfo[fcp][3] - buildsinfo[fcp][2]
-                except Exception as time_err:
-                    log.debug("job item time with exception: {}".format(str(time_err)))
-                    return None, None, None
-                timeslots.append(running_time)
-            total = sum(timeslots)
-            timeslots.insert(0, total)
-            dyn_path = ' -> '.join(fcpath)
-            tlstr = ','.join([str(tls) for tls in timeslots])
-            return dyn_path, firstJobLaunch, tlstr
-
         for k, v in self.datas.items():
-            dbuilds = v['builds']
-            cpath = self.critical_path(dbuilds, v['jobtree'])
-            if not cpath:
-                continue
-            dynamic_path, firstJobLaunch, tlstr = _get_final_cpath(cpath[0], dbuilds)
-            if not dynamic_path:
-                continue
-            else:
-                v['cpath'] = dynamic_path
-                v['timeslots'] = tlstr
-                v['firstJobLaunch'] = firstJobLaunch
-
-            if cpath and (cpath[0].count(r'MASTER_PROD/UPLANE') or cpath[0].count(r'MASTER/GNB/UPLANE')):
-                subs = 'UPLANE'
-            elif cpath and (cpath[0].count(r'MASTER_PROD/CPLANE') or cpath[0].count(r'MASTER/GNB/CPLANE')):
-                subs = 'CPLANE'
-            else:
-                subs = 'Reserved'
-            v['subsystem'] = subs
+            log.debug("Generate allpath data for {}".format(k))
+            buildsinfo = v['builds']
+            allpath = self.get_paths(v['jobtree'])
+            for path_index, apath in enumerate(allpath):
+                path_key = k + '-' + str(path_index)
+                if apath.count(r'MASTER_PROD/UPLANE') or apath.count(r'MASTER/GNB/UPLANE'):
+                    subs = 'UPLANE'
+                elif apath.count(r'MASTER_PROD/CPLANE') or apath.count(r'MASTER/GNB/CPLANE'):
+                    subs = 'CPLANE'
+                else:
+                    subs = 'Reserved'
+                self.allpaths[path_key]['subsystem'] = subs
+                self.allpaths[path_key]['path'] = apath
+                self.allpaths[path_key]['pipeline'] = v['pipeline']
+                self.allpaths[path_key]['queueitem'] = v['queueitem']
+                self.allpaths[path_key]['change'] = v['change']
+                self.allpaths[path_key]['result'] = v['result']
+                self.allpaths[path_key]['project'] = v['project']
+                self.allpaths[path_key]['branch'] = v['branch']
+                path_job_ls = apath.split(' -> ')
+                self.allpaths[path_key]['firstJobLaunch'] = buildsinfo[path_job_ls[0]][1]
+                timeslots = list()
+                for n, fcp in enumerate(path_job_ls):
+                    try:
+                        # print buildsinfo[fcp][3], buildsinfo[fcp][2]
+                        running_time = int(buildsinfo[fcp][3]) - int(buildsinfo[fcp][2])
+                    except Exception as time_err:
+                        log.debug("job item time with exception: {}".format(str(time_err)))
+                        continue
+                    timeslots.append(running_time)
+                total = sum(timeslots)
+                timeslots.insert(0, total)
+                tlstr = ','.join([str(tls) for tls in timeslots])
+                self.allpaths[path_key]['timeslots'] = tlstr
 
     def update_skytrack(self, sdata):
+        log.debug("test data {} will be updated into skytrack".format(sdata))
         try:
             log.debug(sdata)
             self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
                 sql = "INSERT INTO t_critical_path_no_waiting " \
-                      "(pipeline,queueitem,changeitem,timeslot,path,subsystem,c_project,c_branch,end_time," \
+                      "(pipeline,queueitem,status,changeitem,timeslot,path,subsystem,c_project,c_branch,end_time," \
                       "first_job_launch_time_in_zuul)" \
-                      " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}',{8},{9})".format(*sdata)
+                      " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}',{9},{10})".format(*sdata)
                 log.debug(sql)
                 cursor.execute(sql)
             self.connection.commit()
@@ -230,38 +202,44 @@ class Runner(object):
                                 format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                                 datefmt='%a, %d %b %Y %H:%M:%S')
         if self.jto_args.tdate:
-            tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
+            tdate = self.jto_args.tdate.strip()
+            # tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
         else:
-            tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
+            # tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
+            tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d")
         jto_ins = JobTreeOper(self.jto_args.zuul_host,
                               self.jto_args.zuul_usr,
                               self.jto_args.zuul_passwd,
                               self.jto_args.zuul_table)
+        # cnt = jto_ins._get_records_amount(tdate)
         jto_ins.get_records(tdate)
         jto_ins.update_data()
         log.debug(jto_ins.datas)
+
         try:
             sky_ins = JobTreeOper(self.jto_args.sky_host,
                                   self.jto_args.sky_usr,
                                   self.jto_args.sky_passwd,
                                   self.jto_args.sky_table)
-            for k, v in jto_ins.datas.items():
-                if v['cpath']:
-                    fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'], tz=pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')
-                    try:
-                        sky_ins.update_skytrack((v['pipeline'],
-                                                 v['queueitem'] + ',' + v['result'],
-                                                 v['change'],
-                                                 v['timeslots'],
-                                                 v['cpath'],
-                                                 v['subsystem'],
-                                                 v['project'],
-                                                 v['branch'],
-                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate),
-                                                 "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
-                    except Exception as sky_err:
-                        log.debug(sky_err)
-                        continue
+            for k, v in jto_ins.allpaths.items():
+                log.debug("{0}: {1}".format(k, v))
+                fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'],
+                                                          tz=pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')
+                try:
+                    sky_ins.update_skytrack((v['pipeline'],
+                                             k,
+                                             v['result'],
+                                             v['change'],
+                                             v['timeslots'],
+                                             v['path'],
+                                             v['subsystem'],
+                                             v['project'],
+                                             v['branch'],
+                                             "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate),
+                                             "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
+                except Exception as sky_err:
+                    log.debug(str(sky_err))
+                    continue
         except Exception as sky_err:
             log.debug(str(sky_err))
         finally:
