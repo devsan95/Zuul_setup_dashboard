@@ -124,36 +124,49 @@ class JobTreeOper(object):
             buildsinfo = v['builds']
             allpath = self.get_paths(v['jobtree'])
             for path_index, apath in enumerate(allpath):
-                path_key = k + '-' + str(path_index)
-                if apath.count(r'MASTER_PROD/UPLANE') or apath.count(r'MASTER/GNB/UPLANE'):
-                    subs = 'UPLANE'
-                elif apath.count(r'MASTER_PROD/CPLANE') or apath.count(r'MASTER/GNB/CPLANE'):
-                    subs = 'CPLANE'
-                else:
-                    subs = 'Reserved'
-                self.allpaths[path_key]['subsystem'] = subs
-                self.allpaths[path_key]['path'] = apath
-                self.allpaths[path_key]['pipeline'] = v['pipeline']
-                self.allpaths[path_key]['queueitem'] = v['queueitem']
-                self.allpaths[path_key]['change'] = v['change']
-                self.allpaths[path_key]['result'] = v['result']
-                self.allpaths[path_key]['project'] = v['project']
-                self.allpaths[path_key]['branch'] = v['branch']
-                path_job_ls = apath.split(' -> ')
-                self.allpaths[path_key]['firstJobLaunch'] = buildsinfo[path_job_ls[0]][1]
-                timeslots = list()
-                for n, fcp in enumerate(path_job_ls):
+                log.debug("Get all path for {}".format(apath))
+                tmp_path_dic = collections.defaultdict(dict)
+                try:
+                    path_key = k + '-' + str(path_index)
+                    path_job_ls = apath.split(' -> ')
+                    timeslots = list()
                     try:
-                        # print buildsinfo[fcp][3], buildsinfo[fcp][2]
-                        running_time = int(buildsinfo[fcp][3]) - int(buildsinfo[fcp][2])
+                        for n, fcp in enumerate(path_job_ls):
+                            log.debug("{0}: {1}, {2}".format(apath, n, fcp))
+                            try:
+                                running_time = buildsinfo[fcp][3] - buildsinfo[fcp][2]
+                            except Exception as rtime_err:
+                                log.debug("Caculate the running time failed: {}".format(str(rtime_err)))
+                                running_time = 0
+                            timeslots.append(running_time)
                     except Exception as time_err:
                         log.debug("job item time with exception: {}".format(str(time_err)))
                         continue
-                    timeslots.append(running_time)
-                total = sum(timeslots)
-                timeslots.insert(0, total)
-                tlstr = ','.join([str(tls) for tls in timeslots])
-                self.allpaths[path_key]['timeslots'] = tlstr
+                    total = sum(timeslots)
+                    timeslots.insert(0, total)
+                    tlstr = ','.join([str(tls) for tls in timeslots])
+                    tmp_path_dic[path_key]['timeslots'] = tlstr
+                    tmp_path_dic[path_key]['firstJobLaunch'] = buildsinfo[path_job_ls[0]][1]
+
+                    if apath.count(r'MASTER_PROD/UPLANE') or apath.count(r'MASTER/GNB/UPLANE'):
+                        subs = 'UPLANE'
+                    elif apath.count(r'MASTER_PROD/CPLANE') or apath.count(r'MASTER/GNB/CPLANE'):
+                        subs = 'CPLANE'
+                    else:
+                        subs = 'Reserved'
+                    tmp_path_dic[path_key]['subsystem'] = subs
+                    tmp_path_dic[path_key]['path'] = apath
+                    tmp_path_dic[path_key]['pipeline'] = v['pipeline']
+                    tmp_path_dic[path_key]['queueitem'] = v['queueitem']
+                    tmp_path_dic[path_key]['change'] = v['change']
+                    tmp_path_dic[path_key]['result'] = v['result']
+                    tmp_path_dic[path_key]['project'] = v['project']
+                    tmp_path_dic[path_key]['branch'] = v['branch']
+                except Exception as apath_err:
+                    log.debug("Get all path of {0} with exception: {1}".format(apath, str(apath_err)))
+                    continue
+                log.debug("tmp_path_dic {0}: {1}".format(path_key, tmp_path_dic))
+                self.allpaths.update(tmp_path_dic)
 
     def update_skytrack(self, sdata):
         log.debug("test data {} will be updated into skytrack".format(sdata))
@@ -161,7 +174,7 @@ class JobTreeOper(object):
             log.debug(sdata)
             self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
-                sql = "INSERT INTO t_critical_path_no_waiting " \
+                sql = "INSERT INTO t_all_path_no_waiting " \
                       "(pipeline,queueitem,status,changeitem,timeslot,path,subsystem,c_project,c_branch,end_time," \
                       "first_job_launch_time_in_zuul)" \
                       " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}',{9},{10})".format(*sdata)
@@ -215,6 +228,7 @@ class Runner(object):
         jto_ins.get_records(tdate)
         jto_ins.update_data()
         log.debug(jto_ins.datas)
+        log.debug(jto_ins.allpaths)
 
         try:
             sky_ins = JobTreeOper(self.jto_args.sky_host,
