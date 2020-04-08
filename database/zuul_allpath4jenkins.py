@@ -112,7 +112,7 @@ class JobTreeOper(object):
                 allpaths.append(build)
         return allpaths
 
-    def update_data(self):
+    def update_data(self, valid=False):
         """
         update critical path and the timeslots, each build waiting time and running time.
         :param builds:
@@ -166,7 +166,11 @@ class JobTreeOper(object):
                     log.debug("Get all path of {0} with exception: {1}".format(apath, str(apath_err)))
                     continue
                 log.debug("tmp_path_dic {0}: {1}".format(path_key, tmp_path_dic))
-                self.allpaths.update(tmp_path_dic)
+                if valid:
+                    self.allpaths.update(tmp_path_dic)
+                else:
+                    if 0 not in timeslots:
+                        self.allpaths.update(tmp_path_dic)
 
     def update_skytrack(self, sdata):
         log.debug("test data {} will be updated into skytrack".format(sdata))
@@ -180,7 +184,7 @@ class JobTreeOper(object):
                       " VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}',{9},{10})".format(*sdata)
                 log.debug(sql)
                 cursor.execute(sql)
-            self.connection.commit()
+            # self.connection.commit()
         except Exception as err:
             log.debug(str(err))
 
@@ -203,6 +207,8 @@ class Runner(object):
         parser.add_argument('-l', '--sky-username', dest='sky_usr', help='SKY DB username')
         parser.add_argument('-m', '--sky-password', dest='sky_passwd', help='SKY DB password')
         parser.add_argument('-n', '--sky-table', dest='sky_table', help='SKY DB test table')
+        parser.add_argument('-i', '--only-valid', dest='valid', action='store_true',
+                            help='Only valid running time data')
         parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="logging level")
         return parser
 
@@ -226,7 +232,7 @@ class Runner(object):
                               self.jto_args.zuul_table)
         # cnt = jto_ins._get_records_amount(tdate)
         jto_ins.get_records(tdate)
-        jto_ins.update_data()
+        jto_ins.update_data(self.jto_args.valid)
         log.debug(jto_ins.datas)
         log.debug(jto_ins.allpaths)
 
@@ -254,6 +260,7 @@ class Runner(object):
                 except Exception as sky_err:
                     log.debug(str(sky_err))
                     continue
+            sky_ins.connection.commit()
         except Exception as sky_err:
             log.debug(str(sky_err))
         finally:
