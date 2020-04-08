@@ -43,10 +43,10 @@ run_try_n() {
 
 
 # Determine the directory containing this script
-if [[ -n $BASH_VERSION ]]; then
+if [[ -n "$BASH_VERSION" ]]; then
     _SCRIPT_LOCATION=${BASH_SOURCE[0]}
     _SHELL="bash"
-elif [[ -n $ZSH_VERSION ]]; then
+elif [[ -n "$ZSH_VERSION" ]]; then
     _SCRIPT_LOCATION=${funcstack[1]}
     _SHELL="zsh"
 else
@@ -57,7 +57,7 @@ fi
 # Ensure that this script is sourced, not executed
 # Also note that errors are ignored as `activate foo` doesn't generate a bad
 # value for $0 which would cause errors.
-if [[ -n $BASH_VERSION ]] && [[ "$(basename "$0" 2> /dev/null)" == "pyenv.sh" ]]; then
+if [[ -n "$BASH_VERSION" ]] && [[ "$(basename "$0" 2> /dev/null)" == "pyenv.sh" ]]; then
     (>&2 echo "Error: activate must be sourced. Run 'source pyenv.sh'
 instead of 'pyenv.sh'.
 ")
