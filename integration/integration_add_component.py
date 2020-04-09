@@ -36,12 +36,11 @@ def generate_commit_message(comp, root, base_commit):
             msg_list.append('[none] [NOREBASE] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
         else:
             msg_list.append('[none] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
+    msg_list.append(' ')
     msg_list.append('<{}> on <{}> of <{}> topic <{}>'.format(comp['name'], root['feature_id'], root['branch'], root['topic']))
     msg_list.append('Platform ID: <{}>'.format(root['platform_id']))
-    msg_list.append('\n')
     msg_list.append('%JR={}'.format(root['jira_id']))
     msg_list.append('%FIFI={}'.format(root['feature_id']))
-    msg_list.append('\n')
     msg_list.append('Remarks:')
     msg_list.append('---')
     msg_list.append('Apply adaption using format, update_bb:COMPONENT_NAME,REPO_URL,REPO_VER')
@@ -49,7 +48,6 @@ def generate_commit_message(comp, root, base_commit):
     if base_commit:
         msg_list.append('base_commit:{}'.format(base_commit))
     msg_list.append('---')
-    msg_list.append('\n')
     msg_list.append('This change contains following component(s):')
     if 'ric' in comp:
         if isinstance(comp['ric'], str):
@@ -57,7 +55,6 @@ def generate_commit_message(comp, root, base_commit):
         if isinstance(comp['ric'], list):
             for ric in comp['ric']:
                 msg_list.append('  - COMP <{}>'.format(ric))
-    msg_list.append('\n')
     return '\n'.join(msg_list)
 
 
