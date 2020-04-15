@@ -712,9 +712,10 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     if gnb_list_path:
         rewrite_knife_json(knife_path, gnb_list_path)
 
+#zuul has changed the zuul database server. and confirmed with Alex this store is not needed anymore
     # store zuul_ref in zuul database
-    if zuul_ref:
-        save_data_in_zuul_db(knife_path, db_info_path)
+    #if zuul_ref:
+    #    save_data_in_zuul_db(knife_path, db_info_path)
 
 
 if __name__ == '__main__':
