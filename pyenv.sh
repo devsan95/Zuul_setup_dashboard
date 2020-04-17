@@ -157,7 +157,7 @@ fi
 
 cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
-conda install certifi
+conda install -y certifi 
 pip install --no-cache-dir jenkins-job-builder PyZMQ ruamel.yaml networkx requests configobj jenkinsapi python-jenkins
 pip install --no-cache-dir paramiko beautifulsoup4
 pip install --no-cache-dir gitpython arrow sh pyyaml ptpython pydocstyle python-slugify pymysql pygerrit2
