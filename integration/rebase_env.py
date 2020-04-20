@@ -11,11 +11,21 @@ import skytrack_database_handler
 from api import retry
 from api import gerrit_rest, jira_api
 from api import env_repo as get_env_repo
+from api import config
 from mod import common_regex
 from mod.integration_change import RootChange
 from difflib import SequenceMatcher
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+CONF = config.ConfigTool()
+CONF.load('jira')
+JIRA_DICT = CONF.get_dict('jira3')
+
+DEFAULT_JIRA_URL = JIRA_DICT['server']
+DEFAULT_USER = JIRA_DICT['user']
+DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def create_file_change_by_env_change(env_change_split, file_content, filename):
@@ -195,7 +205,8 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
             msg = " ".join(origin_msg.split("\n"))
             reg = re.compile(r'%JR=(\w+-\d+)')
             jira_ticket = reg.search(msg).groups()[0]
-            jira_op = jira_api.JIRAPI("autobuild_c_ou", "a4112fc4")
+            jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
+                                      server=DEFAULT_JIRA_URL)
             jira_op.replace_issue_title(jira_ticket, old_str, new_str)
         except Exception as e:
             print('Jira update error')

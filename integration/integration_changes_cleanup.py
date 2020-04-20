@@ -3,7 +3,17 @@ import datetime
 
 from api import mysql_api
 from api import gerrit_rest
+from api import config
 from api.jira_api import JIRAPI
+
+
+CONF = config.ConfigTool()
+CONF.load('jira')
+JIRA_DICT = CONF.get_dict('jira3')
+
+DEFAULT_JIRA_URL = JIRA_DICT['server']
+DEFAULT_USER = JIRA_DICT['user']
+DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def get_topic_open_changes(topic, mysql, rest):
@@ -36,7 +46,7 @@ def run(days, gerrit_yaml, mysql_yaml, interval=30, dry_run=True, skip_doubt=Tru
     mysql.init_database('skytrack')
     rest = gerrit_rest.init_from_yaml(gerrit_yaml)
     old_topics = get_old_topics(timeline, start_timeline, mysql)
-    jira_op = JIRAPI("autobuild_c_ou", "a4112fc4")
+    jira_op = JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD, server=DEFAULT_JIRA_URL)
     doubtable_topics = list()
     for topic in old_topics:
         if 'dev/test' not in topic[1] and topic[2] in open_status and skip_doubt:

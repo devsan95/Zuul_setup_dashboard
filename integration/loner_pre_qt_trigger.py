@@ -8,7 +8,17 @@ from scm_tools.wft import json_releasenote
 
 from operate_commit_message import OperateCommitMessage
 from api import mysql_api, gerrit_rest, jira_api
+from api import config
 from mod import wft_tools
+
+
+CONF = config.ConfigTool()
+CONF.load('jira')
+JIRA_DICT = CONF.get_dict('jira3')
+
+DEFAULT_JIRA_URL = JIRA_DICT['server']
+DEFAULT_USER = JIRA_DICT['user']
+DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def get_loner_from_wft(loner_prefix, status):
@@ -68,7 +78,8 @@ def update_loner_topic(loner_version, sql_yaml, gerrit_yaml, stream, topic_info=
     root_ticket = get_loner_ticket(mysql, component='root_monitor', topic_info=topic_info)
     msg_obj = OperateCommitMessage(gerrit_info_path=gerrit_yaml, root_change=root_ticket)
     old_topic, new_topic = msg_obj.update_topic(loner_version)
-    jira_op = jira_api.JIRAPI("autobuild_c_ou", "a4112fc4")
+    jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
+                              server=DEFAULT_JIRA_URL)
     jira_op.replace_issue_title(topic_info['issue_key'], old_topic, new_topic)
 
     # Update base build in integration change

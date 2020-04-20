@@ -10,9 +10,18 @@ import traceback
 import api.file_api
 import api.gerrit_api
 import api.gerrit_rest
+from api import config
 from api.jira_api import JIRAPI
 from api import retry
 from update_submodule_by_change import get_submodule_list_from_comments
+
+CONF = config.ConfigTool()
+CONF.load('jira')
+JIRA_DICT = CONF.get_dict('jira3')
+
+DEFAULT_JIRA_URL = JIRA_DICT['server']
+DEFAULT_USER = JIRA_DICT['user']
+DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def _parse_args():
@@ -78,7 +87,7 @@ def abandon_jira(change_no, rest):
     msg = " ".join(origin_msg.split("\n"))
     reg = re.compile(r'%JR=(\w+-\d+)')
     jira_ticket = reg.search(msg).groups()[0]
-    jira_op = JIRAPI("autobuild_c_ou", "a4112fc4")
+    jira_op = JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD, server=DEFAULT_JIRA_URL)
     jira_op.close_issue(jira_ticket)
 
 

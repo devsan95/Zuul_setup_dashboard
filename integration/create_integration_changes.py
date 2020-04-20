@@ -1000,7 +1000,7 @@ class IntegrationChangesCreation(object):
                         jira_key = create_jira_ticket.run(self.info_index)
                         self.meta["jira_key"] = jira_key
                         if open_jira:
-                            create_jira_ticket.open(jira_key)
+                            create_jira_ticket.open_jira(jira_key)
                     except Exception as ex:
                         print('Exception occured while create jira ticket, {}'.format(str(ex)))
                         raise ex

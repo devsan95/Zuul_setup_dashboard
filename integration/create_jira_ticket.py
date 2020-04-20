@@ -6,10 +6,15 @@ import json
 import ruamel.yaml as yaml
 import copy
 from api import jira_api
+from api import config
 
-DEFAULT_JIRA_URL = 'https://jira3.int.net.nokia.com'
-DEFAULT_USER = 'autobuild_c_ou'
-DEFAULT_PASSWD = 'a4112fc4'
+CONF = config.ConfigTool()
+CONF.load('jira')
+JIRA_DICT = CONF.get_dict('jira3')
+
+DEFAULT_JIRA_URL = JIRA_DICT['server']
+DEFAULT_USER = JIRA_DICT['user']
+DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def run(info_index, jira_url=DEFAULT_JIRA_URL, user=DEFAULT_USER, pwd=DEFAULT_PASSWD):
@@ -32,7 +37,7 @@ def run(info_index, jira_url=DEFAULT_JIRA_URL, user=DEFAULT_USER, pwd=DEFAULT_PA
     return ticket_key
 
 
-def open(jira_id, jira_url=DEFAULT_JIRA_URL, user=DEFAULT_USER, pwd=DEFAULT_PASSWD):
+def open_jira(jira_id, jira_url=DEFAULT_JIRA_URL, user=DEFAULT_USER, pwd=DEFAULT_PASSWD):
     api = jira_api.JIRAPI(user, pwd, jira_url)
     api.open_issue(jira_id)
 
