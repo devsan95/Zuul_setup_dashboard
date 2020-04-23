@@ -35,23 +35,13 @@ class JobTreeOper(object):
         else:
             log.debug("No connection exist.")
 
-    def _get_records_amount(self, tdate=''):
-        cd = datetime.datetime.strptime(tdate, "%Y-%m-%d")
-        nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
-        with self.connection.cursor() as cursor:
-            sql = "select count(*) from item_jobtree where created_at  >= '{0} 00:00:00' and " \
-                  "created_at  < '{1} 00:00:00'".format(cd, nd)
-            cursor.execute(sql)
-            result = cursor.fetchone()
-        return result['count(*)']
-
     def get_records(self, starttime, endtime):
         starttime = datetime.datetime.strptime(starttime, "%Y-%m-%d %H:%M:%S")
         endtime = datetime.datetime.strptime(endtime, "%Y-%m-%d %H:%M:%S")
         log.debug("data is from {0} to {1}".format(starttime, endtime))
         with self.connection.cursor() as cursor:
             sql = "select * from item_jobtree where created_at  >= '{0}' and " \
-                  "created_at  < '{1} 00:00:00'".format(starttime, endtime)
+                  "created_at  < '{1}'".format(starttime, endtime)
             cursor.execute(sql)
             results = cursor.fetchall()
         if not results:
@@ -337,6 +327,7 @@ class Runner(object):
         parser.add_argument('-l', '--sky-username', dest='sky_usr', help='SKY DB username')
         parser.add_argument('-m', '--sky-password', dest='sky_passwd', help='SKY DB password')
         parser.add_argument('-n', '--sky-table', dest='sky_table', help='SKY DB test table')
+        parser.add_argument('-r', '--dryrun', dest='dryrun', action='store_true', help='dry run for test')
         parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="logging level")
         return parser
 
@@ -354,15 +345,14 @@ class Runner(object):
                               self.jto_args.zuul_usr,
                               self.jto_args.zuul_passwd,
                               self.jto_args.zuul_table)
-        # cnt = jto_ins._get_records_amount(tdate)
         jto_ins.get_records(self.jto_args.starttime, self.jto_args.endtime)
         jto_ins.update_data()
         log.debug(jto_ins.datas)
         try:
-            # sky_ins = JobTreeOper(self.jto_args.sky_host,
-            #                       self.jto_args.sky_usr,
-            #                       self.jto_args.sky_passwd,
-            #                       self.jto_args.sky_table)
+            sky_ins = JobTreeOper(self.jto_args.sky_host,
+                                  self.jto_args.sky_usr,
+                                  self.jto_args.sky_passwd,
+                                  self.jto_args.sky_table)
             for k, v in jto_ins.datas.items():
                 if v['cpath']:
                     try:
@@ -374,42 +364,43 @@ class Runner(object):
                         continue
                     fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'],
                                                               tz=pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')
-                    log.debug("pipeline: {0}\n queueitem: {1}\n change: {2}\n result: {3}\n retry_info: {4}\n "
-                              "none_info: {5}\n timeslots: {6}\n cpath: {7}\n subsystem: {8}\n project: {9}\n "
-                              "branch: {10}\n pipelineWaiting: {11}\n firstJobLaunch: "
+                    dataite = "pipeline: {0}\n queueitem: {1}\n change: {2}\n result: {3}\n retry_info: {4}\n " \
+                              "none_info: {5}\n timeslots: {6}\n cpath: {7}\n subsystem: {8}\n project: {9}\n " \
+                              "branch: {10}\n pipelineWaiting: {11}\n firstJobLaunch: " \
                               "{12}\n".format(v['pipeline'], v['queueitem'], v['change'],
                                               v['result'], v['retry_info'], v['none_info'],
                                               v['timeslots'], v['cpath'], v['subsystem'],
                                               v['project'], v['branch'], v['pipelineWaiting'],
-                                              "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
-                    print("pipeline: {0}\n queueitem: {1}\n change: {2}\n result: {3}\n retry_info: {4}\n "
-                          "none_info: {5}\n timeslots: {6}\n cpath: {7}\n subsystem: {8}\n project: {9}\n "
-                          "branch: {10}\n pipelineWaiting: {11}\n firstJobLaunch: "
-                          "{12}\n".format(v['pipeline'], v['queueitem'], v['change'],
-                                          v['result'], v['retry_info'], v['none_info'],
-                                          v['timeslots'], v['cpath'], v['subsystem'],
-                                          v['project'], v['branch'], v['pipelineWaiting'],
-                                          "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
-
-                    # try:
-                    #     sky_ins.update_skytrack((v['pipeline'],
-                    #                              v['queueitem'],
-                    #                              v['change'],
-                    #                              v['result'],
-                    #                              v['retry_info'],
-                    #                              v['none_info'],
-                    #                              v['timeslots'],
-                    #                              v['cpath'],
-                    #                              v['subsystem'],
-                    #                              v['project'],
-                    #                              v['branch'],
-                    #                              "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(tdate),
-                    #                              v['pipelineWaiting'],
-                    #                              "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
-                    # except Exception as sky_err:
-                    #     log.debug(sky_err)
-                    #     continue
-            # sky_ins.connection.commit()
+                                              "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate)))
+                    if self.jto_args.dryrun:
+                        print dataite
+                    else:
+                        log.debug(dataite)
+                        try:
+                            sky_ins.update_skytrack((v['pipeline'],
+                                                     v['queueitem'],
+                                                     v['change'],
+                                                     v['result'],
+                                                     v['retry_info'],
+                                                     v['none_info'],
+                                                     v['timeslots'],
+                                                     v['cpath'],
+                                                     v['subsystem'],
+                                                     v['project'],
+                                                     v['branch'],
+                                                     "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(
+                                                         self.jto_args.starttime.split()[0]),
+                                                     v['pipelineWaiting'],
+                                                     "str_to_date('{}','%Y-%m-%d %H:%i:%s')".format(str(fjlDate))))
+                        except Exception as sky_err:
+                            log.debug(sky_err)
+                            continue
+            if self.jto_args.dryrun:
+                print self.jto_args.starttime, self.jto_args.endtime
+                print "Running in dry-run mode, just printout the data in console"
+            else:
+                log.debug("Running in real mode, will commit the data update to skytrack DB")
+                sky_ins.connection.commit()
         except Exception as sky_err:
             log.debug(str(sky_err))
         finally:
