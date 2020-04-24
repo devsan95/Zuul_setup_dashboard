@@ -20,8 +20,8 @@ from api import mysql_api
 import api.file_api
 import api.gerrit_api
 import api.gerrit_rest
+import update_depends
 import submodule_handle
-
 import ruamel.yaml as yaml
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -687,11 +687,23 @@ def run(zuul_url, zuul_ref, output_path, change_id,
                                                      comp_f_prop=[], zuul_url=zuul_url, zuul_ref=zuul_ref)
     comment_dict = parse_comments(change_id, rest, comp_f_prop=comp_f_prop,
                                   zuul_url=zuul_url, zuul_ref=zuul_ref)
+
+    # interfaces
+    find_interfaces, interfaces_infos = update_depends.search_interfaces(rest, change_id)
+    interfaces_dict = {}
+    for interfaces_info in interfaces_infos:
+        interfaces_dict[interfaces_info['component']] = {'bb_ver': interfaces_info['comp_version']}
+    for ex_dict_value in ex_comment_dict.values():
+        ex_dict_value.update(interfaces_dict)
+    for comment_value in comment_dict.values():
+        comment_value.update(interfaces_dict)
+
     save_json_file(knife_path,
                    [combine_knife_json([
                        {'all': ric_dict},
                        {'all': ric_commit_dict},
                        {'all': env_dict},
+                       {'all': interfaces_dict},
                        ex_comment_dict,
                        comment_dict
                    ])],
@@ -712,9 +724,11 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     if gnb_list_path:
         rewrite_knife_json(knife_path, gnb_list_path)
 
-#zuul has changed the zuul database server. and confirmed with Alex this store is not needed anymore
+    if db_info_path:
+        print('........')
+# zuul has changed the zuul database server. and confirmed with Alex this store is not needed anymore
     # store zuul_ref in zuul database
-    #if zuul_ref:
+    # if zuul_ref:
     #    save_data_in_zuul_db(knife_path, db_info_path)
 
 
