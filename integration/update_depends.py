@@ -1,14 +1,47 @@
 import re
+import copy
 import fire
 import yaml
 import logging
 
+from api import config
 from api import gerrit_rest
 from mod import common_regex
 from mod.integration_change import RootChange
+from mod.integration_change import ManageChange
 from mod.integration_change import IntegrationChange
 from integration_trigger import get_comp_obj
 from update_submodule_by_change import update_commitmsg
+
+LOCAL_CONFIG_YAML_MAP = {'MN/5G/NB/gnb': 'externals/local_config_yaml/config.yaml'}
+CONF = config.ConfigTool()
+CONF.load('config_yaml')
+
+
+def update_config_yaml(rest, integration_repo_ticket, interface_infos, config_path='config.yaml'):
+    config_dict = {"components": {}, "version": 1}
+    try:
+        config_yaml_content = rest.get_file_content(config_path, integration_repo_ticket)
+        config_dict = yaml.safe_load(config_yaml_content)
+    except Exception:
+        logging.warn('Cannot find %s in %s', config_path, integration_repo_ticket)
+        return
+    for interface_info in interface_infos:
+        compoent_dict = {
+            'commit': interface_info['comp_version'],
+            'version': interface_info['comp_version'],
+            'location': 'config.yaml',
+            'type': 'submodule_meta-5g'
+        }
+        component_key = 'Common:{}'.format(interface_info['component'])
+        if component_key in config_dict['components']:
+            config_dict['components'][component_key].update(compoent_dict)
+        else:
+            config_dict['components'][component_key] = compoent_dict
+    config_yaml_content = yaml.safe_dump(config_dict, default_flow_style=False,
+                                         encoding='utf-8', allow_unicode=True)
+    rest.add_file_to_change(integration_repo_ticket, config_path, content=config_yaml_content)
+    rest.publish_edit(integration_repo_ticket)
 
 
 def search_interfaces(rest, change_id):
@@ -59,6 +92,37 @@ def search_interfaces(rest, change_id):
     return find_interfaces, interface_infos
 
 
+def get_integration_repo_ticket(rest, change_id):
+    root_change_obj = RootChange(rest, change_id)
+    comp_change_list, integration_ticket = root_change_obj.get_components_changes_by_comments()
+    logging.info('Get manage ticket: %s', integration_ticket)
+    manage_change_obj = ManageChange(rest, integration_ticket)
+    integration_repo_ticket = ''
+    if root_change_obj.get_project() == 'MN/5G/COMMON/integration':
+        integration_repo_ticket = change_id
+    component_list = manage_change_obj.get_all_components()
+    print('component_list')
+    print(component_list)
+    if 'MN/5G/COMMON/integration' in [x[1] for x in component_list]:
+        for component in component_list:
+            if component[1] == 'MN/5G/COMMON/integration':
+                integration_repo_ticket = component[2]
+    return integration_repo_ticket
+
+
+def get_interface_sections(rest, integration_repo_ticket, interface_infos):
+    change_content = rest.get_file_change('config.yaml', integration_repo_ticket)
+    old_config_yaml = yaml.safe_load(change_content['old'])
+    origin_interface_sections = {}
+    for config_yaml_key, component_info in old_config_yaml['components'].items():
+        config_yaml_comp = config_yaml_key.split(':')[1]
+        for interface_info in interface_infos:
+            if config_yaml_comp == interface_info['component']:
+                origin_interface_sections[config_yaml_comp] = component_info['version']
+    logging.info('Origin interfaces sections: %s', origin_interface_sections)
+    return origin_interface_sections
+
+
 def update_depends(rest, change_id, dep_file_list,
                    dep_submodule_dict, comp_config, project):
     # check if there is interfaces info in commit-msg
@@ -69,6 +133,8 @@ def update_depends(rest, change_id, dep_file_list,
 
     op = RootChange(rest, change_id)
     comp_change_list, int_change = op.get_components_changes_by_comments()
+    # integration_repo_ticket = get_integration_repo_ticket(rest, change_id)
+    # origin_interface_sections = get_interface_sections(rest, integration_repo_ticket, interface_infos)
 
     for comp_change in comp_change_list:
         int_change_obj = IntegrationChange(rest, comp_change)
@@ -78,6 +144,7 @@ def update_depends(rest, change_id, dep_file_list,
             continue
         ticket_comps = int_change_obj.get_components()
         logging.info('Interface_infos: {}'.format(interface_infos))
+        matched_interface_infos = []
         for interface_info in interface_infos:
             component = interface_info['component']
             comp_version = interface_info['comp_version']
@@ -86,6 +153,7 @@ def update_depends(rest, change_id, dep_file_list,
             if comps_for_interfaces:
                 for t_comp in ticket_comps:
                     if t_comp in comps_for_interfaces:
+                        matched_interface_infos.append(copy.copy(interface_info))
                         break
                 else:
                     logging.warn(
@@ -118,6 +186,15 @@ def update_depends(rest, change_id, dep_file_list,
                 except Exception as e:
                     logging.warn('Publish edit is failed')
                     print(str(e))
+        # update local config.yaml file if needed
+        if project in LOCAL_CONFIG_YAML_MAP and matched_interface_infos:
+            # matched_comp_list = [x['component'] for x in matched_interface_infos]
+            # for interfaces_comp, comp_version in origin_interface_sections.items():
+            #     if interfaces_comp not in matched_comp_list:
+            #         matched_interface_infos.append({'component': interfaces_comp,
+            #                                         'comp_version': comp_version})
+            local_config_yaml = LOCAL_CONFIG_YAML_MAP[project]
+            update_config_yaml(rest, comp_change, matched_interface_infos, config_path=local_config_yaml)
 
 
 def get_dep_comps(comp_name, comp_config):
