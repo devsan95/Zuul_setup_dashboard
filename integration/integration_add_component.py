@@ -25,6 +25,7 @@ def parse_root_change(rest, root_change):
     root['branch'] = root_change_obj.get_branch()
     root['topic'] = root_change_obj.get_topic()
     root['platform_id'] = root_change_obj.get_platform_id()
+    root['component_changes'] = root_change_obj.get_all_changes_by_comments()
     root['manager_change'] = root_change_obj.get_components_changes_by_comments()[1]
     return root
 
@@ -170,6 +171,26 @@ def check_external_change(rest, root_change):
     return parent_commit
 
 
+def add_depends_info(rest, comp_change, depends_change):
+    change = inte_change.IntegrationChange(rest, comp_change)
+    msg_obj = inte_change.IntegrationCommitMessage(change)
+    msg_obj.add_depends(depends_change)
+    msg_obj.add_depends_on(depends_change)
+    message = msg_obj.get_msg()
+    try:
+        rest.delete_edit(comp_change)
+    except Exception as e:
+        print(e)
+    try:
+        rest.change_commit_msg_to_edit(comp_change, message)
+    except Exception as e:
+        if "New commit message cannot be same as existing commit message" in str(e):
+            pass
+        else:
+            raise Exception(e)
+    rest.publish_edit(comp_change)
+
+
 def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_path, base_commit=None):
     comp_config = yaml.load(open(component_config),
                             Loader=yaml.Loader, version='1.1')
@@ -178,6 +199,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     comp_found = False
     comp_dict = parse_hierarchy(comp_config['hierarchy'])
     comp['files'] = []
+    depends_components = comp_config['depends_components']
     for component in comp_config['components']:
         if not comp_name == component['name']:
             continue
@@ -234,6 +256,9 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     if 'files' in comp and comp['files']:
         add_tmp_file(rest, comp_change_number, comp['files'], root['topic'])
+    if comp_name in depends_components:
+        for comp_change in root_change['component_changes']:
+            add_depends_info(rest, comp_change, depends_change=comp_change_number)
 
     int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
     int_operator.add(comp_change_number)
