@@ -604,8 +604,8 @@ def get_description(rest, change_id):
             print(str(e))
             time.sleep(10)
 
-        if data and 'id' in data:
-            rest_id = data['id']
+        if data and 'change_id' in data:
+            rest_id = data['change_id']
             retried = 0
             break
         retried += 1
