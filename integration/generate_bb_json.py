@@ -21,6 +21,7 @@ import api.file_api
 import api.gerrit_api
 import api.gerrit_rest
 import update_depends
+import api.http_api
 import submodule_handle
 import ruamel.yaml as yaml
 
@@ -661,6 +662,52 @@ def save_data_in_zuul_db(knife_path, db_info_path):
     save_data(knife_path, zuul_db)
 
 
+def get_isar_version(comp, comp_dict):
+    oam_dir = ''
+    if comp == 'coam-parameters':
+        oam_dir = 'COAM_ARTIFACTORY_DIRECTORY'
+    elif comp == 'cuoam-parameters':
+        oam_dir = 'CUOAM_ARTIFACTORY_DIRECTORY'
+    else:
+        raise Exception("[Error] The function does not support the input param!")
+    ecl_link = ''
+    if oam_dir in comp_dict and 'BIN_VER' in comp_dict:
+        ecl_link = 'http://artifactory-espoo1.int.net.nokia.com/artifactory/mnp5g-oam-bin-rel-local/' \
+                   + comp_dict[oam_dir] + '/' + comp_dict['BIN_VER'] + '/ecl.txt'
+    else:
+        raise Exception("[Error] Missing mandatory fields in OAM comments!")
+    if ecl_link:
+        ecl_file = os.path.join(os.getcwd(), 'ecl.txt')
+        api.http_api.download(ecl_link, ecl_file)
+        with open(ecl_file, 'r') as f:
+            f_content = f.read()
+    isar_version = ''
+    if f_content:
+        isar_reg = re.compile(r'ECL_ISAR_XML=\/isource\/svnroot\/BTS_I_ISAR_XML\/([^0-9]*)@[\d]*')
+        content = " ".join(f_content.splitlines())
+        reg_search_result = isar_reg.search(content)
+        isar_version = reg_search_result.groups()[0] if reg_search_result else None
+    else:
+        raise Exception("[Error] Failed to get isar from ecl.txt {}".format(ecl_link))
+    print("[Info] ISAR version get from ecl.txt is {}".format(isar_version))
+    return isar_version
+
+
+def add_isar(comment_dict):
+    if not comment_dict or comment_dict == {}:
+        print("[Info] Empty comment_dict, no need to parse!")
+        return
+    for key, value in comment_dict.items():
+        isar_version = ''
+        for comp, comp_value in value.items():
+            if comp == 'coam-parameters' or comp == 'cuoam-parameters':
+                isar_version = get_isar_version(comp, comp_value)
+            if isar_version:
+                isar_dict = {"SVNBRANCH": isar_version}
+                value['isarxml'] = isar_dict
+                break
+
+
 def run(zuul_url, zuul_ref, output_path, change_id,
         gerrit_info_path, zuul_changes, gnb_list_path, db_info_path):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
@@ -697,6 +744,10 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         ex_dict_value.update(interfaces_dict)
     for comment_value in comment_dict.values():
         comment_value.update(interfaces_dict)
+
+    # add isar_xml in knife json
+    add_isar(ex_comment_dict)
+    add_isar(comment_dict)
 
     save_json_file(knife_path,
                    [combine_knife_json([
