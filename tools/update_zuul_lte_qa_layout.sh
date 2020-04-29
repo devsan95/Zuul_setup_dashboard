@@ -18,6 +18,6 @@ git clone https://gerritqa.int.net.nokia.com/gerrit/MN/SCMTA/zuul/layout-lte lay
 git clone https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/conf
 
 . ${SCRIPT_DIR}/pyenv.sh
-python ${SCRIPT_DIR}/layout/layout_handler.py -i "${work_path}/layout/layout.yaml" \
+python ${SCRIPT_DIR}/layout/layout_handler_new.py -i "${work_path}/layout/layout.yaml" \
  -z "${work_path}/conf/zuul_conf/zuulte.conf" merge -o "/etc/zuul/layout.yaml"
 kill -SIGHUP `supervisorctl pid zuul-server`
