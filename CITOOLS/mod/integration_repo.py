@@ -47,6 +47,7 @@ class INTEGRATION_REPO(object):
         self.prepare_workspace()
         self.version_pattern = self.get_ver_pattern(version_pattern)
         if self.version_pattern:
+            self.config_file = ''
             self.config_file = self.get_config_file()
             self.pipeline = self.get_pipeline()
             self.targets = self.get_targets()
