@@ -258,7 +258,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     if 'files' in comp and comp['files']:
         add_tmp_file(rest, comp_change_number, comp['files'], root['topic'])
     if comp_name in depends_components:
-        for comp_change in root_change['component_changes']:
+        for comp_change in root['component_changes']:
             add_depends_info(rest, comp_change, depends_change=comp_change_number)
 
     int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
