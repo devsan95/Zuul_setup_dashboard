@@ -56,7 +56,7 @@ def run(gerrit_info_path, mysql_info_path, change_id, component_config):
         integration_exists = True
 
     # create integration_repo ticket if not exists
-    if not integration_exists:
+    if not integration_repo_ticket:
         try:
             integration_add_component.main(change_id, 'integration_repo',
                                            component_config, gerrit_info_path, mysql_info_path)
