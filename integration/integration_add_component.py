@@ -173,10 +173,11 @@ def check_external_change(rest, root_change):
 
 
 def add_depends_info(rest, comp_change, depends_change):
-    change = inte_change.IntegrationChange(rest, comp_change)
-    msg_obj = inte_change.IntegrationCommitMessage(change)
-    msg_obj.add_depends(depends_change)
-    msg_obj.add_depends_on(depends_change)
+    change_obj = inte_change.IntegrationChange(rest, comp_change)
+    depends_change_obj = inte_change.IntegrationChange(rest, depends_change)
+    msg_obj = inte_change.IntegrationCommitMessage(change_obj)
+    msg_obj.add_depends(depends_change_obj)
+    msg_obj.add_depends_on(depends_change_obj)
     message = msg_obj.get_msg()
     try:
         rest.delete_edit(comp_change)
