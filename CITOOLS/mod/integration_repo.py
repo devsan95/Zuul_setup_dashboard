@@ -82,8 +82,12 @@ class INTEGRATION_REPO(object):
         bash_cmd = ''
         bash_cmd += '{ mkdir -p build && '
         bash_cmd += 'source ./.config-{} && '.format(self.pipeline)
-        bash_cmd += 'source {} build/{} && '.format(
-            oe_scripts, prefix_path)
+        if 'meta-toolset/prepare_env.sh' in oe_scripts:
+            bash_cmd += 'source {} {} && '.format(
+                oe_scripts, prefix_path)
+        else:
+            bash_cmd += 'source {} build/{} && '.format(
+                oe_scripts, prefix_path)
         if oe_scripts == './oe-init-build-env':
             bash_cmd += '../../env/prefix-root-gen-script.d/{} ./prefix_root && '.format(
                 prefix_path.replace('integration-', ''))
@@ -102,7 +106,7 @@ class INTEGRATION_REPO(object):
     def get_yocto_oe_dir(self):
         try:
             if self.get_config_value('TOOLSET_POKY'):
-                return 'meta-toolset/poky/oe-init-build-env'
+                return 'meta-toolset/prepare_env.sh'
             else:
                 return 'poky/oe-init-build-env'
         except Exception:
