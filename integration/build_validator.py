@@ -2,26 +2,52 @@ import os
 import sys
 import json
 import traceback
-
 import fire
 
 import update_oam_commit
 import generate_bb_json
+from mod import get_component_info
 from api import gerrit_rest
 from api import skytrack_log
 from mod import wft_tools
 from mod import integration_change
 
 
-def fixed_base_validator(rest, components):
+def get_base_parent(base_obj_list, comp):
+    base_parent = list()
+    for base_obj in base_obj_list:
+        base_parent.append(base_obj.get_comp_hash_from_mapping_file(comp))
+    print("{}'s base parent hash: {}".format(comp, base_parent))
+    return base_parent
+
+
+def fixed_base_validator(rest, components, base_dict):
     messages = ['Integration working on fixed base mode']
     print(messages[0])
     print('Start to check components parents')
+    base_obj_list = list()
+    base_list = list()
+    for base in base_dict:
+        base_obj_list.append(get_component_info.GET_COMPONENT_INFO(base_dict[base]))
+        base_list.append(base_dict[base])
     repo_dict = dict()
+    parent_hash_mismatch = list()
+    error_info = "Parent commit in change {} of {} is {}, the version in base build is {}"
     for component in components:
+        parent = rest.get_parent(component[2])
+        if component[3] == 'component' and component[0] != 'integration' and base_obj_list:
+            base_parent_list = get_base_parent(base_obj_list, component[0])
+            if parent not in base_parent_list:
+                parent_hash_mismatch.append(
+                    error_info.format(
+                        component[2],
+                        component[0],
+                        parent,
+                        ", ".join(base_parent_list)
+                    )
+                )
         if component[1] not in repo_dict:
             repo_dict[component[1]] = dict()
-        parent = rest.get_parent(component[2])
         if parent not in repo_dict[component[1]]:
             repo_dict[component[1]][parent] = [component]
         else:
@@ -30,20 +56,26 @@ def fixed_base_validator(rest, components):
     for repo, parents in repo_dict.items():
         if len(parents) > 1:
             parent_mismatch[repo] = repo_dict[repo]
-    if parent_mismatch:
+    if parent_mismatch or parent_hash_mismatch:
         messages.append('Build Pre-check Failed')
-        messages.append('Below changes should have same parent in fixed base mode:')
     else:
         print('Components parents check passed')
-    for repo in parent_mismatch:
-        messages.append('Project: {0}'.format(repo))
-        for base in parent_mismatch[repo]:
-            for component in parent_mismatch[repo][base]:
-                messages.append('{component}: Gerrit change {change} Parent: {parent}'.format(
-                    component=component[0],
-                    change=component[2],
-                    parent=base
-                ))
+    if parent_mismatch:
+        messages.append('Below changes should have same parent in fixed base mode:')
+        for repo in parent_mismatch:
+            messages.append('Project: {0}'.format(repo))
+            for base in parent_mismatch[repo]:
+                for component in parent_mismatch[repo][base]:
+                    messages.append('{component}: Gerrit change {change} Parent: {parent}'.format(
+                        component=component[0],
+                        change=component[2],
+                        parent=base
+                    ))
+    if parent_hash_mismatch:
+        messages.append("Integration build based on {}".format(",".join(base_list)))
+        for mismatch_hash in parent_hash_mismatch:
+            print(mismatch_hash)
+            messages.append(mismatch_hash)
     return messages
 
 
@@ -212,7 +244,8 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     closed_dict = dict()
     if inte_change.get_with_without() == '<without-zuul-rebase>':
         integration_mode = 'FIXED_BASE'
-        messages = fixed_base_validator(rest, component_list)
+        base_dict = generate_bb_json.parse_comments_base(change_no, rest, using_cache=False)
+        messages = fixed_base_validator(rest, component_list, base_dict)
     else:
         integration_mode = 'HEAD'
         messages, closed_dict = head_mode_validator(rest, component_list)

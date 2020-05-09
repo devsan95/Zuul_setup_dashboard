@@ -478,11 +478,11 @@ def parse_comments_mail(change_id, rest, using_cache=True):
     return mail_list
 
 
-def parse_comments_base(change_id, rest):
+def parse_comments_base(change_id, rest, using_cache=True):
     retd = {}
     r = re.compile(r'update_base:(.*),(.*)')
     de = 'use_default_base'
-    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=True)
+    comment_list = rest.generic_get('/changes/{}/detail'.format(change_id), using_cache=using_cache)
     for msg in comment_list['messages']:
         for line in msg['message'].split('\n'):
             m = r.match(line)
