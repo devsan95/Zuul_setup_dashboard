@@ -21,7 +21,7 @@ from mod import get_component_info
 from update_with_zuul_rebase import update_with_rebase_info
 from generate_bb_json import parse_comments_mail
 from int_gitlab_opt import get_branch_and_srv
-from rebase_env import clear_change, create_file_change_by_env_change
+from rebase_env import clear_change, create_file_change_by_env_change, create_config_yaml_by_env_change
 from mod.integration_change import RootChange, IntegrationChange, IntegrationCommitMessage
 
 
@@ -276,6 +276,11 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
             env_change_list,
             base_env,
             file_path)
+        # update config.yaml content
+        change_map.update(create_config_yaml_by_env_change(
+            env_change_list,
+            rest,
+            change_no))
         for key, value in change_map.items():
             rest.add_file_to_change(change_no, key, value)
         rest.publish_edit(change_no)

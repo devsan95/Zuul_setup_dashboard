@@ -4,6 +4,7 @@ import re
 import shlex
 
 import fire
+import yaml
 import urllib3
 from functools import partial
 
@@ -26,6 +27,31 @@ JIRA_DICT = CONF.get_dict('jira3')
 DEFAULT_JIRA_URL = JIRA_DICT['server']
 DEFAULT_USER = JIRA_DICT['user']
 DEFAULT_PASSWD = JIRA_DICT['password']
+
+
+def create_config_yaml_by_env_change(env_change_split, rest, change_id, config_yaml_file='config.yaml'):
+    change_content = rest.get_file_change(config_yaml_file, change_id)
+    old_config_yaml = yaml.safe_load(change_content['old'])
+    if not old_config_yaml:
+        old_config_yaml = yaml.safe_load(rest.get_file_content(config_yaml_file, change_id))
+    changed = False
+    if env_change_split:
+        # update based on old config.yaml
+        for component_info in old_config_yaml['components'].values():
+            if 'env_key' in component_info and component_info['env_key']:
+                comp_env_key = component_info['env_key']
+                for env_line in env_change_split:
+                    if '=' in env_line:
+                        key, value = env_line.split('=', 1)
+                        if key == comp_env_key:
+                            if value != component_info['commit']:
+                                print('Update {} to {} in config.yaml'.format(key, value))
+                                component_info['commit'] = value
+                                component_info['version'] = value
+                                changed = True
+    if changed:
+        return {config_yaml_file: yaml.safe_dump(old_config_yaml)}
+    return {}
 
 
 def create_file_change_by_env_change(env_change_split, file_content, filename):
@@ -187,6 +213,13 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
             env_path
         )
 
+        # update config.yaml content
+        change_map.update(create_config_yaml_by_env_change(
+            env_change_list,
+            rest,
+            change_no))
+        print('Change map: {}'.format(change_map))
+
         # get root ticket
         root_change = skytrack_database_handler.get_specified_ticket(
             change_no,
@@ -217,8 +250,9 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
                 description="Integration Topic Change To {0}".format(new_str),
                 highlight=True
             )
-
         for key, value in change_map.items():
+            print('update file {}'.format(key))
+            print(value)
             rest.add_file_to_change(change_no, key, value)
         rest.publish_edit(change_no)
 
