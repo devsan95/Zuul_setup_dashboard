@@ -1,6 +1,6 @@
 [
 {
-         "repo":"MN/SCMTA/zuul/inte_root",
+         "repo":"{{root_repo}}",
          "name":"root_monitor",
          "description":[
             "This change is the root change of this process.",

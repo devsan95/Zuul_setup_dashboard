@@ -52,12 +52,15 @@ def generate_int_json(comp_name, branch, comp_config):
     if ric_name in ALTER_COMP_DICT:
         ric_name = ALTER_COMP_DICT[ric_name]
     comp_sets = comp_config['component_sets']
+    root_repo = comp_config['root'][0]['repo']
+    print("root_repo: {}".format(root_repo))
     print('ric_name: {}'.format(ric_name))
     print('component_sets: {}'.format(comp_sets))
     int_dict = {}
     with open(MAIN_TEMPLATE, 'r') as fr:
         main_list = json.loads(fr.read().replace(r'{{branch}}', branch))
         int_dict['structure'] = main_list
+        int_dict['structure'][0]['repo'] = root_repo
     with open(META_TEMPLATE, 'r') as fr:
         meta_content = fr.read().replace(r'{{branch}}', branch)
         int_dict['meta'] = json.loads(meta_content)
