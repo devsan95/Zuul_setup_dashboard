@@ -306,6 +306,8 @@ reg_result_fail = re.compile(
 reg_list = [
     {'reg': reg_enter, 'type': 'adding to pipeline'},
     {'reg': reg_enter_queue, 'type': 'adding to queue'},
+    {'reg': reg_remove_bunch_1, 'type': 'remove from queue while bunched'},
+    {'reg': reg_remove_bunch_2, 'type': 'remove from queue while bunching'},
     {'reg': reg_remove, 'type': 'remove from queue'},
     {'reg': reg_remove_item, 'type': 'remove item'},
     {'reg': reg_remove_replace, 'type': 'remove for replace'},
@@ -338,8 +340,6 @@ reg_list = [
     {'reg': reg_result_fail, 'type': 'fail'},
     {'reg': reg_window, 'type': 'go in window'},
     {'reg': reg_cancel_job_new, 'type': 'cancel jobs with reason'},
-    {'reg': reg_remove_bunch_1, 'type': 'remove from queue while bunched'},
-    {'reg': reg_remove_bunch_2, 'type': 'remove from queue while bunching'},
 ]
 
 
