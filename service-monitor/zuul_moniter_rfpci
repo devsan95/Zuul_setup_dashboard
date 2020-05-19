@@ -99,27 +99,7 @@ if test $q == 0 ; then
 continue
 fi
 
- if test $type == "\"gate_5G19A"\" ; then
- x=`echo $proj | wc -w`
-if test $x != 0 ; then
- for(( p=1; p<=$x; p++)) ; do
-m="$proj"
-n="$change"
- proj_g=`echo $m | cut -d" " -f$p`
- change_g=`echo $n | cut -d" " -f$p`
-# echo "chnage for gate is here $proj_g and $change_g"
-echo "zuul enqueue --trigger gerrit --pipeline $type --project $proj_g --change $change_g" >> ./data.txt
-echo "zuul enqueue --trigger gerrit --pipeline $type --project $proj_g --change $change_g"
- continue
- done
-else
-continue
-fi
-fi
-q=`echo $proj | wc -w`
-if test $q == 0 ; then
-continue
-fi
+
 
 if test $type == "\"post"\" ; then
  x=`echo $proj | rev | cut -d" " -f1 | rev`
@@ -130,32 +110,7 @@ echo "zuul enqueue --trigger gerrit --pipeline $type --project $x --change $y"
 continue
  fi
 
- if test $type == "\"integrate"\" ; then
- x=`echo $proj | rev | cut -d" " -f1 | rev`
- y=`echo $change | rev | cut -d" " -f1 | rev`
-# echo "its the latest proj and quee in check pipeline $x $y"
-echo "zuul enqueue --trigger gerrit --pipeline "$type" --project $x --change $y" >> ./data.txt
-echo "zuul enqueue --trigger gerrit --pipeline $type --project $x --change $y"
-continue
- fi
 
- if test $type == "\"checkmetrics"\" ; then
- x=`echo $proj | rev | cut -d" " -f1 | rev`
- y=`echo $change | rev | cut -d" " -f1 | rev`
-# echo "its the latest proj and quee in check pipeline $x $y"
-echo "zuul enqueue --trigger gerrit --pipeline "$type" --project $x --change $y" >> ./data.txt
-echo "zuul enqueue --trigger gerrit --pipeline $type --project $x --change $y"
-continue
- fi
-
- if test $type == "\"experimental"\" ; then
- x=`echo $proj | rev | cut -d" " -f1 | rev`
- y=`echo $change | rev | cut -d" " -f1 | rev`
-# echo "its the latest proj and quee in check pipeline $x $y"
-echo "zuul enqueue --trigger gerrit --pipeline "$type" --project $x --change $y" >> ./data.txt
-echo "zuul enqueue --trigger gerrit --pipeline $type --project $x --change $y"
-continue
- fi
 
   done
   done
