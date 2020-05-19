@@ -36,15 +36,22 @@ class JobTreeOper(object):
             log.debug("No connection exist.")
 
     def _get_records_amount(self, tdate=''):
+        cd = datetime.datetime.strptime(tdate, "%Y-%m-%d 00:00:00")
+        nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
         with self.connection.cursor() as cursor:
-            sql = "select count(*) from item_jobtree where datediff(created_at, date('{}'))=0".format(tdate)
+            sql = "select count(*) from item_jobtree where created_at  >= '{0}' and " \
+                  "created_at  < '{1} 00:00:00'".format(cd, nd)
             cursor.execute(sql)
             result = cursor.fetchone()
         return result['count(*)']
 
     def get_records(self, tdate=''):
+        cd = datetime.datetime.strptime(tdate, "%Y-%m-%d 00:00:00")
+        nd = str(datetime.datetime.date(cd) + datetime.timedelta(days=1))
+        log.debug("data is from {0} to {1}".format(cd, nd))
         with self.connection.cursor() as cursor:
-            sql = "select * from item_jobtree where datediff(created_at, date('{}'))=0" .format(tdate)
+            sql = "select * from item_jobtree where created_at  >= '{0}' and " \
+                  "created_at  < '{1} 00:00:00'".format(cd, nd)
             cursor.execute(sql)
             results = cursor.fetchall()
         if not results:
@@ -59,6 +66,8 @@ class JobTreeOper(object):
             branch = res.get('branch')
             enqueue_time = res.get('enqueue_time')
             result = res.get('result')
+            retry_info = [rk + ',' + str(rv) for rk, rv in ast.literal_eval(res.get('retry_info')).items()]
+            none_info = [nk + ',' + str(nv) for nk, nv in ast.literal_eval(res.get('none_info')).items()]
             cpath = ''
             subsystem = ''
             timeslots = ''
@@ -72,8 +81,10 @@ class JobTreeOper(object):
                                                      project=project,
                                                      branch=branch,
                                                      cpath=cpath,
+                                                     enqueuetime=enqueue_time,
                                                      result=result,
-                                                     enqueue_time=enqueue_time,
+                                                     retry_info=';'.join(retry_info),
+                                                     none_info=';'.join(none_info),
                                                      subsystem=subsystem,
                                                      pipelineWaiting=pipelineWaiting,
                                                      firstJobLaunch=firstJobLaunch,
@@ -116,65 +127,154 @@ class JobTreeOper(object):
                 allpaths.append(build)
         return allpaths
 
+    def get_layer_jobs(self, btree):
+        ljob = collections.defaultdict(list)
+        tmpbt = btree
+        i = 0
+        while tmpbt:
+            ttmpbt = list()
+            for b in tmpbt:
+                if isinstance(b, str):
+                    ljob[i].append(b)
+                if isinstance(b, dict):
+                    ljob[i].append(list(b.keys())[0])
+                    ttmpbt.extend(list(b.values())[0])
+            i += 1
+            tmpbt = ttmpbt
+        return ljob
+
     def critical_path(self, builds, btree):
         cpath = list()
         lbuild = self._get_longest_build(builds)
         allpaths = self.get_paths(btree)
+        ljobs = self.get_layer_jobs(btree)
         for p in allpaths:
             if p.endswith(lbuild):
                 cpath.append(p)
-        return cpath
+        return cpath, ljobs
 
     def update_data(self):
         """
-        update critical path and the timeslots, without build waiting time and running time.
+        update critical path and the timeslots, each build waiting time and running time.
         :param builds:
         :param cpath:
         :return:
         """
 
-        def _get_final_cpath(cpath, buildsinfo):
+        def _get_final_cpath(cpath, ljobs, buildsinfo):
+            def _reform_final_path(o_path, c_path, ljobs):
+                def _item_index_in_o_path(path, job):
+                    for i, item in enumerate(path.split(' -> ')):
+                        if item == job:
+                            return i
+                    return 0
+
+                def _item_first_run_layer(job, layerjobs):
+                    ljobitems = layerjobs.items()
+                    sorted_ljobsitems = sorted(ljobitems, key=lambda x: x[0])
+                    for titem in sorted_ljobsitems:
+                        if job in titem[1]:
+                            return titem[0]
+                    return 0
+
+                opath = o_path.split(' -> ')
+                cpath = c_path.split(' -> ')
+                fpath = c_path.split(' -> ')
+                for i, cj in enumerate(cpath):
+                    if i:
+                        preJob = cpath[i - 1]
+                        preJobinFpath = fpath[fpath.index(cj) - 1]
+                        preJobinFpathFirstRun = _item_first_run_layer(preJobinFpath, ljobs)
+                        preJobIndex = _item_index_in_o_path(o_path, preJob)
+                        curJobIndex = _item_index_in_o_path(o_path, cj)
+                        curJobIndexInCPath = _item_index_in_o_path(c_path, cj)
+                        if (curJobIndex - preJobIndex) == 1:
+                            continue
+                        firstRunJobLayer = _item_first_run_layer(cj, ljobs)
+                        if firstRunJobLayer > i:
+                            for j in range(firstRunJobLayer - i):
+                                if (preJobIndex + j + 1) < len(opath) - 1:
+                                    addJob = opath[preJobIndex + j + 1]
+                                    addJobIndex = _item_first_run_layer(addJob, ljobs)
+                                    if addJob not in fpath and addJobIndex > preJobinFpathFirstRun:
+                                        fpath.insert(curJobIndexInCPath, addJob)
+
+                ffpath = list()
+                for layer, jobs in sorted(ljobs.items(), key=lambda x: x[0]):
+                    pjobs = set(jobs) & set(fpath)
+                    if len(pjobs) < 1:
+                        continue
+                    elif len(pjobs) < 2:
+                        ffpath.append(list(pjobs)[0])
+                        fpath.remove(list(pjobs)[0])
+                    else:
+                        last_finished = max([buildsinfo[p][3] for p in pjobs])
+                        for pjob in pjobs:
+                            if buildsinfo[pjob][3] == last_finished:
+                                log.debug("Adding {0} {1}".format(pjob, buildsinfo[pjob][3]))
+                                ffpath.append(pjob)
+                            fpath.remove(pjob)
+
+                return ffpath
+
             fcpath = list()
             cpath_ls = cpath.split(' -> ')
             for i, p in enumerate(cpath_ls):
                 if not i:
                     fcpath.append(p)
                 else:
-                    try:
-                        _last_job_endtime = buildsinfo[fcpath[-1]][3]
-                        _current_job_starttime = buildsinfo[p][2]
-                    except Exception as job_err:
-                        log.debug("job time with exception: {}".format(str(job_err)))
-                        return None, None, None
-                    if _current_job_starttime > _last_job_endtime:
+                    tls = list()
+                    for j in range(i):
+                        tls.extend(ljobs[j])
+                    if p not in tls:
                         fcpath.append(p)
+                    else:
+                        pl = 0
+                        ttls = list()
+                        for firstRun in range(i):
+                            if p in ljobs[firstRun]:
+                                pl = firstRun
+                                break
+                        for h in range(pl, i):
+                            ttls.append(cpath_ls[h])
+                        if ttls:
+                            et = buildsinfo[ttls[-1]][3]
+                            if buildsinfo[p][3] > et:
+                                fcpath.append(p)
+                                for m in ttls:
+                                    try:
+                                        fcpath.remove(m)
+                                    except Exception as re_err:
+                                        log.debug(str(re_err))
+                                        log.debug("Maybe already removed.")
+            c_path = ' -> '.join(fcpath)
+            f_cpath = _reform_final_path(cpath, c_path, ljobs)
             timeslots = list()
-            firstJobLaunch = buildsinfo[fcpath[0]][1]
-            for n, fcp in enumerate(fcpath):
+            try:
+                firstJobLaunch = buildsinfo[f_cpath[0]][1]
+            except Exception as t_err:
+                firstJobLaunch = 'N/A'
+                log.debug(str(t_err))
+            for n, fcp in enumerate(f_cpath):
                 try:
-                    running_time = buildsinfo[fcp][3] - buildsinfo[fcp][2]
-                except Exception as time_err:
-                    log.debug("job item time with exception: {}".format(str(time_err)))
-                    return None, None, None
+                    running_time = int(buildsinfo[fcp][3] - buildsinfo[fcp][2])
+                except Exception as t_err:
+                    running_time = 'N/A'
+                    log.debug(str(t_err))
                 timeslots.append(running_time)
             total = sum(timeslots)
             timeslots.insert(0, total)
-            dyn_path = ' -> '.join(fcpath)
+            dyn_path = ' -> '.join(f_cpath)
             tlstr = ','.join([str(tls) for tls in timeslots])
             return dyn_path, firstJobLaunch, tlstr
 
         for k, v in self.datas.items():
             dbuilds = v['builds']
-            cpath = self.critical_path(dbuilds, v['jobtree'])
+            patadata = self.critical_path(dbuilds, v['jobtree'])
+            cpath = patadata[0]
+            ljobs = patadata[1]
             if not cpath:
                 continue
-            dynamic_path, firstJobLaunch, tlstr = _get_final_cpath(cpath[0], dbuilds)
-            if not dynamic_path:
-                continue
-            else:
-                v['cpath'] = dynamic_path
-                v['timeslots'] = tlstr
-                v['firstJobLaunch'] = firstJobLaunch
 
             if cpath and (cpath[0].count(r'MASTER_PROD/UPLANE') or cpath[0].count(r'MASTER/GNB/UPLANE')):
                 subs = 'UPLANE'
@@ -183,10 +283,17 @@ class JobTreeOper(object):
             else:
                 subs = 'Reserved'
             v['subsystem'] = subs
+            try:
+                dynamic_path, firstJobLaunch, tlstr = _get_final_cpath(cpath[0], ljobs, dbuilds)
+            except Exception as time_err:
+                log.debug(time_err)
+                continue
+            v['cpath'] = dynamic_path
+            v['timeslots'] = tlstr
+            v['firstJobLaunch'] = firstJobLaunch
 
     def update_skytrack(self, sdata):
         try:
-            log.debug(sdata)
             self.connection.ping(reconnect=True)
             with self.connection.cursor() as cursor:
                 sql = "INSERT INTO t_critical_path_no_waiting " \
@@ -198,6 +305,8 @@ class JobTreeOper(object):
             self.connection.commit()
         except Exception as err:
             log.debug(str(err))
+            # self.connection.rollback()
+            # self.connection.close()
 
 
 class Runner(object):
