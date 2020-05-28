@@ -1,7 +1,6 @@
 import re
 import fire
 import json
-import time
 import shlex
 from pprint import pprint
 from requests.structures import CaseInsensitiveDict
@@ -48,7 +47,7 @@ def getting_env_check_result(rest, change_no, username):
 def run(gerrit_info_path, change_no,
         ssh_gerrit_server=None, ssh_gerrit_port=None,
         ssh_gerrit_user=None, ssh_gerrit_key=None,
-        auto_recheck=True, auto_reexperiment=True,
+        auto_reexperiment=True,
         change_info=None, database_info_path=None):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     use_ssh = False
@@ -135,55 +134,6 @@ def run(gerrit_info_path, change_no,
     change_list = get_change_list_from_comments(change_detail)
     print('Changes are:')
     pprint(change_list)
-
-    waitting_period = 0
-    while True:
-        if waitting_period >= 1200:
-            raise Exception(
-                'Can not get ENV check pipeline result in 20mins, '
-                'please fix and rerun rebase_ENV')
-        env_verified = getting_env_check_result(rest, change_no, username)
-        if env_verified == 1:
-            print('ENV Verified +1, starting to recheck components')
-            break
-        elif env_verified == -1:
-            raise Exception(
-                'EVN check pipeline failed, please check your input content '
-                'and rerun rebase_ENV job')
-        else:
-            print('ENV Verified: {0}'.format(env_verified))
-            print("ENV check pipeline result haven't finished yet, "
-                  "will re-verify in 60s")
-            waitting_period += 60
-            time.sleep(60)
-
-    if auto_recheck:
-        # 5 recheck all changes
-        time.sleep(60)
-        print('recheck all changes')
-        if 'tickets' in change_list and change_list['tickets']:
-            comp_list = change_list['tickets']
-            sorted(comp_list)
-            for op_change_no in comp_list:
-                op_change_info = rest.get_detailed_ticket(op_change_no)
-                # judge if it is before check, in check or after check
-                op_check = check_user_label_from_detail(
-                    op_change_info, username, 'verified')
-                if op_check == -1 or op_check == 1:
-                    # check is over
-                    print('Change {} is done with check, '
-                          'just recheck it'.format(op_change_no))
-                    rest.review_ticket(op_change_no, 'recheck')
-                else:
-                    # check is running or not starting
-                    # abandon to abort check
-                    print('Change {} is not done with check, '
-                          'dequeue and recheck'.format(op_change_no))
-                    rest.review_ticket(op_change_no, 'abandon to reset check')
-                    rest.abandon_change(op_change_no)
-                    rest.restore_change(op_change_no)
-                    rest.review_ticket(op_change_no, 'recheck')
-                print(rest.get_change_address(op_change_no))
 
     # 6 reintegrate integration change
     if 'manager' in change_list and change_list['manager']:
