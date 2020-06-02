@@ -15,17 +15,20 @@ def check_root_integrated(ssh_server, ssh_port, ssh_user, ssh_key, root_change):
             ssh_key, port=ssh_port)
         if minus_one:
             print('The root change is integrated-1')
+            root_integrated = False
+    except Exception:
+        print('[Info] root change is not integrated-1')
+    try:
         minus_two = gerrit_api.does_patch_set_match_condition(
             ssh_user, ssh_server, root_change,
             ['label:Integrated=-2'],
             ssh_key, port=ssh_port)
         if minus_two:
             print('The root change is integrated-2')
-        if minus_one or minus_two:
             root_integrated = False
     except Exception:
-        print('Give integrated label met problem')
-    print('root change integrated value: {}'.format(root_integrated))
+        print('[Info] root change is not integrated-2')
+    print('[Info] root change get integrated+1 label: {}'.format(root_integrated))
     return root_integrated
 
 
