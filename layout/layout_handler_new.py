@@ -30,6 +30,9 @@ __email__ = "5g_hz.scm@nokia.com"
 __status__ = "Production"
 
 one_repo_name = 'MN/5G/NB/gnb'
+nested_flatten_list = ['all-files', 'files']
+list_list = ['tags', 'branch', 'files']
+skip_if_list = ['all-files-match-any']
 
 
 class LayoutNotExistException(Exception):
@@ -53,10 +56,21 @@ def flatten(list_):
     return list_out
 
 
-class LayoutSnippet(object):
-    list_list = ['tags', 'branch', 'files']
-    skip_if_list = ['all-files-match-any']
+def flatten_nested(list_):
+    if isinstance(list_, yaml.comments.CommentedMap):
+        for name in list_:
+            item = list_.get(name)
+            if isinstance(item, yaml.comments.CommentedSeq):
+                if name in nested_flatten_list:
+                    list_[name] = flatten(item)
+                else:
+                    flatten_nested(item)
+    if isinstance(list_, yaml.comments.CommentedSeq):
+        for item in list_:
+            flatten_nested(item)
 
+
+class LayoutSnippet(object):
     def __init__(self, path=None, obj=None):
         self.path = path
         self.obj = obj
@@ -66,17 +80,20 @@ class LayoutSnippet(object):
             jobs = self.obj.get('jobs')
             if jobs:
                 for job in jobs:
-                    for name in self.list_list:
+                    for name in list_list:
                         item_ = job.get(name)
                         if item_:
                             job[name] = flatten(item_)
                     skip_if = job.get('skip-if')
                     if skip_if:
                         for skip_if_item in skip_if:
-                            for name in self.skip_if_list:
+                            for name in skip_if_list:
                                 item_ = skip_if_item.get(name)
                                 if item_:
                                     skip_if_item[name] = flatten(item_)
+                    nested = job.get('nested')
+                    if nested:
+                        flatten_nested(nested)
             if 'meta' in self.obj:
                 del self.obj['meta']
 
@@ -89,14 +106,14 @@ class LayoutSnippet(object):
                 jobs = self.obj.get('jobs')
                 if jobs:
                     for job in jobs:
-                        for name in self.list_list:
+                        for name in list_list:
                             item_ = job.get(name)
                             if item_:
                                 job[name] = flatten(item_)
                         skip_if = job.get('skip-if')
                         if skip_if:
                             for skip_if_item in skip_if:
-                                for name in self.skip_if_list:
+                                for name in skip_if_list:
                                     item_ = skip_if_item.get(name)
                                     if item_:
                                         skip_if_item[name] = flatten(item_)
