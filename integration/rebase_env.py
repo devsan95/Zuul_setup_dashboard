@@ -1,8 +1,9 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
+import os
 import re
 import shlex
-
+import subprocess
 import fire
 import yaml
 import urllib3
@@ -151,14 +152,69 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         print(e)
 
 
+def get_current_ps(rest, change_no):
+    current_ps = None
+    env_content = rest.get_file_content("env/env-config.d/ENV", change_no)
+    env_content_list = shlex.split(env_content)
+    for line in env_content_list:
+        if re.match(r'^ENV_PS_REL *=', line):
+            current_ps = line.strip().split('=', 1)[1]
+            print("current ps: {}".format(current_ps))
+            break
+    return current_ps
+
+
+def need_vcf_diff(current_ps, change_info_dict):
+    if "ENV_PS_REL" in change_info_dict:
+        if current_ps == change_info_dict["ENV_PS_REL"]:
+            print("PS version no change.")
+            return False
+        else:
+            print("PS version changed need run vcf_diff.bash.")
+            return True
+    else:
+        print("PS version no change.")
+        return False
+
+
+def call_vcf_diff(current_ps, new_ps):
+    param_dict = {
+        "PLATFORM_MODULES": "FCTL ASCB FCTM",
+        "OLD_PLATFORM": current_ps,
+        "NEW_PLATFORM": new_ps
+    }
+    env = os.environ
+    env.update(param_dict)
+    if not os.path.exists(os.path.join(os.environ['WORKSPACE'], "ci_scripts")):
+        process = subprocess.Popen("${get_ci_scripts}", shell=True, cwd=os.environ['WORKSPACE'])
+        process.wait()
+    process = subprocess.Popen(
+        "{}/ci_scripts/tools/vcf_diff/vcf_diff.bash".format(os.environ['WORKSPACE']),
+        shell=True,
+        env=env
+    )
+    process.wait()
+    if process.returncode == 0:
+        print("vcf_diff check passed.")
+        return "SUCCESS"
+    else:
+        print("vcf_diff check failed.")
+        return "FAILURE"
+
+
 def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     env_change_list = []
+    commit_msg_update = False
+    env_change_dict = dict()
     env_change = change_info
     if env_change is not None:
         env_change = env_change.strip()
         env_change_list = shlex.split(env_change)
         for line in env_change_list:
             print(line)
+            if '=' in line:
+                key, value = line.strip().split('=', 1)
+                env_change_dict[key] = value
     # use rest gerrit user info to do the operation, and the ssh gerrit
     # user to do the labeling (to sync with zuul)
     # if no ssh gerrit info is provided then use rest user to do labeling
@@ -166,6 +222,13 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root_msg = get_commit_msg(change_no, rest)
     auto_rebase = False if re.findall(r'<without-zuul-rebase>', root_msg) else True
+    current_ps = get_current_ps(rest, change_no)
+    if need_vcf_diff(current_ps, env_change_dict):
+        check_result = call_vcf_diff(current_ps, env_change_dict["ENV_PS_REL"])
+        if "I_KNOW_WHAT_I_AM_DOING" in root_msg and check_result == "FAILURE":
+            commit_msg_update = True
+            new_commit_msg = re.sub(r'I_KNOW_WHAT_I_AM_DOING\n', '', root_msg)
+            new_commit_msg = re.sub(r'(\n)*Change-Id: [a-zA-Z0-9]{41}(\n)*$', '', new_commit_msg)
 
     env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
 
@@ -255,6 +318,8 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
             print(value)
             rest.add_file_to_change(change_no, key, value)
         rest.publish_edit(change_no)
+        if commit_msg_update:
+            rest.set_commit_message(change_no, content=new_commit_msg)
 
 
 if __name__ == '__main__':
