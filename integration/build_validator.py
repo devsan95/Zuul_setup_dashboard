@@ -247,6 +247,9 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     inte_change = integration_change.ManageChange(rest, change_no)
     component_list = inte_change.get_all_components()
+    if not integration_verification_check(rest, component_list):
+        skytrack_log.skytrack_output("ERROR: Verified+1 missing for repository MN/5G/COMMON/integration")
+        sys.exit(1)
     closed_dict = dict()
     if inte_change.get_with_without() == '<without-zuul-rebase>':
         integration_mode = 'FIXED_BASE'
@@ -275,6 +278,17 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
         closed_changes=closed_dict,
         compare=compare
     )
+
+
+def integration_verification_check(rest, component_list):
+    check_result = False
+    for component in component_list:
+        if component[0] == "integration":
+            component_change = integration_change.ManageChange(rest, component[2])
+            if component_change.get_label_status("Verified") == "approved":
+                check_result = True
+            break
+    return check_result
 
 
 @skytrack_log.skytrack_log
