@@ -2,32 +2,16 @@
 import os
 import argparse
 import requests
-import re
 import json
+import yaml
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from api import gerrit_rest, log_api
-from api import env_repo as get_env_repo
+from scm_tools.wft.api import WftAPI
 
 
 log = log_api.get_console_logger("update_ecl_sack_base")
-match_dict = {
-    "PS": "PS_REL",
-    "RCPvDU_2.0": 'RCPVDU',
-    "RCP2.0": "RCP_BB3",
-    "RCPvDU_cp-rt": "RCPVDU_CPRT",
-    "RCPvDU_db": "RCPVDU_SDL",
-    "RCPvDU_l1-hi-fh-proxy": "RCPVDU_L1HI",
-    "RCPvDU_l2-ps-l2-lo": "RCPVDU_L2RT",
-    "RCPvDU_oam-fh": 'RCPVDU_OAMFH',
-    "RCPvDU_trsw-l2-hi": "RCPVDU_L2HI"
-}
 branch_match = {"master": "5G00_ECL_SACK_BASE"}
-inherit_info = [
-    "RCPvDU_apigw", "RCPvDU_db", "RCPvDU_dhcp", "RCPvDU_httpd",
-    "RCPvDU_cp-rt", "RCPvDU_l1-hi-fh-proxy", 'RCPvDU_l2-ps-l2-lo',
-    "RCPvDU_lwsd", "RCPvDU_nwinit", "RCPvDU_nwmgmt", "RCPvDU_oam",
-    "RCPvDU_oam-fh", "RCPvDU_trsw-l2-hi"
-]
 WFT_API_URL = os.environ['WFT_API_URL']
 WFT_KEY = os.environ['WFT_KEY']
 wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
@@ -152,24 +136,15 @@ def ecl_increment(current_version, change, branch):
         verify=True
     )
     if not response.ok:
-        log.error(response.test)
+        log.error(response.text)
         raise Exception("Failed to increment new ECL_SACK_BASE in WFT")
     log.info("New ECL_SACK_BASE {} created in WFT successfully.".format(new_version))
 
 
-def get_env_dict(rest, change_no):
-    env_dict = dict()
-    env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
-    log.info("ENV file path is: {}".format(env_path))
-    env_content = rest.get_file_content(env_path, change_no)
-    for line in env_content.split('\n'):
-        log.debug("Process ENV line: {}".format(line))
-        if not re.match(r'\s*#', line) and line.strip():
-            component = re.sub('^ENV_', '', line.split("=", 1)[0].strip())
-            version = line.split("=", 1)[1].strip()
-            env_dict[component] = version
-    log.info('ENV dict: {}'.format(env_dict))
-    return env_dict
+def get_config_yaml_dict(rest, change_no):
+    config_yaml = yaml.load(rest.get_file_content('config.yaml', change_no), Loader=yaml.FullLoader)
+    log.info('config_yaml dict: {}'.format(config_yaml['components']))
+    return config_yaml['components']
 
 
 def get_component_name(version):
@@ -209,25 +184,24 @@ def generate_new_version(version):
     return new_version
 
 
-def get_diff(env_dict, sub_builds):
+def get_diff(config_yaml_dict, sub_builds):
+    wft = WftAPI()
     diff_list = list()
     for sub_build in sub_builds:
-        if sub_build['component'] in inherit_info:
-            continue
-        component = sub_build['component']
-        if component in match_dict:
-            component = match_dict[component]
-        if 'rcpvdu_' in component.lower():
-            component = component.upper()
-        if component in env_dict \
-                and sub_build['version'] != env_dict[component]:
+        config_key = "{}:{}".format(sub_build['project'], sub_build['component'])
+        if config_key in config_yaml_dict and sub_build['version'] != config_yaml_dict[config_key]["version"]:
             diff = dict()
-            diff["version"] = env_dict[component]
+            diff["version"] = config_yaml_dict[config_key]["version"]
             diff["project"] = sub_build["project"]
             diff["component"] = sub_build['component']
-            diff_list.append(diff)
+            try:
+                ET.fromstring(wft.get_build_content(config_yaml_dict[config_key]["version"]))
+            except Exception:
+                log.warning('Cannot find {} in wft'.format(config_yaml_dict[config_key]["version"]))
+            else:
+                diff_list.append(diff)
         else:
-            log.info("{} do not need update.".format(component))
+            log.info("{} do not need update.".format(sub_build['component']))
     log.debug("ENV change list: {}".format(diff_list))
     return diff_list
 
@@ -258,9 +232,9 @@ def main():
     rest = gerrit_rest.init_from_yaml(args.gerrit_yaml)
     if not whether_integration_ticket(rest, args.framework_only, args.change_no):
         return
-    change_env_dict = get_env_dict(rest, args.change_no)
+    config_yaml_dict = get_config_yaml_dict(rest, args.change_no)
     latest_version, sub_build_list, branch_wft = get_latest_ecl_sack_base_content(args.branch)
-    change_list = get_diff(change_env_dict, sub_build_list)
+    change_list = get_diff(config_yaml_dict, sub_build_list)
     ecl_increment(latest_version, change_list, branch_wft)
 
 
