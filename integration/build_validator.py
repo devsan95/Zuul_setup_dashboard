@@ -79,6 +79,9 @@ def fixed_base_validator(rest, components, base_dict):
         for mismatch_hash in parent_hash_mismatch:
             print(mismatch_hash)
             messages.append(mismatch_hash)
+    if parent_mismatch or parent_hash_mismatch:
+        messages.append('Please contact the "Uploader" in above changes to solve it')
+
     return messages
 
 
