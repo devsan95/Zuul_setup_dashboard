@@ -100,7 +100,7 @@ def run_bitbake_command(component_info, integration_obj, *bitbake_args):
     module = component_info['module']
     target = component_info['target']
     return integration_obj.prepare_prefix_and_run_bitbake_cmd(
-        target, is_yocto=module.startswith('Yocto'), *bitbake_args)
+        target, module.startswith('Yocto'), *bitbake_args)
 
 
 def get_component_env(component_info, integration_obj):
