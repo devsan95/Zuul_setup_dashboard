@@ -33,7 +33,7 @@ def get_feature_list(feature_repo_path, integration_obj):
             with open(stream_config_yaml_file, 'r') as fr:
                 stream_config_yaml = yaml.safe_load(fr.read())
             for key, component_value in stream_config_yaml['components'].items():
-                if 'features' in component_value:
+                if 'features' in component_value and 'feature_component' in component_value:
                     logging.info('Get feature info: %s', component_value)
                     component = component_value['feature_component']
                     for feature_id, feature_value in component_value['features'].items():
