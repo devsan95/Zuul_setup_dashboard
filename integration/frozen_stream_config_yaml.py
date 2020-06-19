@@ -120,6 +120,8 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
             if not stream_config_yaml['components']:
                 stream_config_yaml['components'] = {}
             stream_config_yaml['components'][component_yaml_key] = yaml_obj
+        if not features:
+            continue
         for config_key, section in old_sections.items():
             section['features'] = features
             if config_key not in stream_config_yaml['components']:
@@ -212,6 +214,9 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path):
             previous_comp_dict[component_name]['feature_id'] = root_change_obj.get_feature_id()
             previous_comp_dict[component_name]['platform_id'] = root_change_obj.get_platform_id()
 
+    if not previous_comp_dict:
+        logging.info('No component adaption needed')
+        return
     # create integration_repo ticket if not exists
     if not integration_repo_ticket:
         try:

@@ -210,7 +210,6 @@ def push_integration_change(integration_repo_path, commit_message):
         logging.info('Change in stream config.yaml: %s', status_out)
         git_integration.add('meta-5g-cb/config_yaml')
         git_integration.commit('-m', commit_message)
-        git_integration.pull('--rebase')
         git_integration.push()
     else:
         logging.info('No change find in stream config.yaml')
