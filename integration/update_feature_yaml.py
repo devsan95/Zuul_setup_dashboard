@@ -210,6 +210,7 @@ def push_integration_change(integration_repo_path, commit_message):
         logging.info('Change in stream config.yaml: %s', status_out)
         git_integration.add('meta-5g-cb/config_yaml')
         git_integration.commit('-m', commit_message)
+        git_integration.pull('--rebase')
         git_integration.push()
     else:
         logging.info('No change find in stream config.yaml')
@@ -364,7 +365,7 @@ def update_feature(feature, integration_obj):
     update_feature_yaml(feature, matched_components, not_matched_components, integration_obj)
 
 
-def unforzen_config_yaml(integration_repo_path):
+def unforzen_config_yaml(integration_repo_path, feature_name=None):
     # get all stream config.yaml
     stream_config_yamls = utils.find_files(
         os.path.join(integration_repo_path, 'meta-5g-cb/config_yaml'), 'config.yaml')
@@ -375,7 +376,11 @@ def unforzen_config_yaml(integration_repo_path):
             stream_config_yaml = yaml.safe_load(fr.read())
         for component, component_value in stream_config_yaml['components'].items():
             if 'features' in component_value:
-                stream_config_yaml['components'].pop(component)
+                if feature_name:
+                    if len(component_value['features']) == 1 and component_value['features'].keys()[0] == feature_name:
+                        stream_config_yaml['components'].pop(component)
+                else:
+                    stream_config_yaml['components'].pop(component)
         with open(stream_config_yaml_file, 'w') as fw:
             fw.write(yaml.safe_dump(stream_config_yaml))
     push_integration_change(integration_repo_path, 'unforzen as all features ready')
@@ -385,13 +390,20 @@ def update(integration_repo_path, feature_repo_path=''):
     integration_obj = integration_repo.INTEGRATION_REPO('', '', work_dir=integration_repo_path)
     feature_list = get_feature_list(feature_repo_path, integration_obj)
     all_delivered = True
+    is_delivered = False
     for feature in feature_list:
         update_feature(feature, integration_obj)
         if feature['status'] != 'ready':
             all_delivered = False
             logging.warn('Feature is not ready: %s', feature)
+        else:
+            unforzen_config_yaml(integration_repo_path, feature['feature_id'])
+            is_delivered = True
     if all_delivered:
         unforzen_config_yaml(integration_repo_path)
+        push_integration_change(integration_repo_path, 'unforzen as all features ready')
+    elif is_delivered:
+        push_integration_change(integration_repo_path, 'unforzen as some features ready')
 
 
 if __name__ == '__main__':
