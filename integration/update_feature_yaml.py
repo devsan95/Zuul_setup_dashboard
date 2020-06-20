@@ -108,6 +108,13 @@ def get_component_env(component_info, integration_obj):
     return run_bitbake_command(component_info, integration_obj, '-e', component_regex)
 
 
+def find_component_env_value(bitbake_env_out, value):
+    for line in bitbake_env_out.splitlines():
+        if line.endswith('="{}"'.format(value)):
+            return True
+    return False
+
+
 def get_component_env_value(bitbake_env_out, env_key_list):
     for line in bitbake_env_out.splitlines():
         for env_key in env_key_list:
@@ -215,6 +222,31 @@ def push_integration_change(integration_repo_path, commit_message):
         logging.info('No change find in stream config.yaml')
 
 
+def find_multi_platforms_in_global(feature, integration_obj):
+    multi_platforms_in_global = {}
+    multi_platforms_list = []
+    feature_id = feature['feature_id']
+    # find platform from stream_config_yaml
+    # without feature_components
+    stream_config_yamls = utils.find_files(
+        os.path.join(integration_obj.work_dir, 'meta-5g-cb/config_yaml'), 'config.yaml')
+    for stream_config_yaml_file in stream_config_yamls:
+        stream_config_yaml = {}
+        with open(stream_config_yaml_file, 'r') as fr:
+            stream_config_yaml = yaml.safe_load(fr.read())
+        for component, component_value in stream_config_yaml['components'].items():
+            if 'features' in component_value:
+                if feature_id in component_value['features']:
+                    if 'feature_components' not in component_value:
+                        multi_platforms_list.append(component)
+    with open(os.path.join(integration_obj.work_dir, 'config.yaml'), 'r') as fr:
+        config_yaml = yaml.safe_load(fr.read())
+        for platform_key in multi_platforms_list:
+            if platform_key in config_yaml['components'].keys():
+                multi_platforms_in_global[platform_key] = config_yaml['components'][platform_key]
+    return multi_platforms_in_global
+
+
 def find_component_in_global(feature, integration_obj):
     components_in_global = {}
     # get global config.yaml
@@ -275,6 +307,9 @@ def get_subbuilds_and_env(components, integration_obj):
 def update_feature(feature, integration_obj):
     feature_id = feature['feature_id']
     platform_id = feature['platform_id']
+    multi_platforms_in_global = {}
+    if platform_id == 'RCPvDU':
+        multi_platforms_in_global = find_multi_platforms_in_global(feature, integration_obj)
     # branch = feature['branch']
     components = feature['components']
     logging.info('Feature components is %s', components)
@@ -304,6 +339,15 @@ def update_feature(feature, integration_obj):
                     logging.info('Same as forzen version: %s, skipped', wft_name)
                     continue
                 if platform_id != 'feature' or (components_in_global and sub_builds):
+                    if multi_platforms_in_global:
+                        for platform_value in multi_platforms_in_global.values():
+                            if platform_value['version'] in [k['version'] for k in sub_builds]:
+                                matched_components.append(component['name'])
+                                continue
+                            else:
+                                if find_component_env_value(bitbake_env_out, platform_value['version']):
+                                    matched_components.append(component['name'])
+                                    continue
                     if feature_id in [k['version'] for k in sub_builds]:
                         matched_components.append(component['name'])
                     elif component_name in components_in_global:
