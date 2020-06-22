@@ -30,7 +30,7 @@ class DbHandler(object):
             self.GateStatistics = get_gate_statistics_model(table_name)
         else:
             self.GateStatistics = get_gate_statistics_model('log_duration')
-        # self.GateStatistics.metadata.create_all(self.engine)
+        self.GateStatistics.metadata.create_all(self.engine)
 
     def get_last_end_no(self):
         query = self.session.query(self.GateStatistics.finish_id) \
