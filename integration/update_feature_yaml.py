@@ -408,25 +408,51 @@ def update_feature(feature, integration_obj):
     update_feature_yaml(feature, matched_components, not_matched_components, integration_obj)
 
 
-def unforzen_config_yaml(integration_repo_path, feature_name=None):
+def unforzen_config_yaml(integration_repo_path, features_delivered=[]):
+    stream_config_yaml_changed = []
     # get all stream config.yaml
     stream_config_yamls = utils.find_files(
         os.path.join(integration_repo_path, 'meta-5g-cb/config_yaml'), 'config.yaml')
     # remove sections in stream config yaml
     for stream_config_yaml_file in stream_config_yamls:
         stream_config_yaml = {}
+        sections_to_removed = {}
+        features_comps_has_others = []
         with open(stream_config_yaml_file, 'r') as fr:
             stream_config_yaml = yaml.safe_load(fr.read())
         for component, component_value in stream_config_yaml['components'].items():
             if 'features' in component_value:
-                if feature_name:
-                    if len(component_value['features']) == 1 and component_value['features'].keys()[0] == feature_name:
-                        stream_config_yaml['components'].pop(component)
+                if features_delivered:
+                    other_features = []
+                    for comp_feature in component_value['features'].keys():
+                        if comp_feature not in features_delivered:
+                            other_features.append(comp_feature)
+                    if not other_features:
+                        for comp_feature in component_value['features'].keys():
+                            if comp_feature not in sections_to_removed:
+                                sections_to_removed[comp_feature] = []
+                            sections_to_removed[comp_feature].append(component)
+                    else:
+                        features_comps_has_others.extend(component_value['features'].keys())
+                        logging.warn('Features: %s not delivered in %s', other_features, component)
                 else:
                     stream_config_yaml['components'].pop(component)
+        for feature_delivered in features_delivered:
+            if feature_delivered not in features_comps_has_others:
+                if feature_delivered not in sections_to_removed:
+                    logging.warn('no section to removed for %s', feature_delivered)
+                    continue
+                for section_to_removed in sections_to_removed[feature_delivered]:
+                    logging.info('Unfrozen section %s for %s', section_to_removed, feature_delivered)
+                    stream_config_yaml['components'].pop(section_to_removed)
+                stream_config_yaml_changed.append(stream_config_yaml_file)
+                logging.info('Update %s for %s', stream_config_yaml_file, feature_delivered)
         with open(stream_config_yaml_file, 'w') as fw:
             fw.write(yaml.safe_dump(stream_config_yaml))
-    push_integration_change(integration_repo_path, 'unforzen as all features ready')
+    if features_delivered and not stream_config_yaml_changed:
+        logging.warn('No stream config.yaml changed for %s', features_delivered)
+        return False
+    return True
 
 
 def update(integration_repo_path, feature_repo_path=''):
@@ -434,14 +460,16 @@ def update(integration_repo_path, feature_repo_path=''):
     feature_list = get_feature_list(feature_repo_path, integration_obj)
     all_delivered = True
     is_delivered = False
+    features_delivered = []
     for feature in feature_list:
         update_feature(feature, integration_obj)
         if feature['status'] != 'ready':
             all_delivered = False
             logging.warn('Feature is not ready: %s', feature)
         else:
-            unforzen_config_yaml(integration_repo_path, feature['feature_id'])
-            is_delivered = True
+            features_delivered.append(feature['feature_id'])
+    if features_delivered:
+        is_delivered = unforzen_config_yaml(integration_repo_path, features_delivered)
     if all_delivered:
         unforzen_config_yaml(integration_repo_path)
         push_integration_change(integration_repo_path, 'unforzen as all features ready')
