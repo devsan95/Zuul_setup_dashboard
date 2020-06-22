@@ -78,7 +78,7 @@ def _main(db_str, log_path=None, log_url=None, tz=None):
         res_path_ = os.path.join(tmp_folder, dta.format('YYYY-MM-DD'))
         log_url_ = log_url + '.' + dta.format('YYYY-MM-DD')
         print(log_url_)
-        res = requests.get(log_url_)
+        res = requests.get(log_url_, verify=False)
         if res.ok:
             file_api.save_file(res.content, res_path_)
             res_path = res_path_
