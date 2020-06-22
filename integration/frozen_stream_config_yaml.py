@@ -3,6 +3,7 @@
 import re
 import os
 import git
+import copy
 import fire
 import yaml
 import shutil
@@ -143,15 +144,19 @@ def get_comp_bbver(component_name, pass_packages, get_comp_info_objs={}):
     component_pvs = {}
     for pipeline, pass_package in pass_packages.items():
         pass_package = trans_wft_name_to_tag(pass_package)
+        pipeline_comp_info_obj = None
         if pipeline not in get_comp_info_objs:
             new_get_comp_info = get_component_info.GET_COMPONENT_INFO(
                 pass_package, no_dep_file=True, only_mapping_file=True)
             get_comp_info_objs[pipeline] = new_get_comp_info
-            if not new_get_comp_info.if_bb_mapping:
-                continue
-            component_pv = new_get_comp_info.get_value_from_mapping_and_env(component_name, 'PV', 'pv')
-            if component_pv:
-                component_pv = re.sub(r'-r[0-9]+$', '', component_pv)
+            pipeline_comp_info_obj = new_get_comp_info
+        else:
+            pipeline_comp_info_obj = get_comp_info_objs[pipeline]
+        if not pipeline_comp_info_obj.if_bb_mapping:
+            continue
+        component_pv = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'PV', 'pv')
+        if component_pv:
+            component_pv = re.sub(r'-r[0-9]+$', '', component_pv)
             component_pvs[pipeline] = component_pv
     return component_pvs
 
@@ -162,9 +167,34 @@ def trans_wft_name_to_tag(wft_name):
     return wft_name
 
 
-def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path):
+def update_comps_frozen_together(previous_comp_dict, together_repo_dict):
+    new_previous_comp_dict = {}
+    for repo, repo_compoents in together_repo_dict.items():
+        for name, comp_dict in previous_comp_dict.items():
+            if name not in repo_compoents:
+                continue
+            for repo_compoent in repo_compoents:
+                if repo_compoent in previous_comp_dict:
+                    continue
+                logging.info('Add component %s to previous_comp_dict', repo_compoent)
+                new_comp_dict = copy.deepcopy(comp_dict)
+                for comp_value in new_comp_dict.values():
+                    if isinstance(comp_value, dict) and 'component' in comp_value:
+                        comp_value['component'] = repo_compoent
+                    new_previous_comp_dict[repo_compoent] = new_comp_dict
+    previous_comp_dict.update(new_previous_comp_dict)
+
+
+def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, *together_comps):
     # get last passed package
     last_pass_package, pass_packages, integration_dir = get_last_passed_package(branch)
+    # get together_comps
+    logging.info('Together_comps: %s', together_comps)
+    together_repo_dict = {}
+    for together_string in together_comps:
+        together_repo = together_string.split(':')[0]
+        together_repo_dict[together_repo] = together_string.split(':')[1].split()
+    logging.info('Together reop dict: %s', together_repo_dict)
     #  if integraiton ticket,  changed section in config.yaml.
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root_change_obj = RootChange(rest, change_no)
@@ -195,7 +225,7 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path):
             for sub_build in sub_build_list:
                 if component_name == sub_build['component']:
                     previous_comp_dict[component_name][pipeline] = sub_build
-        if component_name not in previous_comp_dict:
+        if component_name not in previous_comp_dict or not previous_comp_dict[component_name]:
             component_pvs = {}
             component_pvs = get_comp_bbver(component_name, pass_packages, get_comp_info_objs)
             logging.info('Get bbver for %s is %s', component_name, component_pvs)
@@ -217,6 +247,8 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path):
     if not previous_comp_dict:
         logging.info('No component adaption needed')
         return
+    # frozen all gnb components together
+    update_comps_frozen_together(previous_comp_dict, together_repo_dict)
     # create integration_repo ticket if not exists
     if not integration_repo_ticket:
         try:
