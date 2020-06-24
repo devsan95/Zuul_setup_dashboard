@@ -123,30 +123,32 @@ def mysql_connector(database_info_path, server_name, database_name):
     return mydb
 
 
-def auto_update_build_info(integration_change,
-                           pkg_info_file,
+def auto_update_build_info(integration_tag,
+                           pkg_name,
+                           stream,
                            gerrit_info_path,
                            database_info_path,
-                           job_name=None,
-                           build_number=None,
+                           job_url=None,
                            dry_run=False):
+    integration_change = integration_tag.split('_')[0]
     jira_key = get_jira_id(integration_change, gerrit_info_path)
     knife_link_temp = 'http://5g-cb.es-si-s3-z4.eecloud.nsn-net.net' \
-                      '/BucketList/index.html?prefix=knife/{knife}/'
-    with open(pkg_info_file) as pkg_info:
-        match = re.findall(r'knife\/(.*)\/', pkg_info.read())
-        if not match:
-            raise Exception('Knife ID can not be found in {0}'.format(pkg_info_file))
-    knife_id = match[0]
-    knife_link = knife_link_temp.format(knife=knife_id)
-    start_time, end_time = get_job_timestamp(JENKINS_URL, job_name, build_number)
-    stream = wft_tools.get_stream_name('{0}.'.format(knife_id.rsplit('.', 1)[0]))
-    print("Update integration package in skytrack: {0}".format(knife_id))
+                      '/BucketList/index.html?prefix=knife/{pkg_name}/'
+    knife_link = knife_link_temp.format(pkg_name=pkg_name)
+    if job_url:
+        # example of job_url: http://wrlinb147.emea.nsn-net.net:9090/job/job_name/build_number/
+        job_name = job_url.strip('/').split('/')[-2]
+        build_number = int(job_url.strip('/').split('/')[-1])
+        start_time, end_time = get_job_timestamp(JENKINS_URL, job_name, build_number)
+    else:
+        print("Can't get build start_time and end_time because job url is missing")
+        start_time = end_time = ''
+    print("Update integration package in skytrack: {0}".format(pkg_name))
     if dry_run:
         print("DRY-RUN MODE:")
         print("integration_name: {jira_key}".format(jira_key=jira_key))
         print ("product: 5G")
-        print ("package_name: {knife_id}".format(knife_id=knife_id))
+        print ("package_name: {pkg_name}".format(pkg_name=pkg_name))
         print ("mini_branch: {stream}".format(stream=stream))
         print ("type_name: Integration Build")
         print ("link: {knife_link}".format(knife_link=knife_link))
@@ -154,7 +156,7 @@ def auto_update_build_info(integration_change,
     skytrack_detail_api(
         integration_name=jira_key,
         product='5G',
-        package_name=knife_id,
+        package_name=pkg_name,
         mini_branch=stream,
         type_name='Integration Build',
         status=1,
@@ -162,7 +164,7 @@ def auto_update_build_info(integration_change,
         start_time=start_time,
         end_time=end_time
     )
-    knife_info_in_link = "<a href='{knife_link}'>{knife_id}</a>".format(knife_link=knife_link, knife_id=knife_id)
+    knife_info_in_link = "<a href='{knife_link}'>{pkg_name}</a>".format(knife_link=knife_link, pkg_name=pkg_name)
     update_events(
         database_info_path=database_info_path,
         integration_name=jira_key,
