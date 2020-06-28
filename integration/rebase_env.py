@@ -127,7 +127,7 @@ def change_message_by_env_change(change_no, env_change_list, rest):
                     to_replace = line.split('=')[1]
                     break
         else:
-            if result:
+            if result and not to_replace:
                 to_replace = result.groups()[0]
             if not to_replace:
                 to_replace = find_new_version_by_distance(
