@@ -113,10 +113,11 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         origin_msg = get_commit_msg(change_no, rest)
         msg = " ".join(origin_msg.split("\n"))
         version_reg = re.compile(r'Version Keyword: <(.*)>')
-        version_entry_search = version_reg.search(msg)
-        version_entry = version_entry_search.group()[0] if version_entry_search else None
+        version_entry_search = version_reg.search(origin_msg)
+        version_entry = version_entry_search.groups()[0] if version_entry_search else None
         reg = common_regex.int_firstline_reg
         to_be_replaced = reg.search(msg).groups()[1]
+        to_be_replaced_string = '<{0}>'.format(to_be_replaced)
         pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))
         result = reg.search('\n'.join(env_change_list))
@@ -134,9 +135,10 @@ def change_message_by_env_change(change_no, env_change_list, rest):
                     to_be_replaced, env_change_list)
             if not to_replace:
                 raise Exception('Cannot find new version')
-        if to_be_replaced == to_replace:
+        to_replace_string = '<{0}>'.format(to_replace)
+        if to_be_replaced_string == to_replace_string:
             return to_be_replaced, to_replace
-        print(u"replace |{}| with |{}|...".format(to_be_replaced, to_replace))
+        print(u"replace |{}| with |{}|...".format(to_be_replaced_string, to_replace_string))
 
         try:
             rest.delete_edit(change_no)
@@ -144,7 +146,7 @@ def change_message_by_env_change(change_no, env_change_list, rest):
             print('delete edit failed, reason:')
             print(str(e))
 
-        new_msg = origin_msg.replace(to_be_replaced, to_replace)
+        new_msg = origin_msg.replace(to_be_replaced_string, to_replace_string)
         rest.change_commit_msg_to_edit(change_no, new_msg)
         rest.publish_edit(change_no)
         return to_be_replaced, to_replace
