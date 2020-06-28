@@ -155,9 +155,17 @@ def get_comp_bbver(component_name, pass_packages, get_comp_info_objs={}):
         if not pipeline_comp_info_obj.if_bb_mapping:
             continue
         component_pv = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'PV', 'pv')
+        wft_component = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'WFT_COMPONENT', 'pv')
+        wft_name = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'WFT_NAME', 'pv')
+        component_obj = {}
         if component_pv:
             component_pv = re.sub(r'-r[0-9]+$', '', component_pv)
-            component_pvs[pipeline] = component_pv
+            component_obj['PV'] = component_pv
+        if wft_component:
+            component_obj['WFT_COMPONENT'] = wft_component
+        if wft_name:
+            component_obj['WFT_NAME'] = wft_name
+        component_pvs[pipeline] = component_obj
     return component_pvs
 
 
@@ -231,9 +239,30 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, 
             logging.info('Get bbver for %s is %s', component_name, component_pvs)
             if component_pvs:
                 for pipeline, sub_build_list in sub_builds.items():
+                    if pipeline not in component_pvs or not component_pvs[pipeline]:
+                        logging.info('No pipeline %s value in component_pvs', pipeline)
+                        continue
+                    matched_subs = []
+                    wft_component = ''
+                    if 'WFT_COMPONENT' in component_pvs[pipeline]:
+                        wft_component = component_pvs[pipeline]['WFT_COMPONENT']
+                    wft_name = ''
+                    if 'WFT_NAME' in component_pvs[pipeline]:
+                        wft_name = component_pvs[pipeline]['WFT_NAME']
+                    component_pv = ''
+                    if 'PV' in component_pvs[pipeline]:
+                        component_pv = component_pvs[pipeline]['PV']
                     for sub_build in sub_build_list:
-                        if pipeline in component_pvs and sub_build['version'] == component_pvs[pipeline]:
-                            previous_comp_dict[component_name][pipeline] = sub_build
+                        logging.info('Compare %s and sub_build: %s', component_pvs[pipeline], sub_build)
+                        logging.info('Compare %s and sub_build: %s', component_pv, sub_build)
+                        if wft_component and wft_name:
+                            if wft_component == sub_build['component'] and wft_name == sub_build['version']:
+                                matched_subs = [sub_build]
+                                break
+                        elif component_pv == sub_build['version']:
+                            matched_subs.append(sub_build)
+                    if matched_subs and len(matched_subs) == 1:
+                        previous_comp_dict[component_name][pipeline] = matched_subs[0]
         if not previous_comp_dict[component_name]:
             previous_comp_dict.pop(component_name)
         if component_name not in previous_comp_dict:
