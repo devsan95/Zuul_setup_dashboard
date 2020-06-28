@@ -121,14 +121,14 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))
         result = reg.search('\n'.join(env_change_list))
         to_replace = ''
-        if result:
-            to_replace = result.groups()[0]
+        if version_entry:
+            for line in env_change_list:
+                if version_entry == line.split('=')[0]:
+                    to_replace = line.split('=')[1]
+                    break
         else:
-            if version_entry:
-                for line in env_change_list:
-                    if version_entry in line:
-                        to_replace = line.split('=')[1]
-                        break
+            if result:
+                to_replace = result.groups()[0]
             if not to_replace:
                 to_replace = find_new_version_by_distance(
                     to_be_replaced, env_change_list)
