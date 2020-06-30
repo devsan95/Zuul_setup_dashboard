@@ -175,6 +175,7 @@ def get_subuild_from_wft(wft_name, component=None):
                       wft_name, component, project)
                 try:
                     build_content = WFT.get_build_content(wft_name, component=component, project=project)
+                    break
                 except Exception:
                     print('Cannot get get from WFT, version:%s, component:%s, project:%s',
                           wft_name, component, project)

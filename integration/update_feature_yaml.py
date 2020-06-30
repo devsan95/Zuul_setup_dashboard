@@ -4,6 +4,7 @@ import git
 import copy
 import fire
 import yaml
+import shutil
 import logging
 import traceback
 
@@ -17,47 +18,42 @@ SCRIPT_ROOT = os.path.realpath(
 FETCH_CLASS_FILE = os.path.join(
     SCRIPT_ROOT, 'CITOOLS/mod/fetch_no_submodules.bbclass')
 REVISION_KEY_LIST = ['REVISION', 'SVNTAG', 'SVNREV', 'SRCREV', 'BIN_VER', 'SRC_REV']
+GNB_INTERFACES_COMPS = ['cplane-5g', 'cp-nrt', 'cp-rt']
 
 
-def get_feature_list(feature_repo_path, integration_obj):
-    # repo_path_branch = integration_obj.get_integration_branch()
-    if not feature_repo_path:
-        feature_dict = {}
-        # get feature list info from stream_config.yaml
-        stream_config_yaml_files = utils.find_files(
-            os.path.join(integration_obj.work_dir, 'meta-5g-cb/config_yaml'), 'config.yaml')
-        logging.info('Get feature info from : %s', stream_config_yaml_files)
-        for stream_config_yaml_file in stream_config_yaml_files:
-            logging.info('Parse %s', stream_config_yaml_file)
-            stream_config_yaml = {}
-            with open(stream_config_yaml_file, 'r') as fr:
-                stream_config_yaml = yaml.safe_load(fr.read())
-            for key, component_value in stream_config_yaml['components'].items():
-                if 'features' in component_value and 'feature_component' in component_value:
-                    logging.info('Get feature info: %s', component_value)
-                    component = component_value['feature_component']
-                    for feature_id, feature_value in component_value['features'].items():
-                        if feature_id not in feature_dict:
-                            feature_dict[feature_id] = {'feature_id': feature_id,
-                                                        'components': [],
-                                                        'platform_id': feature_value['platform_id'],
-                                                        'status': ''}
-                        if component not in [x['name'] for x in feature_dict[feature_id]['components']]:
-                            component_delivery_info = {'name': component,
-                                                       'config_yaml_key': key,
-                                                       'forzen_version': component_value['version'],
-                                                       'delivered': feature_value['feature_delivered']}
-                            feature_dict[feature_id]['components'].append(component_delivery_info)
-                        if not feature_value['feature_delivered']:
-                            feature_dict[feature_id]['status'] = 'on-going'
-                        elif not feature_dict[feature_id]['status']:
-                            feature_dict[feature_id]['status'] = 'ready'
-        logging.info('Feature list: %s', feature_dict.values())
-        return feature_dict.values()
-    # return feature list [ {'feature_type': 'platform/interfaces/other' ....} ]
-    with open(feature_repo_path, 'r') as fhandler_r:
-        feature_list = yaml.safe_load(fhandler_r)
-        return feature_list
+def get_feature_list(integration_obj):
+    feature_dict = {}
+    # get feature list info from stream_config.yaml
+    stream_config_yaml_files = utils.find_files(
+        os.path.join(integration_obj.work_dir, 'meta-5g-cb/config_yaml'), 'config.yaml')
+    logging.info('Get feature info from : %s', stream_config_yaml_files)
+    for stream_config_yaml_file in stream_config_yaml_files:
+        logging.info('Parse %s', stream_config_yaml_file)
+        stream_config_yaml = {}
+        with open(stream_config_yaml_file, 'r') as fr:
+            stream_config_yaml = yaml.safe_load(fr.read())
+        for key, component_value in stream_config_yaml['components'].items():
+            if 'features' in component_value and 'feature_component' in component_value:
+                logging.info('Get feature info: %s', component_value)
+                component = component_value['feature_component']
+                for feature_id, feature_value in component_value['features'].items():
+                    if feature_id not in feature_dict:
+                        feature_dict[feature_id] = {'feature_id': feature_id,
+                                                    'components': [],
+                                                    'platform_id': feature_value['platform_id'],
+                                                    'status': ''}
+                    if component not in [x['name'] for x in feature_dict[feature_id]['components']]:
+                        component_delivery_info = {'name': component,
+                                                   'config_yaml_key': key,
+                                                   'frozen_version': component_value['version'],
+                                                   'delivered': feature_value['feature_delivered']}
+                        feature_dict[feature_id]['components'].append(component_delivery_info)
+                    if not feature_value['feature_delivered']:
+                        feature_dict[feature_id]['status'] = 'on-going'
+                    elif not feature_dict[feature_id]['status']:
+                        feature_dict[feature_id]['status'] = 'ready'
+    logging.info('Feature list: %s', feature_dict.values())
+    return feature_dict.values()
 
 
 def gen_component_info(component, integration_obj):
@@ -78,7 +74,11 @@ def gen_component_info(component, integration_obj):
                     integration_obj.set_config_file(config_file)
                     module = os.path.basename(os.path.dirname(inc_file)).split('integration-')[1]
                     target_key = 'TARGET_{}'.format(module.replace('-', '_'))
-                    target = integration_obj.get_config_value(target_key)
+                    try:
+                        target = integration_obj.get_config_value(target_key)
+                    except Exception:
+                        logging.warn('Cannot get %s from %s', target_key, config_file)
+                        continue
                     if component_regexs and component_regex not in component_regexs:
                         logging.warn('Multi version find in different stream %s %s',
                                      component_infos[0][1], config_file)
@@ -140,6 +140,9 @@ def get_repo_and_check(component_info, integration_obj, bitbake_env_out, feature
     run_bitbake_command(component_info, integration_obj, '-R', FETCH_CLASS_FILE, '-c', 'unpack', component_info['regex'])
     # get component hash key name
     source_dir = get_component_env_value(bitbake_env_out, ['S'])
+    src_uri = get_component_env_value(bitbake_env_out, ['SRC_URI'])
+    if 'destsuffix=' in src_uri:
+        source_dir = src_uri.split('destsuffix=')[1]
     if not os.path.exists(os.path.join(source_dir, '.git')):
         logging.warn('%s is not a git repo path', source_dir)
         return None
@@ -150,10 +153,9 @@ def get_repo_and_check(component_info, integration_obj, bitbake_env_out, feature
     previous_version = ''
     for component_delivery_info in feature['components']:
         if component_delivery_info['name'] == component_info['name']:
-            pre_bbversion = component_delivery_info['forzen_version']
+            pre_bbversion = component_delivery_info['frozen_version']
             pre_component_info['regex'] = '{}-{}'.format(component_info['name'], pre_bbversion)
-            pre_component_env = run_bitbake_command(pre_component_info, integration_obj, '-e', pre_component_info['regex'])
-            previous_version = get_component_env_value(pre_component_env, REVISION_KEY_LIST)
+            previous_version = get_repo_version(pre_component_info, integration_obj)
     if not previous_version:
         logging.warn('Cannot get previsou version for %s', pre_component_info)
         return None
@@ -162,13 +164,43 @@ def get_repo_and_check(component_info, integration_obj, bitbake_env_out, feature
     # 's/^([0-9]+_)?%FIFI=//p'
     commit_msgs = g_source_dir.log('--pretty="format:%B"', '{}..{}'.format(previous_version, current_version))
     logging.info('Commit message: %s', commit_msgs)
-    m = re.search(r'%FIFI=(\S+)', commit_msgs)
-    feature_in_commit = []
+    m = re.search(r'%FIFI={}'.format(feature_id), commit_msgs)
     if m:
-        feature_in_commit.append(m.group(1))
-    if feature_id in feature_in_commit:
+        logging.info('Find FIFI=%s in Commit message', )
         return True
     return False
+
+
+def get_repo_version(pre_component_info, integration_obj):
+    logging.info('Try to get bitbake env for %s', pre_component_info['regex'])
+    pre_component_env = ''
+    try:
+        pre_component_env = run_bitbake_command(pre_component_info, integration_obj, '-e', pre_component_info['regex'])
+    except Exception:
+        logging.info('Directly run bitbake -e %s failed', pre_component_info['regex'])
+        logging.info('Try to search this recipe')
+        # find old recipe file from meta-5g
+        meta_5g_path = os.path.join(os.environ['WORKSPACE'], 'meta-5g')
+        logging.info('Find old recipe from %s', meta_5g_path)
+        if not os.path.exists(meta_5g_path):
+            logging.error('Cannot find %s', meta_5g_path)
+            return ''
+        logging.info('Initial git obj %s', meta_5g_path)
+        meta_5g_git = git.Git(meta_5g_path)
+        recipe_name = pre_component_info['regex'].replace('{}-'.format(pre_component_info['name']),
+                                                          '{}_'.format(pre_component_info['name']))
+        recipe_path = 'recipes-components/{}/{}.bb'.format(pre_component_info['name'], recipe_name)
+        logging.info('recipe_path %s', recipe_path)
+        old_recipe_hashs = meta_5g_git.log('--pretty=format:%H', '--full-history', '--', recipe_path)
+        old_recipe_hash = old_recipe_hashs.split()[-1]
+        logging.info('Hash for %s is %s', recipe_path, old_recipe_hash)
+        if old_recipe_hash:
+            logging.info('checkout  %s in %s', recipe_path, old_recipe_hash)
+            meta_5g_git.checkout(old_recipe_hash, recipe_path)
+            shutil.copyfile(os.path.join(meta_5g_path, recipe_path),
+                            os.path.join(integration_obj.work_dir, 'meta-5g', recipe_path))
+        pre_component_env = run_bitbake_command(pre_component_info, integration_obj, '-e', pre_component_info['regex'])
+    return get_component_env_value(pre_component_env, REVISION_KEY_LIST)
 
 
 def update_feature_yaml(feature, matched_components, not_matched_components, integration_obj):
@@ -206,7 +238,6 @@ def update_feature_yaml(feature, matched_components, not_matched_components, int
             fw.write(yaml.safe_dump(config_dict))
     if comp_all_delivered:
         feature['status'] = 'ready'
-    push_integration_change(integration_obj.work_dir, 'update feature delivered info')
 
 
 def push_integration_change(integration_repo_path, commit_message):
@@ -266,6 +297,36 @@ def find_component_in_global(feature, integration_obj):
     return components_in_global
 
 
+def filter_sidepackage_componets(components, together_repo_dict, is_interfaces=False):
+    filter_components = []
+    sidepacakges_components = []
+    for component in components:
+        name = component['name']
+        frozen_version = component['frozen_version']
+        for repo, together_comps in together_repo_dict.items():
+            if name in together_comps and repo == 'MN/5G/NB/gnb':
+                if name not in GNB_INTERFACES_COMPS:
+                    sidepacakges_components.append(name)
+                    break
+                elif not is_interfaces:
+                    matched_names = [x['name'] for x in filter_components if x['name'] in together_comps]
+                    if matched_names:
+                        sidepacakges_components.append(name)
+                        break
+                sub_builds = []
+                try:
+                    sub_builds = wft_tools.get_subuild_from_wft(frozen_version, name)
+                except Exception:
+                    logging.warn('Can not find wft_tools for %s:%s', name, frozen_version)
+                if not sub_builds:
+                    sidepacakges_components.append(name)
+                break
+        if name in sidepacakges_components:
+            continue
+        filter_components.append(component)
+    return filter_components, sidepacakges_components
+
+
 def get_subbuilds_and_env(components, integration_obj):
     components_all_info = {}
     for component in components:
@@ -289,6 +350,7 @@ def get_subbuilds_and_env(components, integration_obj):
                     logging.warn('Cannot run bitbake -e for %s', component_info)
                     logging.warn('Not delivered or some dependency not delivered')
                     continue
+                # get sub_builds from WFT
                 try:
                     sub_builds = wft_tools.get_subuild_from_wft(wft_name, component['name'])
                 except Exception:
@@ -304,12 +366,13 @@ def get_subbuilds_and_env(components, integration_obj):
     return components_all_info
 
 
-def update_feature(feature, integration_obj):
+def update_feature(feature, integration_obj, together_repo_dict):
     feature_id = feature['feature_id']
     platform_id = feature['platform_id']
     multi_platforms_in_global = {}
     if platform_id == 'RCPvDU':
         multi_platforms_in_global = find_multi_platforms_in_global(feature, integration_obj)
+    logging.info('multi_platforms_in_global: %s', multi_platforms_in_global)
     # branch = feature['branch']
     components = feature['components']
     logging.info('Feature components is %s', components)
@@ -319,9 +382,18 @@ def update_feature(feature, integration_obj):
     # if branch == repo_path_branch:
     matched_components = []
     not_matched_components = []
-    components_all_info = get_subbuilds_and_env(components, integration_obj)
     components_in_global = find_component_in_global(feature, integration_obj)
+    # if interfaces topic, we need to check components for all interfaces
+    # otherwise we only need to check one components in GNB
+    if platform_id == 'feature' and components_in_global:
+        filter_components, sidepacakges_components = filter_sidepackage_componets(components, together_repo_dict, True)
+    else:
+        filter_components, sidepacakges_components = filter_sidepackage_componets(components, together_repo_dict)
+    logging.info('filter_components: %s', filter_components)
+    logging.info('sidepacakges_components: %s', sidepacakges_components)
+    components_all_info = get_subbuilds_and_env(filter_components, integration_obj)
     logging.info('Components in global: %s', components_in_global)
+    logging.info('Components all info: %s', components_all_info.keys())
     for component in components:
         component_name = component['name']
         if component_name not in components_all_info:
@@ -335,16 +407,18 @@ def update_feature(feature, integration_obj):
                 logging.info('sub_builds : %s', sub_builds)
                 wft_name = subbuilds_and_env['wft_name']
                 logging.info('wft_name : %s', wft_name)
-                if wft_name == component['forzen_version']:
+                if wft_name == component['frozen_version']:
                     logging.info('Same as forzen version: %s, skipped', wft_name)
                     continue
                 if platform_id != 'feature' or (components_in_global and sub_builds):
                     if multi_platforms_in_global:
                         for platform_value in multi_platforms_in_global.values():
                             if platform_value['version'] in [k['version'] for k in sub_builds]:
+                                logging.info('Find %s in sub_builds', platform_value['version'])
                                 matched_components.append(component['name'])
                                 continue
                             else:
+                                logging.info('find value %s from Bitbake_env_out', platform_value['version'])
                                 if find_component_env_value(bitbake_env_out, platform_value['version']):
                                     matched_components.append(component['name'])
                                     continue
@@ -396,13 +470,24 @@ def update_feature(feature, integration_obj):
                                             not_matched_components.append(interface_component)
 
                 if component_name not in matched_components and component_name not in not_matched_components:
-                    check_result = get_repo_and_check(
-                        component_info, integration_obj, bitbake_env_out, feature)
+                    check_result = None
+                    try:
+                        check_result = get_repo_and_check(
+                            component_info, integration_obj, bitbake_env_out, feature)
+                    except Exception:
+                        logging.info('Get feature from %s repo commit message Failed', component_info)
                     if check_result is not None:
                         if check_result:
                             matched_components.append(component_name)
                         else:
                             not_matched_components.append(component_name)
+    logging.info('Matched components %s', matched_components)
+    for together_repo, together_comps in together_repo_dict.items():
+        for together_comp in together_comps:
+            if together_comp in matched_components and together_repo == 'MN/5G/NB/gnb':
+                logging.info('%s is delivered, set all sidepacakges_components to true for %s', together_comp, together_repo)
+                matched_components.extend(sidepacakges_components)
+                break
     logging.info('Matched components %s', matched_components)
     logging.info('Not Matched components %s', not_matched_components)
     update_feature_yaml(feature, matched_components, not_matched_components, integration_obj)
@@ -455,14 +540,21 @@ def unforzen_config_yaml(integration_repo_path, features_delivered=[]):
     return True
 
 
-def update(integration_repo_path, feature_repo_path=''):
+def update(integration_repo_path, *together_comps):
+    # get together_comps
+    logging.info('Together_comps: %s', together_comps)
+    together_repo_dict = {}
+    for together_string in together_comps:
+        together_repo = together_string.split(':')[0]
+        together_repo_dict[together_repo] = together_string.split(':')[1].split()
+    logging.info('Together reop dict: %s', together_repo_dict)
     integration_obj = integration_repo.INTEGRATION_REPO('', '', work_dir=integration_repo_path)
-    feature_list = get_feature_list(feature_repo_path, integration_obj)
+    feature_list = get_feature_list(integration_obj)
     all_delivered = True
     is_delivered = False
     features_delivered = []
     for feature in feature_list:
-        update_feature(feature, integration_obj)
+        update_feature(feature, integration_obj, together_repo_dict)
         if feature['status'] != 'ready':
             all_delivered = False
             logging.warn('Feature is not ready: %s', feature)
@@ -470,11 +562,11 @@ def update(integration_repo_path, feature_repo_path=''):
             features_delivered.append(feature['feature_id'])
     if features_delivered:
         is_delivered = unforzen_config_yaml(integration_repo_path, features_delivered)
+        if is_delivered:
+            logging.warn('There is one or more feature delivered in %s', features_delivered)
     if all_delivered:
         unforzen_config_yaml(integration_repo_path)
-        push_integration_change(integration_repo_path, 'unforzen as all features ready')
-    elif is_delivered:
-        push_integration_change(integration_repo_path, 'unforzen as some features ready')
+    push_integration_change(integration_repo_path, 'unforzen as some features ready')
 
 
 if __name__ == '__main__':
