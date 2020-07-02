@@ -4,7 +4,7 @@ import datetime
 import json
 import requests
 import fire
-import jenkinsapi
+from jenkinsapi.jenkins import Jenkins
 
 from api import gerrit_rest
 from api import mysql_api
@@ -70,7 +70,9 @@ def string_time_format_validator(str_time):
 
 
 def get_job_timestamp(jenkins_url, job_name, build_number):
-    build = jenkinsapi.api.get_build(jenkins_url, job_name, build_number)
+    jenkins_server = Jenkins(jenkins_url, timeout=180, ssl_verify=False)
+    jenkins_job = jenkins_server[job_name]
+    build = jenkins_job.get_build(build_number)
     start_timestamp = build.get_timestamp()
     duration = build.get_duration()
     end_timestamp = start_timestamp + duration
