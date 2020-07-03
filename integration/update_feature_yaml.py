@@ -240,15 +240,18 @@ def update_feature_yaml(feature, matched_components, not_matched_components, int
         feature['status'] = 'ready'
 
 
-def push_integration_change(integration_repo_path, commit_message):
+def push_integration_change(integration_dir, branch, commit_message):
     # check if changed
-    git_integration = git.Git(integration_repo_path)
+    git_integration = git.Git(integration_dir)
     status_out = git_integration.status('-s', 'meta-5g-cb/config_yaml')
     if status_out:
         logging.info('Change in stream config.yaml: %s', status_out)
         git_integration.add('meta-5g-cb/config_yaml')
         git_integration.commit('-m', commit_message)
-        git_integration.push()
+        logging.info('Run git pull --rebase origin %s', branch)
+        git_integration.pull('--rebase', 'origin', branch)
+        logging.info('Run git push origin HEAD:%s', branch)
+        git_integration.push('origin', 'HEAD:{}'.format(branch))
     else:
         logging.info('No change find in stream config.yaml')
 
@@ -493,11 +496,11 @@ def update_feature(feature, integration_obj, together_repo_dict):
     update_feature_yaml(feature, matched_components, not_matched_components, integration_obj)
 
 
-def unforzen_config_yaml(integration_repo_path, features_delivered=[]):
+def unforzen_config_yaml(integration_dir, features_delivered=[]):
     stream_config_yaml_changed = []
     # get all stream config.yaml
     stream_config_yamls = utils.find_files(
-        os.path.join(integration_repo_path, 'meta-5g-cb/config_yaml'), 'config.yaml')
+        os.path.join(integration_dir, 'meta-5g-cb/config_yaml'), 'config.yaml')
     # remove sections in stream config yaml
     for stream_config_yaml_file in stream_config_yamls:
         stream_config_yaml = {}
@@ -540,7 +543,7 @@ def unforzen_config_yaml(integration_repo_path, features_delivered=[]):
     return True
 
 
-def update(integration_repo_path, *together_comps):
+def update(integration_dir, branch, *together_comps):
     # get together_comps
     logging.info('Together_comps: %s', together_comps)
     together_repo_dict = {}
@@ -548,7 +551,7 @@ def update(integration_repo_path, *together_comps):
         together_repo = together_string.split(':')[0]
         together_repo_dict[together_repo] = together_string.split(':')[1].split()
     logging.info('Together reop dict: %s', together_repo_dict)
-    integration_obj = integration_repo.INTEGRATION_REPO('', '', work_dir=integration_repo_path)
+    integration_obj = integration_repo.INTEGRATION_REPO('', '', work_dir=integration_dir)
     feature_list = get_feature_list(integration_obj)
     all_delivered = True
     is_delivered = False
@@ -561,12 +564,12 @@ def update(integration_repo_path, *together_comps):
         else:
             features_delivered.append(feature['feature_id'])
     if features_delivered:
-        is_delivered = unforzen_config_yaml(integration_repo_path, features_delivered)
+        is_delivered = unforzen_config_yaml(integration_dir, features_delivered)
         if is_delivered:
             logging.warn('There is one or more feature delivered in %s', features_delivered)
-    if all_delivered:
-        unforzen_config_yaml(integration_repo_path)
-    push_integration_change(integration_repo_path, 'unforzen as some features ready')
+    if feature_list and all_delivered:
+        unforzen_config_yaml(integration_dir)
+    push_integration_change(integration_dir, branch, 'unforzen as some features ready')
 
 
 if __name__ == '__main__':
