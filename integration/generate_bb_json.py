@@ -16,6 +16,7 @@ import fire
 import urllib3
 from slugify import slugify
 from api import mysql_api
+from mod import integration_change
 
 import api.file_api
 import api.gerrit_api
@@ -748,8 +749,11 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         comment_value.update(interfaces_dict)
 
     # add isar_xml in knife json
-    add_isar(ex_comment_dict)
-    add_isar(comment_dict)
+    inte_change = integration_change.IntegrationChange(rest, change_id)
+    feature_id = inte_change.get_feature_id()
+    if feature_id and 'NIDD' in feature_id:
+        add_isar(ex_comment_dict)
+        add_isar(comment_dict)
 
     save_json_file(knife_path,
                    [combine_knife_json([
