@@ -64,6 +64,7 @@ increment = '''
 }
 '''
 headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+inherit_comp = ["PS:PS_LFS_REL"]
 
 
 def get_latest_ecl_sack_base_from_wft(branch):
@@ -78,9 +79,10 @@ def get_latest_ecl_sack_base_from_wft(branch):
     if not response.ok:
         log.error(response.text)
         raise Exception("Failed to get latest version of ECL_SACK_BASE from WFT")
-    version = json.loads(response.text)['items'][0]['version']
+    versions_dict = json.loads(response.text)['items']
+    version = versions_dict[0]['version']
     log.info("Latest version of ECL_SACK_BASE in WFT is: {}".format(version))
-    return version
+    return version, versions_dict
 
 
 def arguments():
@@ -105,7 +107,7 @@ def get_latest_ecl_sack_base_content(branch):
     else:
         raise Exception("No gerrit branch and wft branch match info!")
     log.info("ecl_sack_base's wft branch: {}".format(wft_branch))
-    current_version = get_latest_ecl_sack_base_from_wft(wft_branch)
+    current_version, versions_dict = get_latest_ecl_sack_base_from_wft(wft_branch)
     url = "{}/api/v1/Common/ECL_SACK_BASE/builds/{}.json?items[]=sub_builds".format(
         WFT_API_URL, current_version
     )
@@ -115,14 +117,14 @@ def get_latest_ecl_sack_base_content(branch):
         raise Exception("Failed to get content of latest ECL_SACK_BASE from WFT")
     sub_builds = json.loads(response.text)["sub_builds"]
     log.info("Latest ECL_SACL_BASE content:\n{}".format(sub_builds))
-    return current_version, sub_builds, wft_branch
+    return current_version, sub_builds, wft_branch, versions_dict
 
 
-def ecl_increment(current_version, change, branch):
+def ecl_increment(current_version, change, branch, versions_dict):
     if not change:
         log.warning("No difference between ENV and latest ECL_SACK_BASE, no need to create")
         return
-    new_version = generate_new_version(current_version)
+    new_version = generate_new_version(versions_dict)
     var = {"current_version": current_version, "branch": branch, "WFT_KEY": WFT_KEY}
     increment_info = json.loads(increment % var)
     increment_info['increment'] = change
@@ -168,7 +170,13 @@ def get_component_name(version):
     return component
 
 
-def generate_new_version(version):
+def generate_new_version(versions_dict):
+    version_list = list()
+    for version_dict in versions_dict:
+        log.info(version_dict['version'])
+        version_list.append(version_dict['version'])
+    version_list.sort(reverse=True)
+    version = version_list[0]
     date_now = datetime.strftime(datetime.now(), '%Y%m%d')[2:]
     latest_version_date = version.split("_")[-2:-1][0]
     if date_now == latest_version_date:
@@ -189,7 +197,9 @@ def get_diff(config_yaml_dict, sub_builds):
     diff_list = list()
     for sub_build in sub_builds:
         config_key = "{}:{}".format(sub_build['project'], sub_build['component'])
-        if config_key in config_yaml_dict and sub_build['version'] != config_yaml_dict[config_key]["version"]:
+        if config_key in config_yaml_dict \
+                and config_key not in inherit_comp \
+                and sub_build['version'] != config_yaml_dict[config_key]["version"]:
             diff = dict()
             diff["version"] = config_yaml_dict[config_key]["version"]
             diff["project"] = sub_build["project"]
@@ -233,9 +243,9 @@ def main():
     if not whether_integration_ticket(rest, args.framework_only, args.change_no):
         return
     config_yaml_dict = get_config_yaml_dict(rest, args.change_no)
-    latest_version, sub_build_list, branch_wft = get_latest_ecl_sack_base_content(args.branch)
+    latest_version, sub_build_list, branch_wft, versions_dict = get_latest_ecl_sack_base_content(args.branch)
     change_list = get_diff(config_yaml_dict, sub_build_list)
-    ecl_increment(latest_version, change_list, branch_wft)
+    ecl_increment(latest_version, change_list, branch_wft, versions_dict)
 
 
 if __name__ == "__main__":
