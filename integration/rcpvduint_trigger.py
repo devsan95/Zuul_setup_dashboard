@@ -4,16 +4,18 @@ import re
 import codecs
 import time
 import json
+import yaml
 import argparse
 import jenkins
 import requests
+import git
+import subprocess
 from api import gerrit_rest, log_api
 from scm_tools.wft.api import WftAPI
 
 
 log = log_api.get_console_logger("rcpvduint_knife")
 wft = WftAPI()
-integration = 'MN/5G/COMMON/integration'
 wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
 jenkins_server = 'http://wrlinb147.emea.nsn-net.net:9090/'
 knife_job = 'Knives.START'
@@ -86,7 +88,7 @@ def get_latest_build(branch, build_status=None):
     return json.loads(response.text)['items'][0]['version']
 
 
-def create_integration_change(rest):
+def create_integration_change(base, version_dict):
     version_filter = '''
 ,
     "1": {
@@ -98,15 +100,39 @@ def create_integration_change(rest):
 '''
     latest_ver = get_latest_build("master_allincloud_int", version_filter)
     log.info("The latest released build is {}".format(latest_ver))
-    change = rest.create_ticket(
-        integration,
-        '',
-        'master',
-        'rcpvduint trigger',
-        base_change=None
-    )[1]
-    log.info("ticket id is {}".format(change))
-    return change, latest_ver
+    repo = git.Repo.clone_from(
+        url='ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration',
+        to_path='integration'
+    )
+    integration = repo.git
+    if base.lower() != "head":
+        log.info("use specify version {} as base".format(base))
+        latest_ver = base
+    integration.checkout(re.sub("^5G_", "", latest_ver))
+    update_env_config_file(version_dict)
+    if not integration.diff():
+        raise Exception("config.yaml and env file no change!")
+    integration.add("config.yaml", "env/env-config.d/ENV")
+    integration.commit('-m', 'rcpvduint trigger')
+    process = subprocess.Popen(
+        "gitdir=$(git rev-parse --git-dir); scp -p -P 8282 ca_5gcv@gerrit.ext.net.nokia.com:hooks/commit-msg ${gitdir}/hooks/",
+        shell=True,
+        cwd=os.path.join(os.getcwd(), "integration")
+    )
+    process.wait()
+    integration.commit("--amend", "--no-edit")
+    process = subprocess.Popen(
+        "git push origin HEAD:refs/for/master",
+        shell=True,
+        cwd=os.path.join(os.getcwd(), "integration"),
+        stderr=subprocess.PIPE
+    )
+    process.wait()
+    output = process.stderr.read()
+    change_id = re.findall(r"/([0-9]*) *rcpvduint t", output)[0]
+    change_hash = integration.execute(["git", "rev-parse", "HEAD"])
+    log.info("ticket id is {}; base pakage is {}".format(change_id, latest_ver))
+    return change_hash, latest_ver, change_id
 
 
 def arguments():
@@ -124,6 +150,12 @@ def arguments():
         help="--receiver mail list"
     )
     parse.add_argument(
+        '--base',
+        '-b',
+        required=True,
+        help="--Base pkg"
+    )
+    parse.add_argument(
         '--gerrit',
         '-g',
         required=True,
@@ -132,13 +164,17 @@ def arguments():
     return parse.parse_args()
 
 
-def update_env_file(rest, version_dict, change_id):
-    env_path = 'env/env-config.d/ENV'
-    env_content = rest.get_file_content(env_path, change_id)
-    log.debug(env_content)
+def update_env_config_file(version_dict):
+    origin_cwd = os.getcwd()
+    os.chdir(os.path.join(os.getcwd(), "integration"))
+    with open('env/env-config.d/ENV', 'r') as env, open('config.yaml', 'r') as config:
+        env_content = env.read()
+        config_yaml = yaml.safe_load(config)
+    log.info(env_content)
+    log.info(config_yaml)
     for item in version_dict:
         if re.search(r'\n *{}=[^\n]*\n'.format(item), env_content):
-            log.info("update {} version".format(item))
+            log.info("update env {} version".format(item))
             env_content = re.sub(
                 r'\n *{}=[^\n]*\n'.format(item),
                 '\n{}={}\n'.format(item, version_dict[item]),
@@ -146,14 +182,26 @@ def update_env_file(rest, version_dict, change_id):
             )
         else:
             raise Exception("Can not find {} from env file!".format(item))
-    rest.add_file_to_change(change_id, env_path, env_content)
-    rest.publish_edit(change_id)
-    commit_hash = rest.get_commit(change_id)['commit']
-    log.info("ticket {}'s hash is {}".format(change_id, commit_hash))
-    return commit_hash
+        for project_comp in config_yaml['components']:
+            if "env_key" in config_yaml['components'][project_comp] \
+                    and item == config_yaml['components'][project_comp]["env_key"]:
+                log.info("update config.yaml {} version".format(item))
+                config_yaml['components'][project_comp]["commit"] = version_dict[item]
+                config_yaml['components'][project_comp]["version"] = version_dict[item]
+                break
+        else:
+            raise Exception("Can not find {} from config.yaml file!".format(item))
+    with open('env/env-config.d/ENV', 'w') as env, open('config.yaml', 'w') as config:
+        log.info("start write env and config.yaml file")
+        yaml.safe_dump(config_yaml, config, default_flow_style=False)
+        env.write(env_content)
+    log.info("env and config.yaml file update finish.")
+    os.chdir(origin_cwd)
 
 
 def generate_releasenote(version_dict, latest_build, tar_pkg, build_url, description):
+    if "5G_" not in latest_build:
+        latest_build = "5G_{}".format(latest_build)
     json_file = '5G_{}.json'.format(
         tar_pkg.replace('knifeanonymous', 'RCPVDUINT')
     )
@@ -235,14 +283,14 @@ def trigger_jenkins_job(job_name, params, interval_time):
             try_time += 1
             if try_time > 200:
                 raise Exception("Get queue_info error,no more tries left")
-            log.warining("Get queue_info error, try again.")
+            log.warning("Get queue_info error, try again.")
             time.sleep(20)
             continue
         if 'executable' in queue_info:
             build_id = queue_info['executable']['number']
             break
         time.sleep(70)
-    log.info("{} build #{} start".format(job_name, build_id))
+    log.info("{}job/{}/{} start".format(jenkins_server, job_name, build_id))
     build_info = dict()
     try_time = 0
     while True:
@@ -252,13 +300,13 @@ def trigger_jenkins_job(job_name, params, interval_time):
             try_time += 1
             if try_time > 400:
                 raise Exception("Get build_info error,no more tries left")
-            log.warining("Get build_info error, try again.")
+            log.warning("Get build_info error, try again.")
             time.sleep(30)
             continue
         if not build_info['building']:
             break
         time.sleep(interval_time)
-    log.info("{} build #{} {}".format(job_name, build_id, build_info['result']))
+    log.info("{}job/{}/{} {}".format(jenkins_server, job_name, build_id, build_info['result']))
     return build_id, build_info
 
 
@@ -307,24 +355,16 @@ def main():
     args = arguments()
     rest = gerrit_rest.init_from_yaml(args.gerrit)
     version_dict = get_version_dict(args.changes)
-    change_id, latest_build = create_integration_change(rest)
-    change_hash = update_env_file(rest, version_dict, change_id)
+    change_hash, base_build, change_id = create_integration_change(args.base, version_dict)
     description, build_url, tar_pkg = trigger_knife_job(
         rest,
         args.mails,
-        latest_build,
+        base_build,
         change_hash,
         change_id
     )
     if description and build_url:
-        generate_releasenote(
-            version_dict,
-            latest_build,
-            tar_pkg,
-            build_url,
-            description
-        )
-        trigger_mail_job(args.mails, tar_pkg)
+        generate_releasenote(version_dict, base_build, tar_pkg, build_url, description)
     rest.abandon_change(change_id)
 
 
