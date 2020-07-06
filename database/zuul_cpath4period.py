@@ -345,7 +345,12 @@ class Runner(object):
                               self.jto_args.zuul_usr,
                               self.jto_args.zuul_passwd,
                               self.jto_args.zuul_table)
-        jto_ins.get_records(self.jto_args.starttime, self.jto_args.endtime)
+        try:
+            jto_ins.get_records(self.jto_args.starttime, self.jto_args.endtime)
+        except Exception as record_err:
+            log.debug("get record except or no record, {}".format(str(record_err)))
+            jto_ins.datas = {}
+            return
         jto_ins.update_data()
         log.debug(jto_ins.datas)
         try:
