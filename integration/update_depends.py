@@ -199,11 +199,26 @@ def update_depends(rest, change_id, dep_file_list,
 
 def get_dep_comps(comp_name, comp_config):
     component = get_comp_obj(comp_name, comp_config)
+    component_list = []
     for key, component_set in comp_config['component_sets'].items():
         if key == component['name'] or \
                 ('ric' in component and component['ric'] == key):
-            return component_set
-    return []
+            component_list = copy.copy(component_set)
+            break
+    for comp in copy.copy(component_list):
+        if comp in comp_config['hierarchy']:
+            logging.info('Find %s in %s', comp, comp_config['hierarchy'])
+            comp_value = comp_config['hierarchy'][comp]
+            if isinstance(comp_value, list):
+                component_list.extend(comp_value)
+            else:
+                logging.info('%s is not a list', comp_value)
+                for sub_value in comp_value.values():
+                    logging.info('check %s is list or not', sub_value)
+                    if isinstance(sub_value, list):
+                        logging.info('add list %s', sub_value)
+                        component_list.extend(sub_value)
+    return list(set(component_list))
 
 
 def replace_depdends_file(rest, change_id, file_path,
