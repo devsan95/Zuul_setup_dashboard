@@ -684,7 +684,7 @@ def get_isar_version(comp, comp_dict):
             f_content = f.read()
     isar_version = ''
     if f_content:
-        isar_reg = re.compile(r'ECL_ISAR_XML=\/isource\/svnroot\/BTS_I_ISAR_XML\/([^0-9]*)@([\d]*)')
+        isar_reg = re.compile(r'ECL_ISAR_XML=\/isource\/svnroot\/BTS_I_ISAR_XML\/(.*)@([\d]*)')
         content = " ".join(f_content.splitlines())
         reg_search_result = isar_reg.search(content)
         isar_branch = reg_search_result.groups()[0] if reg_search_result else None
@@ -705,7 +705,7 @@ def add_isar(comment_dict):
         for comp, comp_value in value.items():
             if comp == 'coam-parameters' or comp == 'cuoam-parameters':
                 isar_branch, isar_version = get_isar_version(comp, comp_value)
-            if isar_version:
+            if isar_branch:
                 isar_dict = {"SVNBRANCH": isar_branch, "SVNREV": isar_version}
                 value['isarxml'] = isar_dict
                 break
