@@ -667,7 +667,10 @@ class IntegrationChangesCreation(object):
             else:
                 commit_hash = self.base_commits_info.get(node_obj['name'])
                 if not commit_hash and 'ric' in node_obj:
-                    commit_hash = self.base_commits_info.get(node_obj['ric'][0])
+                    for r in node_obj['ric']:
+                        commit_hash = self.base_commits_info.get(r)
+                        if commit_hash:
+                            break
         print('[Info] Get commit_hash [{}] for component [{}]'.format(commit_hash, node_obj['name']))
         commit = ''
         if commit_hash:
