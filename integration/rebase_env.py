@@ -118,6 +118,7 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         reg = common_regex.int_firstline_reg
         to_be_replaced = reg.search(msg).groups()[1]
         to_be_replaced_string = '<{0}>'.format(to_be_replaced)
+        to_be_replace_fifi = common_regex.fifi_reg.search(origin_msg).groups()[0]
         pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))
         result = reg.search('\n'.join(env_change_list))
@@ -146,7 +147,8 @@ def change_message_by_env_change(change_no, env_change_list, rest):
             print('delete edit failed, reason:')
             print(str(e))
 
-        new_msg = origin_msg.replace(to_be_replaced_string, to_replace_string)
+        new_msg = origin_msg.replace(to_be_replaced_string, to_replace_string).replace(
+            '%FIFI={0}'.format(to_be_replace_fifi), '%FIFI={0}'.format(to_replace))
         rest.change_commit_msg_to_edit(change_no, new_msg)
         rest.publish_edit(change_no)
         return to_be_replaced, to_replace
