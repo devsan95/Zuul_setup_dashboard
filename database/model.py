@@ -223,3 +223,21 @@ class IntegrationRefs(ModelBase):
     zuul_url = sa.Column(sa.String(255), nullable=True)
     date = sa.Column(sa.String(255), nullable=True)
     enable = sa.Column(sa.Integer, nullable=True)
+
+
+class merger_info(ModelBase):
+    __tablename__ = 'merger_info'
+
+    id = sa.Column(sa.BIGINT, primary_key=True, autoincrement=True)
+
+    more = sa.Column(sa.TEXT, server_default='')
+    name = sa.Column(sa.VARCHAR(200), server_default='')
+    ip = sa.Column(sa.VARCHAR(200), server_default='')
+    enable = sa.Column(sa.VARCHAR(50), server_default='0')
+    zuul_url = sa.Column(sa.VARCHAR(500), server_default='')
+    server_type = sa.Column(sa.VARCHAR(200), server_default='')
+    last_update = sa.Column(sa.DATETIME, server_default=sa.func.current_timestamp())
+    port_mapping = sa.Column(sa.VARCHAR(50), server_default='')
+    version = sa.Column(sa.VARCHAR(100), server_default='')
+    product_type = sa.Column(sa.VARCHAR(50), nullable=True)
+    ssh_port = sa.Column(sa.VARCHAR(255), server_default='22')

@@ -1,202 +1,203 @@
-# %%
 import os
-import sys
+import yaml
 import time
 import json
-
-# ATTENTION: urlparse is not valid in python version 3
+import fire
+import requests
+import logging
+import subprocess
+from datetime import datetime
+from requests.auth import HTTPBasicAuth
+from pkg_resources import parse_version
 from urlparse import urlparse
 from api import file_api
 import codecs
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from database import model
 
-# %%
-
-f = open('update_log.txt', 'w')
-
-engine = sa.create_engine("mysql+mysqlconnector://root:hzscmzuul@10.159.11.27/doggy")
-engine.connect()
-Session = sessionmaker(bind=engine)
-session = Session()
-Base = declarative_base()
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                    datefmt='%a, %d %b %Y %H:%M:%S')
 
 
-class merger_info(Base):
-    __tablename__ = 'merger_info'
-
-    id = sa.Column(sa.BIGINT, primary_key=True, autoincrement=True)
-
-    more = sa.Column(sa.TEXT, server_default='')
-    name = sa.Column(sa.VARCHAR(200), server_default='')
-    ip = sa.Column(sa.VARCHAR(200), server_default='')
-    enable = sa.Column(sa.VARCHAR(50), server_default='False')
-    zuul_url = sa.Column(sa.VARCHAR(500), server_default='')
-    server_type = sa.Column(sa.VARCHAR(200), server_default='')
-    last_update = sa.Column(sa.DATETIME, server_default=sa.func.current_timestamp())
-    port_mapping = sa.Column(sa.VARCHAR(50), server_default='')
-    version = sa.Column(sa.VARCHAR(100), server_default='')
+def get_yaml_object(path):
+    return yaml.safe_load(open(path))
 
 
-# %% Get the latest merger version from JFrog Artifactory
+def collect_mergers():
+    merger_list = []
+    containers = os.popen('docker ps -a --format "{{.Names}}"').read().split("\n")
 
-data = os.popen('curl -u ca_zuul_qa:Welcome567 -X GET https://artifactory-espoo1.int.net.nokia.com/artifactory/api'
-                '/docker/zuul-local/v2/zuul-images/zuul-merger/tags/list').read()
+    for obs in containers:
+        seg = obs.split("_")
+        if seg[0] == "merger" and seg[-1].isdigit() and "bak" not in obs:
+            merger_list.append(obs)
 
-s = json.loads(data)
+    return merger_list
 
-for V in reversed(s["tags"]):
-    if '-' not in V:
-        latest_version = V
-        break
 
-# %%
-mergers = []
-containers = os.popen('docker ps -a --format "{{.Names}}"').read().split("\n")
+def get_latest_merger_version(path):
+    obj = get_yaml_object(path)
+    data = requests.get(obj["artifactory"]["url"],
+                        auth=HTTPBasicAuth(obj["artifactory"]["user"], obj["artifactory"]["pass"])).text
+    for v in reversed(json.loads(data)["tags"]):
+        if '-' not in v:
+            return v
+    return None
 
-for obs in containers:
-    seg = obs.split("_")
-    if seg[0] == "merger" and seg[-1].isdigit():
-        mergers.append(obs)
 
-f.write("Number of mergers in the host: %d\n" % len(mergers))
+def get_connection_string(path):
+    obj = get_yaml_object(path)
+    return "{}+{}://{}:{}@{}/{}".format(obj["sql"]["dialect"], obj["sql"]["driver"], obj["sql"]["user"],
+                                        obj["sql"]["pass"], obj["sql"]["host"], obj["sql"]["db"])
 
-# We assume there is at least one merger in the current host
-# exit the program if no merger exists
-if len(mergers) == 0:
-    f.write("No merger exists in the host, program exit.\n")
-    f.close()
-    exit(0)
 
-print(len(mergers))
-
-# %%
-for merger in mergers:
-
-    status = os.popen('docker ps -a --filter "name=%s" --format "{{.Status}}"' % merger).read().split(' ')[0]
-    f.write("Merger name: " + str(merger) + "\t")
-    f.write("Initial Status: %s\t" % status)
-
-    # Only consider two status: Up and Exited
-    # Now we are considering the case where status is Exited
-    enable_after_update = True
-
-    if status == "Exited":
-        os.system('docker start %s' % merger)
-        enable_after_update = False
-        # Give enough time for container to start running
-        time.sleep(5)
-
-    # If container status isn't "Up", skip the current iteration
-    if os.popen('docker ps -a --filter "name=%s" --format "{{.Status}}"' % merger).read().split(' ')[0] != "Up":
-        f.write("Cannot run %s\n" % merger)
-        continue
-
-    local_version = os.popen('docker ps --filter "name=%s" --format "{{.Image}}"' % merger).read().split(':')[
-        1].rstrip("\n")
-    container_id = os.popen('docker ps --filter "name=%s" --format "{{.ID}}"' % merger).read().rstrip("\n")
-
-    f.write("Current Version: %s\t" % local_version)
-    f.write("Latest Version: %s\t" % latest_version)
-
+def generate_port_mapping_string(merger):
     ports = os.popen("docker port {}".format(merger)).read().split("\n")
-
     # Get rid of the last empty element in the list
     ports.pop(-1)
 
-    pm_str = ""
-
+    string = ""
     for idx, item in enumerate(ports):
         p = "{}:{}".format(item.split("/tcp -> 0.0.0.0:")[1], item.split("/tcp -> 0.0.0.0:")[0])
-        pm_str += "-p {} ".format(p)
+        string += "-p {} ".format(p)
+    return string
 
-    print(pm_str)
 
-    # Check server type
+def check_server_type():
     if "eslinb" in os.popen("hostname").read().rstrip("\n"):
-        hostType = "EELINSEE"
+        return "EELINSEE"
+    return "Cloud"
+
+
+def get_docker_run_cmd(portMapStr, merger, latestVersion):
+    if check_server_type() == "Cloud":
+        cmd = "docker run -itd --log-opt max-size=2g --log-opt max-file=1 --privileged {}-v /ephemeral/zuul_mergers/{}/log/:/ephemeral/log/zuul/ -v /ephemeral/zuul_mergers/{}/git/:/ephemeral/zuul/git/ -v /ephemeral/zuul_mergers/{}/etc/:/etc/zuul/ --name {} zuul-local.esisoj70.emea.nsn-net.net/zuul-images/zuul-merger:{}".format(
+            portMapStr, merger, merger, merger, merger, latestVersion)
     else:
-        hostType = "Cloud"
+        cmd = "docker run -itd --log-opt max-size=2g --log-opt max-file=1 --privileged {}-v /var/fpwork/{}/etc:/etc/zuul/ -v /var/fpwork/{}/git/:/ephemeral/zuul/git/ -v /var/fpwork/{}/log/:/ephemeral/log/zuul/ --name {} zuul-local.esisoj70.emea.nsn-net.net/zuul-images/zuul-merger:{}".format(
+            portMapStr, merger, merger, merger, merger, latestVersion)
+    return cmd
 
-    f.write("Server type: %s\t" % hostType)
 
-    # copy conf files inside the container to the host according to its server type
-    if hostType == "Cloud":
-        os.system("docker cp {}:/etc/zuul/. /ephemeral/zuul_mergers/{}/etc/".format(container_id, merger))
-    elif hostType == "EELINSEE":
-        temp_dirt = file_api.TempFolder().get_directory()
-        os.system("docker cp {}:/etc/zuul/. {}/".format(container_id, temp_dirt))
+def update_merger(merger, pm_str, latest_version, container_id, ip):
+    # Check whether a docker image can be pulled
+    res = subprocess.call(
+        "docker pull zuul-local.esisoj70.emea.nsn-net.net/zuul-images/zuul-merger:{}".format(latest_version),
+        shell=True)
+    if res != 0:
+        raise Exception("Cannot pull image at host {}".format(ip))
 
-    if float(local_version.lstrip('v')) < float(latest_version.lstrip('v')):
-        os.system("docker stop {}; docker rename {} old_merger_{}".format(merger, merger, merger.split('_')[-1]))
+    now = datetime.now()
+    date = now.strftime("%Y") + now.strftime("%m") + now.strftime("%d")
+    # Copy conf files inside the container to the host according to its server type
+    # Before the old server is stopped and renamed
+    temp_dirt = file_api.TempFolder().get_directory()
+    os.system("docker cp {}:/etc/zuul/. {}".format(container_id, temp_dirt))
+    os.system("docker stop {}; docker rename {} {}_bak_{}".format(merger, merger, merger, date))
 
-        # Run docker run command according to server type
-        if hostType == "Cloud":
-            os.system("docker run -itd --log-opt max-size=2g --log-opt max-file=1 --privileged {}-v"
-                      "/ephemeral/zuul_mergers/{}/log/:/ephemeral/log/zuul/ -v "
-                      "/ephemeral/zuul_mergers/{}/git/:/ephemeral/zuul/git/ -v "
-                      "/ephemeral/zuul_mergers/{}/etc/:/etc/zuul/ --name {} "
-                      "zuul-local.esisoj70.emea.nsn-net.net/zuul-images/zuul-merger:{}"
-                      .format(pm_str, merger, merger, merger, merger,
-                              latest_version))
+    # Run docker run command according to server type
+    os.system(get_docker_run_cmd(pm_str, merger, latest_version))
 
-        elif hostType == "EELINSEE":
-            os.system("docker run -itd --log-opt max-size=2g --log-opt max-file=1 --privileged {}-v "
-                      "/var/fpwork/{}/etc:/etc/zuul/ -v "
-                      "/var/fpwork/{}/git/:/ephemeral/zuul/git/ -v "
-                      "/var/fpwork/{}/log/:/ephemeral/log/zuul/ --name {} "
-                      "zuul-local.esisoj70.emea.nsn-net.net/zuul-images/zuul-merger:{}"
-                      .format(pm_str, merger, merger, merger, merger,
-                              latest_version))
+    os.system("docker cp {}/. {}:/etc/zuul/.".format(temp_dirt, merger))
+    logging.info("Renamed to {}_bak_{}\t".format(merger, date))
+    logging.info("Upgrade at %s\n", os.popen("date").read())
 
-            os.system("docker cp {}/. {}:/etc/zuul/.".format(temp_dirt, merger))
 
-        f.write("Renamed to old_merger_%s\t" % merger.split('_')[-1])
-        f.write("Upgrade at %s\n" % os.popen("date").read())
-
-    if not enable_after_update:
-        os.system("docker stop {}".format(merger))
-
-    # %% Update SQL database
-    mg_name = [codecs.encode(x[0], 'utf-8') for x in session.query(merger_info.name).filter_by(ip=sys.argv[1]).all()]
-
+def update_sql_table(session, merger, table, ip, version, enable):
+    mg_name = [codecs.encode(x[0], 'utf-8') for x in session.query(table.name).filter_by(ip=ip).all()]
     # Update table if merger exists in the sql database
     # Insert table if merger does not exist in the sql database
     if merger in mg_name:
-
-        record = session.query(merger_info) \
-            .filter(merger_info.name == merger) \
-            .filter(merger_info.ip == sys.argv[1]).one()
-
-        record.version = latest_version
-        record.enable = enable_after_update
+        record = session.query(table).filter(table.name == merger).filter(table.ip == ip).one()
+        record.version = version
+        record.enable = enable
 
     else:
         # Retrieve zuul_url from sql database
-        url_tmp = urlparse(
-            codecs.encode(session.query(merger_info.zuul_url).filter_by(ip=sys.argv[1]).first()[0], 'utf-8'))
-
+        url_tmp = urlparse(codecs.encode(session.query(table.zuul_url).filter_by(ip=ip).first()[0], 'utf-8'))
         # Modify data retrieved above to form a new one for inserting
         url_port = str(url_tmp.port)[:3] + merger.split('_')[-1]
         new_mapping = url_port + ":80"
         new_url = url_tmp.scheme + "://" + url_tmp.hostname + ":{}".format(url_port) + url_tmp.path
-
         # Retrieve server_type from sql database
-        sv_type = codecs.encode(session.query(merger_info.server_type).filter_by(ip=sys.argv[1]).first()[0], 'utf-8')
-
-        newObj = merger_info(more='TESTONLY',
-                             name=merger,
-                             ip=sys.argv[1],
-                             enable="%r" % enable_after_update,
-                             zuul_url=new_url,
-                             server_type=sv_type,
-                             port_mapping=new_mapping,
-                             version=latest_version
-                             )
-
-        session.add(newObj)
-
+        sv_type = codecs.encode(session.query(table.server_type).filter_by(ip=ip).first()[0], 'utf-8')
+        new_row = model.merger_info(more='NEW',
+                                    name=merger,
+                                    ip=ip,
+                                    enable="%r" % enable,
+                                    zuul_url=new_url,
+                                    server_type=sv_type,
+                                    port_mapping=new_mapping,
+                                    version=version
+                                    )
+        session.add(new_row)
     session.commit()
 
-f.close()
+
+def update_all(ip, path, session):
+    for merger in collect_mergers():
+        status = os.popen('docker ps -a --filter "name=%s" --format "{{.Status}}"' % merger).read().split(' ')[0]
+        logging.info("Merger name: {}, Initial status {}".format(str(merger), status))
+
+        # Only consider two status: Up and Exited
+        # Now we are considering the case where status is Exited
+        enable_after_update = True
+
+        if status == "Exited":
+            os.system('docker start %s' % merger)
+            enable_after_update = False
+            # Give enough time for container to start running
+            time.sleep(5)
+
+        # If container status isn't "Up", skip the current iteration
+        if os.popen('docker ps -a --filter "name=%s" --format "{{.Status}}"' % merger).read().split(' ')[0] != "Up":
+            logging.warning("Cannot run %s", merger)
+            return
+
+        container_id = os.popen('docker ps --filter "name=%s" --format "{{.ID}}"' % merger).read().rstrip("\n")
+        local_version = os.popen('docker ps --filter "name=%s" --format "{{.Image}}"' % merger).read().split(':')[
+            1].rstrip("\n")
+        latest_version = get_latest_merger_version(path)
+        pm_str = generate_port_mapping_string(merger)
+        host_type = check_server_type()
+
+        logging.info(
+            "Current Version: {}, Latest Version: {}, Server type: {}".format(local_version, latest_version, host_type))
+
+        # Perform actions only when container is not the latest one
+        if parse_version(local_version) < parse_version(latest_version):
+            update_merger(merger, pm_str, latest_version, container_id, ip)
+            logging.info("Merger is updated to the latest version {}".format(latest_version))
+        elif parse_version(local_version) == parse_version(latest_version):
+            logging.info("Merger is already the latest version")
+
+        if not enable_after_update:
+            os.system("docker stop {}".format(merger))
+
+        update_sql_table(session, merger, model.merger_info, ip, latest_version, enable_after_update)
+
+
+def main(ip, path):
+    engine = sa.create_engine(get_connection_string(path))
+    engine.connect()
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    num_merger = len(collect_mergers())
+    logging.info("Number of mergers in the host: %d", num_merger)
+
+    # We assume there is at least one merger in the current host
+    # exit the program if no merger exists
+    if num_merger == 0:
+        logging.warning("No merger exists in the host, program exit")
+        exit(0)
+
+    update_all(ip, path, session)
+
+
+if __name__ == '__main__':
+    fire.Fire(main)
+
+# %%

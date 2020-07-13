@@ -1,53 +1,33 @@
 import os
 import paramiko
 import codecs
+import fire
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-
-# %%
-engine = sa.create_engine("mysql+mysqlconnector://root:hzscmzuul@10.159.11.27/doggy")
-engine.connect()
-Session = sessionmaker(bind=engine)
-session = Session()
-Base = declarative_base()
+from database import model
+from update_zuul_merger_auto import get_connection_string
 
 
-class merger_info(Base):
-    __tablename__ = 'merger_info'
-
-    id = sa.Column(sa.BIGINT, primary_key=True)
-
-    more = sa.Column(sa.TEXT, server_default='')
-    name = sa.Column(sa.VARCHAR(200), server_default='')
-    ip = sa.Column(sa.VARCHAR(200), server_default='')
-    enable = sa.Column(sa.VARCHAR(50), server_default='NO')
-    zuul_url = sa.Column(sa.VARCHAR(500), server_default='')
-    server_type = sa.Column(sa.VARCHAR(200), server_default='')
-    last_update = sa.Column(sa.DATETIME, server_default=sa.func.current_timestamp())
-    port_mapping = sa.Column(sa.VARCHAR(50), server_default='')
-    version = sa.Column(sa.VARCHAR(100), server_default='')
+def get_all_ip_from_db(session, table):
+    return [codecs.encode(x[0], 'utf-8') for x in session.query(table.ip).distinct()]
 
 
-hosts = [codecs.encode(x[0], 'utf-8') for x in session.query(merger_info.ip).distinct()]
-print(hosts)
+def get_server_type_by_ip(session, table, ip):
+    return codecs.encode(session.query(table.server_type).filter_by(ip=ip).first()[0], 'utf-8')
 
-# %%
 
-hosts = ['10.157.163.210', '10.159.10.139']
-# hosts = ['10.157.163.210']
-port = 22
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+def get_ssh_port(session, table, ip):
+    return codecs.encode(session.query(table.ssh_port).filter_by(ip=ip).first()[0], 'utf-8')
 
-for host in hosts:
-    sv_type = codecs.encode(session.query(merger_info.server_type).filter_by(ip=host).first()[0], 'utf-8')
+
+def trigger_script(session, table, host, ssh, port, folder):
+    sv_type = get_server_type_by_ip(session, table, host)
 
     if sv_type == "EELINSEE":
-        os.system("scp -r /root/task1/ ca_5g_hz_scm@{}:~/".format(host))
+        os.system("scp -r {} ca_5g_hz_scm@{}:/tmp/".format(folder, host))
         ssh.connect(host, port, "ca_5g_hz_scm")
     else:
-        os.system("scp -r /root/task1/ root@{}:~/".format(host))
+        os.system("scp -r {} root@{}:///tmp/".format(folder, host))
         ssh.connect(host, port, "root")
 
     channel = ssh.get_transport().open_session()
@@ -56,11 +36,36 @@ for host in hosts:
     while channel.recv_ready():
         channel.recv(1024)
 
-    if sv_type == "EELINSEE":
-        channel.sendall("source /home/ca_5g_hz_scm/mn_s/mn_scripts/pyenv.sh &> garytest_output.txt\n")
-        channel.sendall("python /home/ca_5g_hz_scm/task1/testConnection.py {} &>> garytest_output.txt\n".format(host))
-    else:
-        channel.sendall("source /root/mn_scripts/pyenv.sh &> garytest_output.txt\n")
-        channel.sendall("python /root/task1/testConnection.py {} &>> garytest_output.txt\n".format(host))
+    channel.sendall('git clone "https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/mn_scripts" {}/mn &> '
+                    'garytest_output.txt\n'.format(folder))
+    channel.sendall("source {}/mn/pyenv.sh &>> garytest_output.txt\n".format(folder))
+    channel.sendall("python {}/update_zuul_merger_auto.py --ip {} --path {}/param.yaml "
+                    "&>> garytest_output.txt\n".format(folder, host, folder))
 
     ssh.close()
+
+
+def apply_for_all(session, table, folder):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    for host in get_all_ip_from_db(session, table):
+        port = get_ssh_port(session, table, host)
+        trigger_script(session, table, host, ssh, int(port), folder)
+
+    # for host in ["10.157.4.246"]:
+    #     port = get_ssh_port(session, table, host)
+    #     trigger_script(session, table, host, ssh, int(port), folder)
+
+
+def main(yaml_path, folder):
+    engine = sa.create_engine(get_connection_string(yaml_path))
+    engine.connect()
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    apply_for_all(session, model.merger_info, folder)
+
+
+if __name__ == '__main__':
+    fire.Fire(main)
