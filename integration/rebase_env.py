@@ -45,7 +45,7 @@ def create_config_yaml_by_env_change(env_change_split, rest, change_id, config_y
                     if '=' in env_line:
                         key, value = env_line.split('=', 1)
                         if key == comp_env_key:
-                            if value != component_info['commit']:
+                            if value != component_info['version'] and value != component_info['commit']:
                                 print('Update {} to {} in config.yaml'.format(key, value))
                                 component_info['commit'] = value
                                 component_info['version'] = value
