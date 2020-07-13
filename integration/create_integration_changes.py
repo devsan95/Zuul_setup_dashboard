@@ -671,6 +671,9 @@ class IntegrationChangesCreation(object):
         print('[Info] Get commit_hash [{}] for component [{}]'.format(commit_hash, node_obj['name']))
         commit = ''
         if commit_hash:
+            # sometimes in HEAD mode, it's not able to find it's chagneinfo by
+            # commit_hash, in this situation commit is ''
+            # this is OK for us.
             change_info = self.gerrit_rest.query_ticket('commit:{}'.format(commit_hash), count=1)
             if change_info:
                 change_info = change_info[0]
@@ -758,7 +761,7 @@ class IntegrationChangesCreation(object):
                     print("[Info] Base commit for env is: {}".format(com_ver))
                     continue
             if 'MN/5G/COMMON/integration' in node['repo']:
-                base_commits['integration'] = base_load
+                base_commits['integration'] = self.gerrit_rest.get_tag('MN/5G/COMMON/integration', base_load)['object']
                 continue
             if 'type' in node and 'integration' in node['type']:
                 continue
