@@ -113,7 +113,7 @@ def create_integration_change(base, version_dict):
     if not integration.diff():
         raise Exception("config.yaml and env file no change!")
     integration.add("config.yaml", "env/env-config.d/ENV")
-    integration.commit('-m', 'rcpvduint trigger')
+    integration.commit('-m', 'Automated rcpvduint trigger')
     process = subprocess.Popen(
         "gitdir=$(git rev-parse --git-dir); scp -p -P 8282 ca_5gcv@gerrit.ext.net.nokia.com:hooks/commit-msg ${gitdir}/hooks/",
         shell=True,
@@ -129,7 +129,7 @@ def create_integration_change(base, version_dict):
     )
     process.wait()
     output = process.stderr.read()
-    change_id = re.findall(r"/([0-9]*) *rcpvduint t", output)[0]
+    change_id = re.findall(r"/([0-9]*) *Automated rcpvduint t", output)[0]
     change_hash = integration.execute(["git", "rev-parse", "HEAD"])
     log.info("ticket id is {}; base pakage is {}".format(change_id, latest_ver))
     return change_hash, latest_ver, change_id
