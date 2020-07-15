@@ -204,21 +204,22 @@ class DbHandler(object):
             if item['type'] == 'item is not live':
                 status_str = 'not live'
 
-            # merge fail
-            if item['type'] == 'finish with merge fail':
-                status_str = 'merge fail'
-            # no job
-            if item['type'] == 'finish with no job':
-                status_str = 'no job'
-            # success
-            if item['type'] == 'success':
-                status_str = 'success'
-            # fail
-            if item['type'] == 'fail':
-                status_str = 'fail'
-            # promotion
-            if item['type'] == 'cancel jobs for promotion':
-                status_str = 'dequeued for promotion'
+            if status_str != 'bunched':
+                # merge fail
+                if item['type'] == 'finish with merge fail':
+                    status_str = 'merge fail'
+                # no job
+                if item['type'] == 'finish with no job':
+                    status_str = 'no job'
+                # success
+                if item['type'] == 'success':
+                    status_str = 'success'
+                # fail
+                if item['type'] == 'fail':
+                    status_str = 'fail'
+                # promotion
+                if item['type'] == 'cancel jobs for promotion':
+                    status_str = 'dequeued for promotion'
 
             if item['type'] == 'remove for dequeue command':
                 status_str = 'removed manually'
