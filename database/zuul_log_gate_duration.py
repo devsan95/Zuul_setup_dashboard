@@ -220,6 +220,9 @@ class DbHandler(object):
             if item['type'] == 'cancel jobs for promotion':
                 status_str = 'dequeued for promotion'
 
+            if item['type'] == 'remove for dequeue command':
+                status_str = 'removed manually'
+
             if item['type'] == 'remove from queue while bunched':
                 status_str = 'bunched'
 
