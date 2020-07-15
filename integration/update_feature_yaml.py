@@ -563,12 +563,12 @@ def update(integration_dir, branch, *together_comps):
             logging.warn('Feature is not ready: %s', feature)
         else:
             features_delivered.append(feature['feature_id'])
-    if features_delivered:
+    if feature_list and all_delivered:
+        unforzen_config_yaml(integration_dir)
+    elif features_delivered:
         is_delivered = unforzen_config_yaml(integration_dir, features_delivered)
         if is_delivered:
             logging.warn('There is one or more feature delivered in %s', features_delivered)
-    if feature_list and all_delivered:
-        unforzen_config_yaml(integration_dir)
     push_integration_change(integration_dir, branch, 'unforzen as some features ready')
 
 

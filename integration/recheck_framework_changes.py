@@ -1,5 +1,6 @@
 import re
 import fire
+import time
 from pprint import pprint
 from requests.structures import CaseInsensitiveDict
 
@@ -25,7 +26,28 @@ def check_user_label_from_detail(detail_json, username, label):
     return value
 
 
-def run(gerrit_info_path, change_no):
+def check_verified_status(rest, change_no, timeout):
+    info_with_labels = rest.get_ticket(change_no, fields='LABELS')
+    verified_result = False
+    time_used = 0
+    while time_used < timeout:
+        try:
+            verified_result = 'approved' in info_with_labels['labels']['Verified']
+        except Exception:
+            print("WARN: Cannot get Verified value from {}".format(verified_result))
+        if verified_result:
+            return
+        else:
+            print("Current verified status is {}".format(verified_result))
+            print("Already wait {} mins".format(time_used))
+            print("Waitting one more min to check the verified status")
+            time.sleep(60)
+            time_used += 1
+            info_with_labels = rest.get_ticket(change_no, fields='LABELS')
+    raise Exception("ERROR: {} mins exceed to wait verfied +1 for {}".format(timeout, change_no))
+
+
+def run(gerrit_info_path, change_no, timeout=30):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     op = RootChange(rest, change_no)
     username = rest.user
@@ -38,6 +60,10 @@ def run(gerrit_info_path, change_no):
     if 'env/env-config.d/ENV' not in change_files and 'config.yaml' not in change_files:
         print('{} is not contains ENV and config.yaml file'.format(change_no))
         return
+
+    # wait <timeout> mins for verified+1 in change
+    if timeout > 0:
+        check_verified_status(rest, change_no, timeout)
 
     # find all changes
     print('Looking for all changes...')
