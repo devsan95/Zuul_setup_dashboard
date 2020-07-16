@@ -330,42 +330,60 @@ def filter_sidepackage_componets(components, together_repo_dict, is_interfaces=F
     return filter_components, sidepacakges_components
 
 
-def get_subbuilds_and_env(components, integration_obj):
+def get_subbuilds_and_env(components, integration_obj, components_in_global):
     components_all_info = {}
+    last_component_infos = None
+    sorted_components = []
     for component in components:
+        if component['name'] not in components_in_global:
+            sorted_components.append(component)
+    for component in components:
+        if component['name'] in components_in_global:
+            sorted_components.append(component)
+    for component in sorted_components:
+        if component['delivered'] and components_all_info:
+            continue
         name = component['name']
         subbuilds_and_env = {}
-        if not component['delivered']:
-            sub_builds = []
-            # serch component in all inc file under recipe-integration
-            component_infos = gen_component_info(name, integration_obj)
-            if not component_infos:
+        sub_builds = []
+        # serch component in all inc file under recipe-integration
+        component_infos = gen_component_info(name, integration_obj)
+        if not component_infos:
+            if name in components_in_global and last_component_infos:
+                component_infos = copy.deepcopy(last_component_infos)
+                for component_info in component_infos:
+                    component_info['name'] = name
+                    component_info['regex'] = '{}-{}'.format(name, components_in_global[name]['version'])
+            else:
                 logging.error('Cannot find component_info for %s', name)
                 continue
-            for component_info in component_infos:
-                regex = component_info['regex']
-                # get components bitbake env
-                try:
-                    bitbake_env_out = get_component_env(component_info, integration_obj)
-                    wft_name = get_component_env_value(bitbake_env_out, ['PV'])
-                except Exception:
-                    traceback.print_exc()
-                    logging.warn('Cannot run bitbake -e for %s', component_info)
-                    logging.warn('Not delivered or some dependency not delivered')
-                    continue
-                # get sub_builds from WFT
+        if name in GNB_INTERFACES_COMPS:
+            last_component_infos = component_infos
+        for component_info in component_infos:
+            regex = component_info['regex']
+            # get components bitbake env
+            try:
+                bitbake_env_out = get_component_env(component_info, integration_obj)
+                wft_name = get_component_env_value(bitbake_env_out, ['PV'])
+            except Exception:
+                traceback.print_exc()
+                logging.warn('Cannot run bitbake -e for %s', component_info)
+                logging.warn('Not delivered or some dependency not delivered')
+                continue
+            # get sub_builds from WFT
+            if name not in components_in_global:
                 try:
                     sub_builds = wft_tools.get_subuild_from_wft(wft_name, component['name'])
                 except Exception:
                     logging.warn('Cannot get package or sub_builds for %s', wft_name)
                     sub_builds = []
-                subbuilds_and_env = {'wft_name': wft_name,
-                                     'sub_builds': sub_builds,
-                                     'component_info': component_info,
-                                     'bitbake_env_out': bitbake_env_out}
-                if name not in components_all_info:
-                    components_all_info[name] = {}
-                components_all_info[name][regex] = subbuilds_and_env
+            subbuilds_and_env = {'wft_name': wft_name,
+                                 'sub_builds': sub_builds,
+                                 'component_info': component_info,
+                                 'bitbake_env_out': bitbake_env_out}
+            if name not in components_all_info:
+                components_all_info[name] = {}
+            components_all_info[name][regex] = subbuilds_and_env
     return components_all_info
 
 
@@ -394,7 +412,7 @@ def update_feature(feature, integration_obj, together_repo_dict):
         filter_components, sidepacakges_components = filter_sidepackage_componets(components, together_repo_dict)
     logging.info('filter_components: %s', filter_components)
     logging.info('sidepacakges_components: %s', sidepacakges_components)
-    components_all_info = get_subbuilds_and_env(filter_components, integration_obj)
+    components_all_info = get_subbuilds_and_env(filter_components, integration_obj, components_in_global)
     logging.info('Components in global: %s', components_in_global)
     logging.info('Components all info: %s', components_all_info.keys())
     for component in components:
@@ -412,6 +430,10 @@ def update_feature(feature, integration_obj, together_repo_dict):
                 logging.info('wft_name : %s', wft_name)
                 if wft_name == component['frozen_version']:
                     logging.info('Same as forzen version: %s, skipped', wft_name)
+                    continue
+                if component_name in components_in_global \
+                        and wft_name == components_in_global[component_name]['version']:
+                    matched_components.append(component_name)
                     continue
                 if platform_id != 'feature' or (components_in_global and sub_builds):
                     if multi_platforms_in_global:
@@ -453,24 +475,6 @@ def update_feature(feature, integration_obj, together_repo_dict):
                                 depends_list = get_component_env_value(bitbake_env_out, ['DEPENDS']).split()
                                 if '{}-{}'.format(interface_component, new_wft_obj['version']) in depends_list:
                                     matched_components.append(component_name)
-                                    if interface_component not in components_all_info \
-                                            and interface_component not in matched_components \
-                                            and interface_component not in not_matched_components:
-                                        # check if interfaces delivered
-                                        # run bitbake -e to see if it's exists
-                                        # this can be removed after all components
-                                        # info is right in WFT
-                                        depended_component_info = copy.deepcopy(component_info)
-                                        depended_component_version = '{}-{}'.format(
-                                            interface_component, new_wft_obj['version'])
-                                        try:
-                                            logging.info('%s is delivered', depended_component_version)
-                                            run_bitbake_command(depended_component_info, integration_obj,
-                                                                '-e', depended_component_version)
-                                            matched_components.append(interface_component)
-                                        except Exception:
-                                            logging.info('%s is not delivered', depended_component_version)
-                                            not_matched_components.append(interface_component)
 
                 if component_name not in matched_components and component_name not in not_matched_components:
                     check_result = None
@@ -484,6 +488,7 @@ def update_feature(feature, integration_obj, together_repo_dict):
                             matched_components.append(component_name)
                         else:
                             not_matched_components.append(component_name)
+
     logging.info('Matched components %s', matched_components)
     for together_repo, together_comps in together_repo_dict.items():
         for together_comp in together_comps:
