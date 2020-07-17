@@ -168,6 +168,7 @@ disable=print-statement,
         ungrouped-imports,
         exec-used,
         too-few-public-methods,
+        attribute-defined-outside-init,
         keyword-arg-before-vararg
 
 # Enable the message, report, category or checker with the given id(s). You can

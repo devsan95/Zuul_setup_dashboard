@@ -163,6 +163,31 @@ def get_ps(baseline):
     return build_content.get_ps()
 
 
+def get_staged_from_wft(wft_name, component=None, project=None):
+    build_content = ''
+    try:
+        if component and project:
+            build_content = WFT.get_build_content(wft_name)
+        else:
+            build_content = WFT.get_build_content(wft_name, component=component, project=project)
+    except Exception:
+        print('Cannot get build_content for {}'.format(wft_name))
+    if not build_content:
+        return {}
+    tree = ET.fromstring(build_content)
+    bbrecipe = tree.find('bbrecipe')
+    if bbrecipe is not None:
+        bbrecipe_location = bbrecipe.get("location", '')
+        bbrecipe_commit = bbrecipe.get("commit", '')
+        bbrecipe_type = bbrecipe.get("type", '')
+        print('bbrecipe: location="{}" type="{}" commit="{}"'.format(
+              bbrecipe_location, bbrecipe_type, bbrecipe_commit))
+        return {'location': bbrecipe_location,
+                'type': bbrecipe_type,
+                'commit': bbrecipe_commit}
+    return {}
+
+
 def get_subuild_from_wft(wft_name, component=None):
     build_content = ''
     sub_builds = []
@@ -171,14 +196,12 @@ def get_subuild_from_wft(wft_name, component=None):
     except Exception:
         if component:
             for project in ["5G", "Common", "ALL"]:
-                print('Try to get from WFT, version:%s, component:%s, project:%s',
-                      wft_name, component, project)
+                print('Try to get from WFT, version:{}, component:{}, project:{}'.format(wft_name, component, project))
                 try:
                     build_content = WFT.get_build_content(wft_name, component=component, project=project)
                     break
                 except Exception:
-                    print('Cannot get get from WFT, version:%s, component:%s, project:%s',
-                          wft_name, component, project)
+                    print('Cannot get get from WFT, version:{}, component:{}, project:{}'.format(wft_name, component, project))
     if build_content:
         tree = ET.fromstring(build_content)
         for one in tree.findall("content/baseline"):
