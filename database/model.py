@@ -230,7 +230,7 @@ class merger_info(ModelBase):
 
     id = sa.Column(sa.BIGINT, primary_key=True, autoincrement=True)
 
-    more = sa.Column(sa.TEXT, server_default='')
+    more = sa.Column(sa.TEXT)
     name = sa.Column(sa.VARCHAR(200), server_default='')
     ip = sa.Column(sa.VARCHAR(200), server_default='')
     enable = sa.Column(sa.VARCHAR(50), server_default='0')
