@@ -682,18 +682,16 @@ def get_isar_version(comp, comp_dict):
         api.http_api.download(ecl_link, ecl_file)
         with open(ecl_file, 'r') as f:
             f_content = f.read()
-    isar_version = ''
     if f_content:
         isar_reg = re.compile(r'ECL_ISAR_XML=\/isource\/svnroot\/BTS_I_ISAR_XML\/(.*)@([\d]*)')
-        content = " ".join(f_content.splitlines())
+        content = "\n".join(f_content.splitlines())
         reg_search_result = isar_reg.search(content)
         isar_branch = reg_search_result.groups()[0] if reg_search_result else None
         isar_version = reg_search_result.groups()[1] if reg_search_result else 'HEAD'
-
+        print("[Info] ISAR version get from ecl.txt is {0}@{1}".format(isar_branch, isar_version))
+        return isar_branch, isar_version
     else:
         raise Exception("[Error] Failed to get isar from ecl.txt {}".format(ecl_link))
-    print("[Info] ISAR version get from ecl.txt is {0}@{1}".format(isar_branch, isar_version))
-    return isar_branch, isar_version
 
 
 def add_isar(comment_dict):
@@ -701,14 +699,13 @@ def add_isar(comment_dict):
         print("[Info] Empty comment_dict, no need to parse!")
         return
     for key, value in comment_dict.items():
-        isar_version = ''
         for comp, comp_value in value.items():
             if comp == 'coam-parameters' or comp == 'cuoam-parameters':
                 isar_branch, isar_version = get_isar_version(comp, comp_value)
-            if isar_branch:
-                isar_dict = {"SVNBRANCH": isar_branch, "SVNREV": isar_version}
-                value['isarxml'] = isar_dict
-                break
+                if isar_branch:
+                    isar_dict = {"SVNBRANCH": isar_branch, "SVNREV": isar_version}
+                    value['isarxml'] = isar_dict
+                    break
 
 
 def run(zuul_url, zuul_ref, output_path, change_id,
