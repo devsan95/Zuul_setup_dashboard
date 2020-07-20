@@ -227,6 +227,8 @@ def update_feature_yaml(feature, matched_components, not_matched_components, int
             for key, component_value in config_dict['components'].items():
                 if 'features' in component_value and 'feature_component' in component_value:
                     feature_dict = copy.deepcopy(component_value['features'])
+                    if feature_id not in feature_dict:
+                        continue
                     if component_value['feature_component'] == feature_comp['name']:
                         logging.info('Set delivered for %s to %s', name, feature_delivered)
                         feature_dict[feature_id]['feature_delivered'] = feature_delivered
