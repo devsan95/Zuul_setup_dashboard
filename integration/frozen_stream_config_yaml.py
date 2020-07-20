@@ -92,11 +92,13 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
             logging.warn('config yaml file %s not exists, created', stream_config_yaml_file)
         if not stream_config_yaml['components']:
             stream_config_yaml['components'] = {}
-        else:
-            for component_info in stream_config_yaml['components']:
-                if 'features' in component_info:
-                    features = component_info['features']
         for name, comp_dicts in previous_comp_dict.items():
+            component_value = {}
+            for config_key, component_info in stream_config_yaml['components'].items():
+                if 'feature_component' in component_info and component_info['feature_component'] == name:
+                    features = component_info['features']
+                    component_value = component_info
+                    break
             feature_id = comp_dicts['feature_id']
             feature_list.append(feature_id)
             platform_id = comp_dicts['platform_id']
@@ -110,18 +112,21 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
                     "feature_delivered": False,
                     "platform_id": platform_id
                 }
-            yaml_obj = {
-                "commit": comp_dict['version'],
-                "location": "config.yaml",
-                "type": "submodule_meta-5g",
-                "version": comp_dict['version'],
-                "feature_component": name,
-                "features": features
-            }
-            if not stream_config_yaml['components']:
-                stream_config_yaml['components'] = {}
-            stream_config_yaml['components'][component_yaml_key] = yaml_obj
-        if not features:
+            if component_value:
+                logging.info('Already frozened %s', component_value)
+            else:
+                yaml_obj = {
+                    "commit": comp_dict['version'],
+                    "location": "config.yaml",
+                    "type": "submodule_meta-5g",
+                    "version": comp_dict['version'],
+                    "feature_component": name,
+                    "features": features
+                }
+                if not stream_config_yaml['components']:
+                    stream_config_yaml['components'] = {}
+                stream_config_yaml['components'][component_yaml_key] = yaml_obj
+        if feature_id not in features:
             continue
         for config_key, section in old_sections.items():
             section['features'] = features
@@ -217,6 +222,9 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, 
         for component in component_list:
             if component[1] == 'MN/5G/COMMON/integration':
                 integration_repo_ticket = component[2]
+    # rebase integration_repo_ticket
+    if integration_repo_ticket:
+        rest.rebase(integration_repo_ticket)
     # components in topic
     sub_builds = {}
     get_comp_info_objs = {}
