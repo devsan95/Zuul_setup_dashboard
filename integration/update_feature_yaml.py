@@ -105,7 +105,7 @@ def run_bitbake_command(component_info, integration_obj, *bitbake_args):
 
 def get_component_env(component_info, integration_obj):
     component_regex = component_info['regex']
-    return run_bitbake_command(component_info, integration_obj, '-e', component_regex)
+    return run_bitbake_command(component_info, integration_obj, '-e', '-k', component_regex)
 
 
 def find_component_env_value(bitbake_env_out, value):
@@ -116,8 +116,8 @@ def find_component_env_value(bitbake_env_out, value):
 
 
 def get_component_env_value(bitbake_env_out, env_key_list):
-    for line in bitbake_env_out.splitlines():
-        for env_key in env_key_list:
+    for env_key in env_key_list:
+        for line in bitbake_env_out.splitlines():
             if line.startswith('{}='.format(env_key)):
                 return line.split('{}='.format(env_key))[1].replace('"', '')
     raise('Cannot find value for {}'.format(env_key_list))
@@ -175,7 +175,7 @@ def get_repo_version(pre_component_info, integration_obj):
     logging.info('Try to get bitbake env for %s', pre_component_info['regex'])
     pre_component_env = ''
     try:
-        pre_component_env = run_bitbake_command(pre_component_info, integration_obj, '-e', pre_component_info['regex'])
+        pre_component_env = run_bitbake_command(pre_component_info, integration_obj, '-e', '-k', pre_component_info['regex'])
     except Exception:
         logging.info('Directly run bitbake -e %s failed', pre_component_info['regex'])
         logging.info('Try to search this recipe')
@@ -199,7 +199,7 @@ def get_repo_version(pre_component_info, integration_obj):
             meta_5g_git.checkout(old_recipe_hash, recipe_path)
             shutil.copyfile(os.path.join(meta_5g_path, recipe_path),
                             os.path.join(integration_obj.work_dir, 'meta-5g', recipe_path))
-        pre_component_env = run_bitbake_command(pre_component_info, integration_obj, '-e', pre_component_info['regex'])
+        pre_component_env = run_bitbake_command(pre_component_info, integration_obj, '-e', '-k', pre_component_info['regex'])
     return get_component_env_value(pre_component_env, REVISION_KEY_LIST)
 
 

@@ -120,6 +120,16 @@ class GET_COMPONENT_INFO(object):
     def get_comp_hash_from_mapping_file(self, comp_name):
         return self.get_value_from_mapping_and_env(comp_name, 'revision', 'repo_ver')
 
+    def get_recipe_from_mapping(self, comp_name):
+        for src in self.src_list:
+            recipe_list = src['recipes']
+            for recipe in recipe_list:
+                if comp_name == recipe['component']:
+                    for key_name in recipe.keys():
+                        if key_name.endswith('.bb'):
+                            return key_name
+        return ''
+
     def get_value_from_mapping_and_env(self, comp_name, mapping_key, env_key):
         value = ''
         for src in self.src_list:

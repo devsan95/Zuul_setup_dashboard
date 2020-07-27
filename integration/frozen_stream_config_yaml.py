@@ -10,16 +10,20 @@ import shutil
 import logging
 import traceback
 
+import update_feature_yaml as bitbake_tools
 import integration_add_component
 from api import gerrit_rest
 from mod import utils
 from mod import wft_tools
+from mod import integration_repo
 from mod import get_component_info
+from distutils.version import LooseVersion
 from mod.integration_change import RootChange
 from mod.integration_change import ManageChange
 
 
 VERSION_PATTERN = r'export VERSION_PATTERN=([0-9]+.[0-9]+)'
+INTEGRATION_REPO = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 
 
 def get_branch_integration(branch):
@@ -71,14 +75,12 @@ def get_changed_in_global_config_yaml(rest, integration_repo_ticket):
     return old_sections
 
 
-def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_repo_ticket):
+def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_repo_ticket, old_sections):
     logging.info('Frozen config.yaml : %s', previous_comp_dict)
     stream_config_yaml_path = os.path.join(integration_dir, 'meta-5g-cb/config_yaml')
     logging.info('Find all config.yaml in %s', stream_config_yaml_path)
     stream_config_yaml_files = utils.find_files(stream_config_yaml_path, 'config.yaml')
     logging.info('Stream_config_yaml_files: %s', stream_config_yaml_files)
-    old_sections = get_changed_in_global_config_yaml(rest, integration_repo_ticket)
-    logging.info('Config_yaml old sections: %s', old_sections)
     feature_list = []
     for stream_config_yaml_file in stream_config_yaml_files:
         stream_config_yaml_file = stream_config_yaml_file.split(integration_dir)[1].lstrip('/')
@@ -143,19 +145,22 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
         raise Exception('Publish edit is failed')
 
 
+def get_pipeline_comp_info(pass_packages, pipeline, get_comp_info_objs):
+    if pipeline in get_comp_info_objs:
+        return get_comp_info_objs[pipeline]
+    elif pipeline in pass_packages:
+        pass_package = pass_packages[pipeline]
+        pass_package = trans_wft_name_to_tag(pass_package)
+        return get_component_info.GET_COMPONENT_INFO(pass_package, no_dep_file=True, only_mapping_file=True)
+    return {}
+
+
 def get_comp_bbver(component_name, pass_packages, get_comp_info_objs={}):
     logging.info('Get bbver for %s', component_name)
     component_pvs = {}
     for pipeline, pass_package in pass_packages.items():
         pass_package = trans_wft_name_to_tag(pass_package)
-        pipeline_comp_info_obj = None
-        if pipeline not in get_comp_info_objs:
-            new_get_comp_info = get_component_info.GET_COMPONENT_INFO(
-                pass_package, no_dep_file=True, only_mapping_file=True)
-            get_comp_info_objs[pipeline] = new_get_comp_info
-            pipeline_comp_info_obj = new_get_comp_info
-        else:
-            pipeline_comp_info_obj = get_comp_info_objs[pipeline]
+        pipeline_comp_info_obj = get_pipeline_comp_info(pass_packages, pipeline, get_comp_info_objs)
         if not pipeline_comp_info_obj.if_bb_mapping:
             continue
         component_pv = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'PV', 'pv')
@@ -197,7 +202,171 @@ def update_comps_frozen_together(previous_comp_dict, together_repo_dict):
     previous_comp_dict.update(new_previous_comp_dict)
 
 
+def get_version_from_work_dir(integration_obj, recipe_file, component_pv, component_run_infos):
+    component_version = component_pv
+    get_last_succeed = False
+    if component_version:
+        component_version = re.sub(r'-r[0-9]+$', '', component_version)
+    for component_run_info in component_run_infos:
+        component_name = component_run_info['name']
+        component_regex = component_run_info['regex']
+        if recipe_file.endswith('_{}.bb'.format(component_version)) and component_regex:
+            recipe_dir = os.path.join(integration_obj.work_dir, os.path.dirname(recipe_file))
+            recipe_filename = os.path.basename(recipe_file)
+            recipe_filename_prefix = recipe_filename.split(component_version)[0].rstrip('_')
+            # use recipe file to find latest version
+            if not component_regex.startswith(recipe_filename_prefix):
+                component_regex = component_regex.replace(component_name, recipe_filename_prefix)
+            component_regex = component_regex.replace('{}-'.format(recipe_filename_prefix),
+                                                      '{}_'.format(recipe_filename_prefix))
+            logging.info('Find recipes by  %s', component_regex)
+            logging.info('Find recipes from  %s', recipe_dir)
+            recipe_list = utils.find_files(recipe_dir, '{}*.bb'.format(component_regex))
+            logging.info('Find recipes %s', recipe_list)
+            latest_version = '0'
+            for recipe_candidate in recipe_list:
+                logging.info('recipe file %s', recipe_candidate)
+                recipe_candidate_file = os.path.basename(recipe_candidate)
+                recipe_candidate_version = recipe_candidate_file.split('{}_'.format(recipe_filename_prefix))[1].replace('.bb', '')
+                logging.info('recipe version %s', recipe_candidate_version)
+                if LooseVersion(recipe_candidate_version) > LooseVersion(latest_version):
+                    latest_version = recipe_candidate_version
+            if latest_version != '0':
+                component_version = latest_version
+                get_last_succeed = True
+                logging.info('Last version get from recipe files is %s', component_version)
+                break
+        elif component_regex:
+            # run bitbake -e to get lastest version
+            # generate component_run_obj for bitbake command
+            bitbake_env_out = ''
+            try:
+                bitbake_env_out = bitbake_tools.get_component_env(component_run_info, integration_obj)
+                component_version = bitbake_tools.get_component_env_value(bitbake_env_out, ['WFT_NAME', 'PV'])
+                get_last_succeed = True
+                logging.info('Last version get from bitbake is %s', component_version)
+            except Exception:
+                traceback.print_exc()
+                logging.warn('Cannot run bitbake -e for %s', component_run_info)
+    return component_version, get_last_succeed
+
+
+def get_component_frozen_version(
+        component_name, sub_builds, old_sections, integration_obj,
+        previous_comp_dict, together_repo_dict, pass_packages,
+        get_comp_info_objs, previous_succ_comp_dict):
+    # if in together_repo component list and other component
+    # already in previous_comp_dict, copy and continue
+    for repo, repo_compoents in together_repo_dict.items():
+        if component_name in repo_compoents:
+            for repo_compoent in repo_compoents:
+                if repo_compoent in previous_comp_dict and previous_comp_dict[repo_compoent]:
+                    logging.info('Copy frozen info from: %s to: %s', repo_compoent, component_name)
+                    logging.info(previous_comp_dict[repo_compoent])
+                    previous_comp_obj = copy.deepcopy(previous_comp_dict[repo_compoent])
+                    for previous_comp_obj_value in previous_comp_obj.values():
+                        if 'component' in previous_comp_obj_value:
+                            previous_comp_obj_value['component'] = component_name
+                    previous_comp_dict[component_name] = previous_comp_obj
+                    previous_succ_comp_obj = copy.deepcopy(previous_succ_comp_dict[repo_compoent])
+                    for previous_succ_comp_obj_value in previous_succ_comp_obj.values():
+                        if 'component' in previous_succ_comp_obj_value:
+                            previous_succ_comp_obj_value['component'] = component_name
+                    previous_succ_comp_dict[component_name] = previous_succ_comp_obj
+                    return
+    logging.info('Find matched subbuild for : %s', component_name)
+    component_run_infos = bitbake_tools.gen_component_info(component_name, integration_obj)
+    if not component_run_infos:
+        logging.error('Cannot get %s from inc files', component_name)
+    # get  component's old versoin with wft_name/wft_project
+    for pipeline, sub_build_list in sub_builds.items():
+        for sub_build in sub_build_list:
+            if component_name == sub_build['component']:
+                previous_comp_dict[component_name][pipeline] = copy.deepcopy(sub_build)
+                previous_succ_comp_dict[component_name][pipeline] = copy.deepcopy(sub_build)
+                # find version from old sections
+                find_in_old_section = False
+                for old_comp_value in old_sections.values():
+                    if 'feature_component' in old_comp_value and old_comp_value['feature_component'] == component_name:
+                        previous_comp_dict[component_name][pipeline]['version'] = old_comp_value['version']
+                        previous_succ_comp_dict[component_name][pipeline]['version'] = old_comp_value['version']
+                        find_in_old_section = True
+                if find_in_old_section:
+                    continue
+    if component_name not in previous_comp_dict or not previous_comp_dict[component_name]:
+        for pipeline, sub_build_list in sub_builds.items():
+            pipeline_comp_info_obj = get_pipeline_comp_info(pass_packages, pipeline, get_comp_info_objs)
+            if pipeline_comp_info_obj:
+                component_pv = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'PV', 'pv')
+                wft_component = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'WFT_COMPONENT', 'pv')
+                wft_name = pipeline_comp_info_obj.get_value_from_mapping_and_env(component_name, 'WFT_NAME', 'pv')
+                if component_pv:
+                    matched_subs = []
+                    for sub_build in sub_build_list:
+                        logging.info('Compare %s and sub_build: %s', component_pv, sub_build)
+                        logging.info('Compare wft_name %s and sub_build: %s', wft_name, sub_build)
+                        if wft_component and wft_name:
+                            if wft_component == sub_build['component'] and wft_name == sub_build['version']:
+                                matched_subs = [sub_build]
+                                break
+                        elif component_pv == sub_build['version']:
+                            matched_subs.append(sub_build)
+                    if matched_subs and len(matched_subs) == 1:
+                        previous_comp_dict[component_name][pipeline] = copy.deepcopy(matched_subs[0])
+                        previous_succ_comp_dict[component_name][pipeline] = copy.deepcopy(matched_subs[0])
+    use_last_build = []
+    if 'use_last_build' in previous_succ_comp_dict and previous_succ_comp_dict['use_last_build']:
+        use_last_build = previous_succ_comp_dict['use_last_build']
+    if component_name in previous_comp_dict and previous_comp_dict[component_name] and component_run_infos:
+        logging.info('Get last version for %s', previous_comp_dict[component_name])
+        for pipeline, sub_build in previous_comp_dict[component_name].items():
+            if pipeline in use_last_build:
+                logging.info('Already diceded to use version from last buid for %s', pipeline)
+                continue
+            pipeline_comp_info_obj = get_pipeline_comp_info(pass_packages, pipeline, get_comp_info_objs)
+            recipe_file = pipeline_comp_info_obj.get_recipe_from_mapping(component_name)
+            logging.info('Get last version for %s from work dir', pipeline)
+            new_version, get_last_succeed = get_version_from_work_dir(integration_obj, recipe_file,
+                                                                      sub_build['version'], component_run_infos)
+            if not get_last_succeed:
+                logging.error('Cannot get latest version for %s', component_name)
+                for comp in previous_succ_comp_dict.keys():
+                    if pipeline in previous_succ_comp_dict[comp]:
+                        previous_comp_dict[comp][pipeline] = copy.deepcopy(previous_succ_comp_dict[comp][pipeline])
+                if 'use_last_build' not in previous_succ_comp_dict:
+                    previous_succ_comp_dict['use_last_build'] = []
+                previous_succ_comp_dict['use_last_build'].append(pipeline)
+            elif new_version != sub_build['version']:
+                sub_build['version'] = new_version
+    else:
+        logging.error('Cannot get version for %s', component_name)
+
+
+def prepare_workspace(work_dir, repo_url, repo_ver):
+    """
+    Clone and checkout proper integration/ revision
+    """
+    if os.path.exists(os.path.join(work_dir)):
+        logging.info("Removing existing integration/ in %s", work_dir)
+        shutil.rmtree(work_dir)
+
+    os.makedirs(work_dir)
+    git_integration = git.Git(work_dir)
+    git_integration.init()
+    git_integration.remote('add', 'origin', repo_url)
+    logging.info("Executing git fetch %s %s", repo_url, repo_ver)
+    git_integration.fetch(repo_url, repo_ver)
+    git_integration.checkout('FETCH_HEAD')
+    logging.info("Executing git fetch %s %s", repo_url, 'staging')
+    git_integration.fetch(repo_url, 'staging')
+    logging.info("Executing git submodule init + sync + update --init")
+    git_integration.submodule("init")
+    git_integration.submodule("sync")
+    git_integration.submodule("update", "-f", "--init", "--recursive")
+
+
 def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, *together_comps):
+    # remove CR+2 first to aovid change merged
     # get last passed package
     last_pass_package, pass_packages, integration_dir = get_last_passed_package(branch)
     # get together_comps
@@ -224,52 +393,29 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, 
     # rebase integration_repo_ticket
     if integration_repo_ticket:
         rest.rebase(integration_repo_ticket)
+    # prepare integration workspace:
+    integration_work_dir = os.path.join(os.getcwd(), 'integration_frozen')
+    prepare_workspace(integration_work_dir, INTEGRATION_REPO, 'master')
+    integration_obj = integration_repo.INTEGRATION_REPO('', '', work_dir=integration_work_dir)
+    # get changed sections in global config_yaml
+    old_sections = get_changed_in_global_config_yaml(rest, integration_repo_ticket)
+    logging.info('Config_yaml old sections: %s', old_sections)
     # components in topic
     sub_builds = {}
-    get_comp_info_objs = {}
     for pipeline, pass_package in pass_packages.items():
         sub_builds[pipeline] = wft_tools.get_subuild_from_wft(pass_package)
     logging.info('sub_builds: %s', sub_builds)
     previous_comp_dict = {}
+    previous_succ_comp_dict = {}
     get_comp_info_objs = {}
     for component in component_list:
         component_name = component[0]
         previous_comp_dict[component_name] = {}
-        logging.info('Find matched subbuild for : %s', component)
-        for pipeline, sub_build_list in sub_builds.items():
-            for sub_build in sub_build_list:
-                if component_name == sub_build['component']:
-                    previous_comp_dict[component_name][pipeline] = sub_build
-        if component_name not in previous_comp_dict or not previous_comp_dict[component_name]:
-            component_pvs = {}
-            component_pvs = get_comp_bbver(component_name, pass_packages, get_comp_info_objs)
-            logging.info('Get bbver for %s is %s', component_name, component_pvs)
-            if component_pvs:
-                for pipeline, sub_build_list in sub_builds.items():
-                    if pipeline not in component_pvs or not component_pvs[pipeline]:
-                        logging.info('No pipeline %s value in component_pvs', pipeline)
-                        continue
-                    matched_subs = []
-                    wft_component = ''
-                    if 'WFT_COMPONENT' in component_pvs[pipeline]:
-                        wft_component = component_pvs[pipeline]['WFT_COMPONENT']
-                    wft_name = ''
-                    if 'WFT_NAME' in component_pvs[pipeline]:
-                        wft_name = component_pvs[pipeline]['WFT_NAME']
-                    component_pv = ''
-                    if 'PV' in component_pvs[pipeline]:
-                        component_pv = component_pvs[pipeline]['PV']
-                    for sub_build in sub_build_list:
-                        logging.info('Compare %s and sub_build: %s', component_pvs[pipeline], sub_build)
-                        logging.info('Compare %s and sub_build: %s', component_pv, sub_build)
-                        if wft_component and wft_name:
-                            if wft_component == sub_build['component'] and wft_name == sub_build['version']:
-                                matched_subs = [sub_build]
-                                break
-                        elif component_pv == sub_build['version']:
-                            matched_subs.append(sub_build)
-                    if matched_subs and len(matched_subs) == 1:
-                        previous_comp_dict[component_name][pipeline] = matched_subs[0]
+        previous_succ_comp_dict[component_name] = {}
+        get_component_frozen_version(
+            component_name, sub_builds, old_sections, integration_obj,
+            previous_comp_dict, together_repo_dict, pass_packages,
+            get_comp_info_objs, previous_succ_comp_dict)
         if not previous_comp_dict[component_name]:
             previous_comp_dict.pop(component_name)
         if component_name not in previous_comp_dict:
@@ -295,7 +441,7 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, 
             traceback.print_exc()
             raise Exception('Cannot add integration_repo ticket')
     # frozen old section in stream config.yaml
-    frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_repo_ticket)
+    frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_repo_ticket, old_sections)
 
 
 if __name__ == '__main__':

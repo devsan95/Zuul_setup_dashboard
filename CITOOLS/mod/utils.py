@@ -71,6 +71,16 @@ def find_files(file_path, regex_str='*', path_regex=''):
     return matches
 
 
+def find_files_by_regex(file_path, regex_str='*', path_regex=''):
+    matches = []
+    for root, dirnames, filenames in os.walk(file_path):
+        for filename in filenames:
+            if re.match(regex_str, filename):
+                if path_regex in root:
+                    matches.append(os.path.join(root, filename))
+    return matches
+
+
 def get_file_content(file_path):
     with open(file_path, 'r') as fr:
         return fr.read()
