@@ -23,13 +23,13 @@ diff_time=`expr $z - $y`
 
 tdiff=`expr $diff_time / 60`
 
-echo -e  "\n Difference in  timestamp $tdiff  minutes"
+echo -e  "/n Difference in  timestamp $tdiff  minutes"
 
 if test $tdiff -le 15 ; then
 
   echo "No issue in the synch"
    exit 0
 else
-   echo -e  "\n Check there is issue with synch, Sent the latest 3 commits of layout repo to research. \n ( This diff may also happens becuase of zuul down time upgrdes, As thers is a last_recongigured time change in zuul dashboard )\n "
+   echo -e  "/n Check there is issue with synch, Sent the latest 3 commits of layout repo to research. /n ( This diff may also happens becuase of zuul down time upgrdes, As thers is a last_recongigured time change in zuul dashboard )/n "
     exit 1
 fi
