@@ -20,7 +20,7 @@ def get_ssh_port(session, table, ip):
     return codecs.encode(session.query(table.ssh_port).filter_by(ip=ip).first()[0], 'utf-8')
 
 
-def trigger_script(session, table, host, ssh, port, folder):
+def send_files(session, table, host, ssh, port, folder):
     sv_type = get_server_type_by_ip(session, table, host)
 
     if sv_type == "EELINSEE":
@@ -30,41 +30,47 @@ def trigger_script(session, table, host, ssh, port, folder):
         os.system("scp -r {} root@{}:///tmp/".format(folder, host))
         ssh.connect(host, port, "root")
 
-    channel = ssh.get_transport().open_session()
-    channel.invoke_shell()
 
+def activate_venv(channel, folder):
     while channel.recv_ready():
         channel.recv(1024)
 
     channel.sendall('git clone "https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/mn_scripts" {}/mn &> '
                     'garytest_output.txt\n'.format(folder))
     channel.sendall("source {}/mn/pyenv.sh &>> garytest_output.txt\n".format(folder))
-    channel.sendall("python {}/update_zuul_merger_auto.py --ip {} --path {}/param.yaml "
-                    "&>> garytest_output.txt\n".format(folder, host, folder))
-
-    ssh.close()
 
 
-def apply_for_all(session, table, folder):
+def trigger_script(channel, folder, host, option):
+    if option == "docker":
+        channel.sendall("python {}/update_zuul_merger_auto.py --ip {} --path {}/param.yaml "
+                        "&>> garytest_output.txt\n".format(folder, host, folder))
+    elif option == "code":
+        channel.sendall("python {}/update_merger_code.py &>> garytest_output.txt\n".format(folder))
+
+
+def apply_for_all(session, table, folder, option):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     for host in get_all_ip_from_db(session, table):
         port = get_ssh_port(session, table, host)
-        trigger_script(session, table, host, ssh, int(port), folder)
+        send_files(session, table, host, ssh, int(port), folder)
 
-    # for host in ["10.157.4.246"]:
-    #     port = get_ssh_port(session, table, host)
-    #     trigger_script(session, table, host, ssh, int(port), folder)
+        channel = ssh.get_transport().open_session()
+        channel.invoke_shell()
+
+        activate_venv(channel, folder)
+        trigger_script(channel, folder, host, option)
+        ssh.close()
 
 
-def main(yaml_path, folder):
+def main(yaml_path, folder, option):
     engine = sa.create_engine(get_connection_string(yaml_path))
     engine.connect()
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    apply_for_all(session, model.merger_info, folder)
+    apply_for_all(session, model.merger_info, folder, option)
 
 
 if __name__ == '__main__':

@@ -138,7 +138,7 @@ def update_sql_table(session, merger, table, ip, version, enable):
 
 def update_all(ip, path, session):
     for merger in collect_mergers():
-        status = os.popen('docker ps -a --filter "name=%s" --format "{{.Status}}"' % merger).read().split(' ')[0]
+        status = os.popen('docker ps -a --filter "name=^/%s$" --format "{{.Status}}"' % merger).read().split(' ')[0]
         logging.info("Merger name: {}, Initial status {}".format(str(merger), status))
 
         # Only consider two status: Up and Exited
@@ -152,12 +152,12 @@ def update_all(ip, path, session):
             time.sleep(5)
 
         # If container status isn't "Up", skip the current iteration
-        if os.popen('docker ps -a --filter "name=%s" --format "{{.Status}}"' % merger).read().split(' ')[0] != "Up":
+        if os.popen('docker ps -a --filter "name=^/%s$" --format "{{.Status}}"' % merger).read().split(' ')[0] != "Up":
             logging.warning("Cannot run %s", merger)
             return
 
-        container_id = os.popen('docker ps --filter "name=%s" --format "{{.ID}}"' % merger).read().rstrip("\n")
-        local_version = os.popen('docker ps --filter "name=%s" --format "{{.Image}}"' % merger).read().split(':')[
+        container_id = os.popen('docker ps --filter "name=^/%s$" --format "{{.ID}}"' % merger).read().rstrip("\n")
+        local_version = os.popen('docker ps --filter "name=^/%s$" --format "{{.Image}}"' % merger).read().split(':')[
             1].rstrip("\n")
         latest_version = get_latest_merger_version(path)
         pm_str = generate_port_mapping_string(merger)
