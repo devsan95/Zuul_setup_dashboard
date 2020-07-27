@@ -64,7 +64,7 @@ increment = '''
 }
 '''
 headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-inherit_comp = ["PS:PS_LFS_REL"]
+inherit_comp = ["PS:PS_LFS_REL", "Common:GLOBAL_ENV"]
 
 
 def get_latest_ecl_sack_base_from_wft(branch):
