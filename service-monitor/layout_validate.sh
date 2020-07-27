@@ -26,11 +26,11 @@ tdiff=`expr $diff_time / 60`
 echo -e  "\n Difference in  timestamp $tdiff  minutes"
 
 if test $tdiff > 720 ; then
-   echo -e \n There is server upgrade in weekend, please check "
+   echo -e "\n There is server upgrade in weekend, please check "
    exit 0
 fi
 
-if test $tdiff -le 15 ; then
+if test $tdiff -le 20 ; then
 
   echo "No issue in the synch"
    exit 0
