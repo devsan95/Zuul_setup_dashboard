@@ -65,7 +65,7 @@ def update(integration_dir, features, branch, together_comps, streams, *componen
             components_update_dict[component] = component_status
     logging.info('Component update dict: %s', components_update_dict)
     streams_to_set = []
-    if streams.strip() != 'none':
+    if streams.strip() != 'all':
         streams_to_set = streams.strip().split(',')
 
     update_component_deliver_status(integration_dir, components_update_dict,
