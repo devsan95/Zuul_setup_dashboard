@@ -112,6 +112,8 @@ def create_integration_change(base, version_dict):
     update_env_config_file(version_dict)
     if not integration.diff():
         raise Exception("config.yaml and env file no change!")
+    integration.config("user.name", "CA 5GCV")
+    integration.config("user.email", "I_5GCI@internal.nsn.com")
     integration.add("config.yaml", "env/env-config.d/ENV")
     integration.commit('-m', 'Automated rcpvduint trigger')
     process = subprocess.Popen(

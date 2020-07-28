@@ -248,6 +248,8 @@ def push_integration_change(integration_dir, branch, commit_message):
     status_out = git_integration.status('-s', 'meta-5g-cb/config_yaml')
     if status_out:
         logging.info('Change in stream config.yaml: %s', status_out)
+        git_integration.config("user.name", "CA 5GCV")
+        git_integration.config("user.email", "I_5GCI@internal.nsn.com")
         git_integration.add('meta-5g-cb/config_yaml')
         git_integration.commit('-m', commit_message)
         logging.info('Run git pull --rebase origin %s', branch)
