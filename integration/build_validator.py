@@ -13,10 +13,16 @@ from mod import wft_tools
 from mod import integration_change
 
 
-def get_base_parent(base_obj_list, comp):
+def get_base_parent(rest, base_obj_list, comp):
     base_parent = list()
     for base_obj in base_obj_list:
-        base_parent.append(base_obj.get_comp_hash_from_mapping_file(comp))
+        comp_hash = ''
+        if comp == 'integration':
+            comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_obj.base_pkg)['object']
+        else:
+            comp_hash = base_obj.get_comp_hash_from_mapping_file(comp)
+        if comp_hash:
+            base_parent.append(comp_hash)
     print("{}'s base parent hash: {}".format(comp, base_parent))
     return base_parent
 
@@ -38,8 +44,8 @@ def fixed_base_validator(rest, components, base_dict):
     error_info = "Parent commit in change {} of {} is {}, the version in base build is {}"
     for component in components:
         parent = rest.get_parent(component[2])
-        if component[3] == 'component' and component[0] != 'integration' and base_obj_list:
-            base_parent_list = get_base_parent(base_obj_list, component[0])
+        if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
+            base_parent_list = get_base_parent(rest, base_obj_list, component[0])
             if parent not in base_parent_list:
                 parent_hash_mismatch.append(
                     error_info.format(
@@ -247,6 +253,7 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     inte_change = integration_change.ManageChange(rest, change_no)
     component_list = inte_change.get_all_components()
+    print(component_list)
     if not integration_verification_check(rest, component_list):
         skytrack_log.skytrack_output("ERROR: Verified+1 missing for repository MN/5G/COMMON/integration")
         sys.exit(1)
