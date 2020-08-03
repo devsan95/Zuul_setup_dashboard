@@ -141,7 +141,6 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
     except Exception as e:
         print(str(e))
         raise Exception('Publish edit is failed')
-    rest.review_ticket(integration_repo_ticket, 'review', {'Code-Review': 2})
 
 
 def get_comp_bbver(component_name, pass_packages, get_comp_info_objs={}):
