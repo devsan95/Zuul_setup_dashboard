@@ -44,7 +44,7 @@ def getting_env_check_result(rest, change_no, username):
     return check_user_label_from_detail(change_detail, username, 'Verified')
 
 
-def run(gerrit_info_path, change_no,
+def run(gerrit_info_path, change_no, comp_config,
         ssh_gerrit_server=None, ssh_gerrit_port=None,
         ssh_gerrit_user=None, ssh_gerrit_key=None,
         auto_reexperiment=True,
@@ -79,6 +79,7 @@ def run(gerrit_info_path, change_no,
         rebase_env.run(
             gerrit_info_path,
             env_change,
+            comp_config,
             change_info=change_info,
             database_info_path=database_info_path
         )

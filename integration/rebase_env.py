@@ -16,6 +16,7 @@ from api import env_repo as get_env_repo
 from api import config
 from mod import common_regex
 from mod.integration_change import RootChange
+from mod.integration_change import IntegrationChange
 from difflib import SequenceMatcher
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -34,7 +35,12 @@ def create_config_yaml_by_env_change(env_change_split, rest, change_id, config_y
     change_content = rest.get_file_change(config_yaml_file, change_id)
     old_config_yaml = yaml.safe_load(change_content['old'])
     if not old_config_yaml:
-        old_config_yaml = yaml.safe_load(rest.get_file_content(config_yaml_file, change_id))
+        try:
+            old_config_yaml = yaml.safe_load(rest.get_file_content(config_yaml_file, change_id))
+        except Exception:
+            print('Cannot find {} in {}'.format(config_yaml_file, change_id))
+    if not old_config_yaml:
+        return {}
     changed = False
     if env_change_split:
         # update based on old config.yaml
@@ -46,8 +52,9 @@ def create_config_yaml_by_env_change(env_change_split, rest, change_id, config_y
                         key, value = env_line.split('=', 1)
                         if key == comp_env_key:
                             if value != component_info['version'] and value != component_info['commit']:
-                                print('Update {} to {} in config.yaml'.format(key, value))
-                                component_info['commit'] = value
+                                print('Update {} to {} in {}'.format(key, value, config_yaml_file))
+                                if component_info['commit'] == component_info['version']:
+                                    component_info['commit'] = value
                                 component_info['version'] = value
                                 changed = True
     if changed:
@@ -206,7 +213,27 @@ def call_vcf_diff(current_ps, new_ps):
         return "FAILURE"
 
 
-def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
+def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_dict):
+    change_file_dict = {}
+    op = RootChange(rest, change_no)
+    comp_change_list, int_change = op.get_components_changes_by_comments()
+    for comp_change in comp_change_list:
+        int_change_obj = IntegrationChange(rest, comp_change)
+        comp_project = int_change_obj.get_project()
+        if comp_project in config_yaml_dict:
+            local_config_yaml = config_yaml_dict[comp_project]
+            change_file_dict[comp_change] = create_config_yaml_by_env_change(
+                env_change_list, rest, comp_change, config_yaml_file=local_config_yaml)
+    for comp_change, file_dict in change_file_dict.items():
+        for key, value in file_dict.items():
+            print('update file {} in {}'.format(key, comp_change))
+            print(value)
+            rest.add_file_to_change(comp_change, key, value)
+        rest.publish_edit(comp_change)
+    return change_file_dict
+
+
+def run(gerrit_info_path, change_no, comp_config, change_info=None, database_info_path=None):
     env_change_list = []
     commit_msg_update = False
     env_change_dict = dict()
@@ -219,6 +246,13 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
             if '=' in line:
                 key, value = line.strip().split('=', 1)
                 env_change_dict[key] = value
+    config_yaml_dict = {}
+    if comp_config:
+        comp_config_dict = {}
+        with open(comp_config, 'r') as fr:
+            comp_config_dict = yaml.load(fr.read(), Loader=yaml.Loader)
+        if 'config_yaml' in comp_config_dict:
+            config_yaml_dict = comp_config_dict['config_yaml']
     # use rest gerrit user info to do the operation, and the ssh gerrit
     # user to do the labeling (to sync with zuul)
     # if no ssh gerrit info is provided then use rest user to do labeling
@@ -285,6 +319,11 @@ def run(gerrit_info_path, change_no, change_info=None, database_info_path=None):
             env_change_list,
             rest,
             change_no))
+        update_component_config_yaml(
+            env_change_list,
+            rest,
+            change_no,
+            config_yaml_dict)
         print('Change map: {}'.format(change_map))
 
         # get root ticket
