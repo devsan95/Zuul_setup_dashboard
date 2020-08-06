@@ -81,7 +81,7 @@ def gen_component_info(component, integration_obj):
                         continue
                     if component_regexs and component_regex not in component_regexs:
                         logging.warn('Multi version find in different stream %s %s',
-                                     component_infos[0][1], config_file)
+                                     component_regexs[0], component_regex)
                         logging.warn('versions: %s %s', component_regexs[0], component_regex)
                     elif component_regex not in component_regexs:
                         component_regexs.append(component_regex)
