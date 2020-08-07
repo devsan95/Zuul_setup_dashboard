@@ -68,11 +68,11 @@ def generate_port_mapping_string(merger):
 def check_server_type():
     if "eslinb" in os.popen("hostname").read().rstrip("\n"):
         return "EELINSEE"
-    return "Cloud"
+    return "Cloud es-si-os-ohn-64"
 
 
 def get_docker_run_cmd(portMapStr, merger, latestVersion):
-    if check_server_type() == "Cloud":
+    if check_server_type() == "Cloud es-si-os-ohn-64":
         cmd = "docker run -itd --log-opt max-size=2g --log-opt max-file=1 --privileged {}-v /ephemeral/zuul_mergers/{}/log/:/ephemeral/log/zuul/ -v /ephemeral/zuul_mergers/{}/git/:/ephemeral/zuul/git/ -v /ephemeral/zuul_mergers/{}/etc/:/etc/zuul/ --name {} zuul-local.esisoj70.emea.nsn-net.net/zuul-images/zuul-merger:{}".format(
             portMapStr, merger, merger, merger, merger, latestVersion)
     else:
