@@ -29,7 +29,8 @@ def get_port_mapping(merger):
 
 
 def get_merger_version(merger):
-    return os.popen('docker ps -a --filter "name=^/%s$" --format "{{.Image}}"' % merger).read().split(':')[1].rstrip("\n")
+    return os.popen('docker ps -a --filter "name=^/%s$" --format "{{.Image}}"' % merger).read().split(':')[1].rstrip(
+        "\n")
 
 
 def check_merger_status(merger):
@@ -65,7 +66,7 @@ def result_mergers(session, ip, table):
     return mergers
 
 
-def add_into_db(session, ip, table):
+def add_active_into_db(session, ip, table):
     serverType = check_server_type()
     for m in result_mergers(session, ip, table):
         enable = check_merger_status(m)
@@ -84,10 +85,18 @@ def add_into_db(session, ip, table):
                                         version=version)
             session.add(new_row)
             session.commit()
-        else:
-            # As long as there exits one merger of the same ip in the database
-            # zuul_url and port_mapping of other mergers can be generated directly
+
+
+def add_closed_into_db(session, ip, table):
+    serverType = check_server_type()
+    for m in result_mergers(session, ip, table):
+        enable = check_merger_status(m)
+        version = get_merger_version(m)
+
+        if not enable:
             if ip in get_all_ip_from_db(session, table):
+                # As long as there exits one merger of the same ip in the database
+                # zuul_url and port_mapping of other mergers can be generated directly
                 url_tmp = urlparse(codecs.encode(session.query(table.zuul_url).filter_by(ip=ip).first()[0], 'utf-8'))
                 url_port = str(url_tmp.port)[:3] + m.split('_')[-1]
                 new_mapping = url_port + ":80"
@@ -103,14 +112,16 @@ def add_into_db(session, ip, table):
                 session.add(new_row)
                 session.commit()
             else:
-                logging.warning("All merger containers are closed on instance {}, please run the container and try again!.".format(ip))
+                logging.warning(
+                    "All merger containers are closed on instance {}, please run the container and try again!.".format(ip))
 
 
 def run(session, ip, option):
     if option == "del":
         del_from_db(session, ip, model.merger_info)
     elif option == "add":
-        add_into_db(session, ip, model.merger_info)
+        add_active_into_db(session, ip, model.merger_info)
+        add_closed_into_db(session, ip, model.merger_info)
 
 
 def main(ip, path, option):
