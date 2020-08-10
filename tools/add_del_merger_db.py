@@ -29,7 +29,7 @@ def get_port_mapping(merger):
 
 
 def get_merger_version(merger):
-    return os.popen('docker ps --filter "name=^/%s$" --format "{{.Image}}"' % merger).read().split(':')[1].rstrip("\n")
+    return os.popen('docker ps -a --filter "name=^/%s$" --format "{{.Image}}"' % merger).read().split(':')[1].rstrip("\n")
 
 
 def check_merger_status(merger):
