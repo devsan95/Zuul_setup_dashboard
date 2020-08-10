@@ -43,6 +43,7 @@ def _main():
 
     ssh_user = cf.get('qa-gerrit', 'user')
     ssh_server = "gerrit-code.zuulqa.dynamic.nsn-net.net"
+    ssh_server_http = "10.157.107.56:8180"
     ssh_port = cf.get('qa-gerrit', 'port')
     ssh_project = cf.get(args['project'], 'project')
 
@@ -138,7 +139,7 @@ def _main():
         ssh_user, ssh_server, patchset3, ['Code-Review=+2'])
 
     auth = HTTPBasicAuth('cazuul', 'Welcome321')
-    rest = GerritRestAPI(url="http://" + ssh_server, auth=auth, verify=False)
+    rest = GerritRestAPI(url="http://" + ssh_server_http, auth=auth, verify=False)
     gate_bunch_topic = False
     for i in range(1, 30):
         print('Waiting for 5 secs...')
