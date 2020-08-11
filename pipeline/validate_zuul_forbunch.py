@@ -54,7 +54,7 @@ def _main():
     push_result_list1 = gerrit_api.create_one_ticket(
         ssh_server, ssh_user, ssh_port, ssh_project, tmp_folder=test_repo_path1)
 
-    reg = re.compile(r'/([\d,]+)')
+    reg = re.compile(r'\+/([\d,]+)')
     patchset1 = None
     for line in push_result_list1:
         print(line)
