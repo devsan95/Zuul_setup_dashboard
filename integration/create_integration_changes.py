@@ -288,6 +288,7 @@ class IntegrationChangesCreation(object):
             node_obj['ticket_id'] = ticket_id
             node_obj['rest_id'] = rest_id
             node_obj['commit_message'] = message
+            node_obj['add_files'] = dict()
 
             # env change
             env_change = self.meta.get('env_change')
@@ -313,7 +314,20 @@ class IntegrationChangesCreation(object):
                         print(config_yaml_obj.config_yaml)
                         config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
                         node_obj['add_files']['config.yaml'] = config_yaml_content
-
+            # local config yaml
+            if node_obj['repo'] in self.comp_config['config_yaml'].keys():
+                if env_change:
+                    local_config_yaml = self.comp_config['config_yaml'][node_obj['repo']]
+                    local_yaml_content = ''
+                    try:
+                        local_yaml_content = self.gerrit_rest.get_file_content(local_config_yaml, rest_id)
+                    except Exception:
+                        print('Warn: no local config.yaml in this repo: {}'.format(node_obj['repo']))
+                    if local_yaml_content:
+                        local_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=local_yaml_content)
+                        local_yaml_obj.update_by_env_change(self.get_env_chagne_dict())
+                        config_yaml_content = yaml.safe_dump(local_yaml_obj.config_yaml, default_flow_style=False)
+                        node_obj['add_files'][local_config_yaml] = config_yaml_content
         # restore
         copy_from_id = None
         gop = gerrit_int_op.IntegrationGerritOperation(self.gerrit_rest)

@@ -39,6 +39,8 @@ class ConfigYaml(object):
 
     def get_wft_comp_proj(self, internal_key, internal_key_name):
         section_key, section = self.get_section_by_internal_key(internal_key, internal_key_name)
+        if not section_key:
+            raise Exception("ERROR: component key {} can't be found in config.yaml".format(internal_key_name))
         return section_key.split(':')[0], section_key.split(':')[1]
 
     def get_section_by_internal_key(self, internal_key, internal_key_name):
