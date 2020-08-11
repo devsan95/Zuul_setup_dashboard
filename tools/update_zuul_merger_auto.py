@@ -87,7 +87,7 @@ def update_merger(merger, pm_str, latest_version, container_id, ip):
         "docker pull zuul-local.esisoj70.emea.nsn-net.net/zuul-images/zuul-merger:{}".format(latest_version),
         shell=True)
     if res != 0:
-        raise Exception("Cannot pull image at host {}".format(ip))
+        raise Exception("Cannot pull image at instance {}".format(ip))
 
     now = datetime.now()
     date = now.strftime("%Y") + now.strftime("%m") + now.strftime("%d")
@@ -186,12 +186,12 @@ def main(ip, path):
     session = Session()
 
     num_merger = len(collect_mergers())
-    logging.info("Number of mergers in the host: %d", num_merger)
+    logging.info("Number of mergers in instance {}: {}".format(ip, num_merger))
 
     # We assume there is at least one merger in the current host
     # exit the program if no merger exists
     if num_merger == 0:
-        logging.warning("No merger exists in the host, program exit")
+        logging.warning("No merger exists in instance {}, program exit".format(ip))
         exit(0)
 
     update_all(ip, path, session)

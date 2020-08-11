@@ -2,6 +2,7 @@ import os
 import paramiko
 import codecs
 import fire
+import time
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 from database import model
@@ -32,20 +33,26 @@ def send_files(session, table, host, ssh, port, folder):
 
 
 def activate_venv(channel, folder):
-    while channel.recv_ready():
-        channel.recv(1024)
-
-    channel.sendall('git clone "https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/mn_scripts" {}/mn &> '
-                    'garytest_output.txt\n'.format(folder))
-    channel.sendall("source {}/mn/pyenv.sh &>> garytest_output.txt\n".format(folder))
+    channel.sendall(
+        'git clone "https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/mn_scripts" {}/mn\n'.format(
+            folder))
+    channel.sendall("source {}/mn/pyenv.sh\n".format(folder))
 
 
 def trigger_script(channel, folder, host, option):
     if option == "docker":
         channel.sendall("python {}/update_zuul_merger_auto.py --ip {} --path {}/param.yaml "
-                        "&>> garytest_output.txt\n".format(folder, host, folder))
+                        "&> {}/local_log.txt\n".format(folder, host, folder, folder))
     elif option == "code":
-        channel.sendall("python {}/update_merger_code.py &>> garytest_output.txt\n".format(folder))
+        channel.sendall("python {}/update_merger_code.py &> {}/local_log.txt\n".format(folder, folder))
+
+
+def get_remote_logging(ssh, folder):
+    time.sleep(30)
+    stdin, stdout, stderr = ssh.exec_command("cat {}/local_log.txt\n".format(folder))
+    with open('{}/sample.txt'.format(folder), 'a+') as f:
+        for line in stdout:
+            f.write(line.strip("\n") + "\n")
 
 
 def apply_for_all(session, table, folder, option):
@@ -61,6 +68,7 @@ def apply_for_all(session, table, folder, option):
 
         activate_venv(channel, folder)
         trigger_script(channel, folder, host, option)
+        get_remote_logging(ssh, folder)
         ssh.close()
 
 
