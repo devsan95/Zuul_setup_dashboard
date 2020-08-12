@@ -1,5 +1,6 @@
 from update_zuul_merger_auto import collect_mergers
 import logging
+import fire
 import os
 
 logging.basicConfig(level=logging.DEBUG,
@@ -28,19 +29,19 @@ fi
 ''')
 
 
-def run():
+def run(ip):
     for merger in collect_mergers():
         print(merger)
         print(os.popen('docker ps -a --filter "name=^/%s$" --format "{{.Status}}"' % merger).read().split(' ')[0])
         if os.popen('docker ps -a --filter "name=^/%s$" --format "{{.Status}}"' % merger).read().split(' ')[0] == "Up":
-            logging.info("Upgrading {}'s code".format(merger))
+            logging.info("Upgrading {}'s code on instance {}".format(merger, ip))
             os.system("docker cp updateMergerCode.sh {}:/root".format(merger))
-            os.system("sudo docker exec -i {} bash -c 'sh -x updateMergerCode.sh'".format(merger))
-            logging.info("Upgrade done!")
+            os.system("sudo docker exec -i {} bash -c 'sh updateMergerCode.sh'".format(merger))
+            logging.info("Upgrade {} done on instance {}!".format(merger, ip))
         else:
-            logging.warning("{} is not running, thus cannot be upgraded!".format(merger))
+            logging.warning("{} is not running on instance {}, thus cannot be upgraded!".format(merger, ip))
 
 
 if __name__ == '__main__':
     create_shell_script()
-    run()
+    fire.Fire(run)
