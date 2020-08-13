@@ -11,6 +11,7 @@ z=`expr $x / 1000`
 cd /root/script/layout
 
 git pull --rebase
+git fetch origin refs/notes/review:refs/notes/review
 
 #y=`git log -n 1 --pretty=format:"%cd" --date=raw | cut -d" " -f1`
 
