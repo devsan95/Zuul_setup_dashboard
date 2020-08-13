@@ -12,7 +12,10 @@ cd /root/script/layout
 
 git pull --rebase
 
-y=`git log -n 1 --pretty=format:"%cd" --date=raw | cut -d" " -f1`
+#y=`git log -n 1 --pretty=format:"%cd" --date=raw | cut -d" " -f1`
+
+w=`git log  --show-notes=review  | grep -m 1  "Submitted-at" | cut -d":" -f 2,3,4`
+y=`date "+%s" -d "$w"`
 
 git log -n 3 > /root/script/gitlog.txt
 
