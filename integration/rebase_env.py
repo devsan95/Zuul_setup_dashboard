@@ -126,9 +126,11 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         to_be_replaced = reg.search(msg).groups()[1]
         to_be_replaced_string = '<{0}>'.format(to_be_replaced)
         to_be_replace_fifi = common_regex.fifi_reg.search(origin_msg).groups()[0]
+        gnb_first_line = common_regex.gnb_firstline_reg.search(msg)
         pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))
         result = reg.search('\n'.join(env_change_list))
+
         to_replace = ''
         if version_entry:
             for line in env_change_list:
@@ -136,12 +138,12 @@ def change_message_by_env_change(change_no, env_change_list, rest):
                     to_replace = line.split('=')[1]
                     break
         else:
-            if result and not to_replace:
+            if result and not to_replace.strip():
                 to_replace = result.groups()[0]
-            if not to_replace:
+            if not to_replace.strip():
                 to_replace = find_new_version_by_distance(
                     to_be_replaced, env_change_list)
-            if not to_replace:
+            if not to_replace.strip():
                 raise Exception('Cannot find new version')
         to_replace_string = '<{0}>'.format(to_replace)
         if to_be_replaced_string == to_replace_string:
@@ -153,9 +155,9 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         except Exception as e:
             print('delete edit failed, reason:')
             print(str(e))
-
         new_msg = origin_msg.replace(to_be_replaced_string, to_replace_string).replace(
             '%FIFI={0}'.format(to_be_replace_fifi), '%FIFI={0}'.format(to_replace))
+        new_msg = new_msg.replace(gnb_first_line.groups()[3], to_replace) if gnb_first_line else new_msg
         rest.change_commit_msg_to_edit(change_no, new_msg)
         rest.publish_edit(change_no)
         return to_be_replaced, to_replace
@@ -346,7 +348,13 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             jira_ticket = reg.search(msg).groups()[0]
             jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
                                       server=DEFAULT_JIRA_URL)
-            jira_op.replace_issue_title(jira_ticket, old_str, new_str)
+            jira_title = jira_op.get_issue_title(jira_ticket)
+            if old_str in jira_title:
+                jira_op.replace_issue_title(jira_ticket, old_str, new_str)
+            else:
+                jira_title_re = common_regex.jira_title_reg.search(jira_title)
+                if jira_title_re:
+                    jira_op.replace_issue_title(jira_ticket, jira_title_re.groups()[4], new_str)
         except Exception as e:
             print('Jira update error')
         if database_info_path:
