@@ -138,7 +138,7 @@ def _main():
     gerrit_api.review_patch_set(
         ssh_user, ssh_server, patchset3, ['Code-Review=+2'])
 
-    auth = HTTPBasicAuth('cazuul', 'Welcome321')
+    auth = HTTPBasicAuth('caqa', 'Welcome321')
     rest = GerritRestAPI(url="http://" + ssh_server_http, auth=auth, verify=False)
     gate_bunch_topic = False
     for i in range(1, 30):
