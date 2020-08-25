@@ -159,6 +159,7 @@ source "$VENV_PATH"/bin/activate python3
 pip install jenkins-job-builder PyZMQ ruamel.yaml networkx requests configobj jenkinsapi
 pip install gitpython arrow sh pyyaml ptpython pydocstyle python-slugify pymysql
 pip install jinja2 fire jira python-gitlab jsonschema click mysql-connector pytz xlwt
+pip install beautifulsoup4 python-jenkins docker pexpect
 pip install -U flake8
 pip install -U pylint
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
