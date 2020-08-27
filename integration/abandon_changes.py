@@ -56,18 +56,21 @@ def parse_comments(change_id, rest):
 
     submodule_list = get_submodule_list_from_comments(comment_list)
 
-    root_change = change_list.get('root')
-    if root_change:
-        change_set.add(root_change)
+    if change_list:
+        root_change = change_list.get('root')
+        if root_change:
+            change_set.add(root_change)
 
-    manager_change = change_list.get('manager')
-    if manager_change:
-        change_set.add(manager_change)
+        manager_change = change_list.get('manager')
+        if manager_change:
+            change_set.add(manager_change)
 
-    com_changes = change_list.get('tickets')
-    if com_changes:
-        for co_change_id in com_changes:
-            change_set.add(co_change_id)
+        com_changes = change_list.get('tickets')
+        if com_changes:
+            for co_change_id in com_changes:
+                change_set.add(co_change_id)
+    else:
+        change_set.add(change_id)
 
     if submodule_list:
         if isinstance(submodule_list, list):
@@ -113,7 +116,6 @@ def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):
 if __name__ == '__main__':
     try:
         param = _parse_args()
-
         _main(**param)
     except Exception as e:
         print("An exception %s occurred, msg: %s" % (type(e), str(e)))
