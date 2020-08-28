@@ -134,8 +134,8 @@ def auto_update_build_info(integration_tag,
                            dry_run=False):
     integration_change = integration_tag.split('_')[0]
     jira_key = get_jira_id(integration_change, gerrit_info_path)
-    knife_link_temp = 'http://5g-cb.es-si-s3-z4.eecloud.nsn-net.net' \
-                      '/BucketList/index.html?prefix=knife/{pkg_name}/'
+    knife_link_temp = 'https://artifactory-espoo1.int.net.nokia.com/artifactory/' \
+                      'mnp5g-central-public-local/Knife/{pkg_name}/'
     knife_link = knife_link_temp.format(pkg_name=pkg_name)
     if job_url:
         # example of job_url: http://wrlinb147.emea.nsn-net.net:9090/job/job_name/build_number/
