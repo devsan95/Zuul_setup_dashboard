@@ -14,15 +14,18 @@ RELEASED_STATUS = ['released', 'released_with_restrictions']
 BUILD_FILTER = "{wft_url}:8091/ALL/api/v1/build.json?" \
                "access_key={access_key}" \
                "&view[items]=20&view[sorting_field]=created_at&view[sorting_direction]=DESC" \
-               "&view[columns[][id]]=deliverer.project.full_path&v" \
-               "iew[columns[][id]]=deliverer.title" \
+               "&view[columns[][id]]=deliverer.project.full_path" \
+               "&view[columns[][id]]=deliverer.title" \
                "&view[columns[][id]]=version&view[columns[][id]]=branch.title" \
                "&view[columns[][id]]=state&view[columns[][id]]=planned_delivery_date" \
                "&view[columns[][id]]=common_links" \
                "&view[columns[][id]]=compare_link" \
-               "&view[view_filters_attributes[243063142841311]][column]=version" \
-               "&view[view_filters_attributes[243063142841311]][operation]=cont" \
-               "&view[view_filters_attributes[243063142841311]][value][]={version}&"
+               "&view[view_filters_attributes[438525425682223]][column]=version" \
+               "&view[view_filters_attributes[438525425682223]][operation]=cont" \
+               "&view[view_filters_attributes[438525425682223]][value][]={version}" \
+               "&view[view_filters_attributes[208462639699611]][column]=deliverer.title" \
+               "&view[view_filters_attributes[208462639699611]][operation]=eq" \
+               "&view[view_filters_attributes[208462639699611]][value][]=5G_Central&"
 
 
 def get_lasted_success_build(stream):
