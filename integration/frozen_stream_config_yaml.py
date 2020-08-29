@@ -98,8 +98,11 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
             component_value = {}
             for config_key, component_info in stream_config_yaml['components'].items():
                 if 'feature_component' in component_info and component_info['feature_component'] == name:
-                    features = component_info['features']
-                    component_value = component_info
+                    if 'features' in component_info:
+                        features = component_info['features']
+                        component_value = component_info
+                    else:
+                        logging.warn('Cannot find compnoent info for %s', name)
                     break
             feature_id = comp_dicts['feature_id']
             feature_list.append(feature_id)
@@ -107,7 +110,7 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
             if pipeline not in comp_dicts:
                 continue
             comp_dict = comp_dicts[pipeline]
-            logging.info('Frozen comonent %s in %s', comp_dict, stream_config_yaml_file)
+            logging.info('Frozen component %s in %s', comp_dict, stream_config_yaml_file)
             component_yaml_key = '{}:{}'.format(comp_dict['project'], comp_dict['component'])
             if feature_id not in features:
                 features[feature_id] = {
@@ -242,7 +245,7 @@ def get_version_from_work_dir(integration_obj, recipe_file, component_pv, compon
             bitbake_env_out = ''
             try:
                 bitbake_env_out = bitbake_tools.get_component_env(component_run_info, integration_obj)
-                component_version = bitbake_tools.get_component_env_value(bitbake_env_out, ['WFT_NAME', 'PV'])
+                component_version = bitbake_tools.get_component_env_value(bitbake_env_out, ['PV'])
                 get_last_succeed = True
                 logging.info('Last version get from bitbake is %s', component_version)
             except Exception:
@@ -307,7 +310,10 @@ def get_component_frozen_version(
                         logging.info('Compare wft_name %s and sub_build: %s', wft_name, sub_build)
                         if wft_component and wft_name:
                             if wft_component == sub_build['component'] and wft_name == sub_build['version']:
-                                matched_subs = [sub_build]
+                                matched_sub = copy.deepcopy(sub_build)
+                                if component_pv != sub_build['version']:
+                                    matched_sub['version'] = component_pv
+                                matched_subs = [matched_sub]
                                 break
                         elif component_pv == sub_build['version']:
                             matched_subs.append(sub_build)
@@ -409,6 +415,9 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, 
     previous_succ_comp_dict = {}
     get_comp_info_objs = {}
     for component in component_list:
+        if component[1] == 'MN/5G/COMMON/integration':
+            logging.info('Skip component %s in integration repo ticket', component[0])
+            continue
         component_name = component[0]
         previous_comp_dict[component_name] = {}
         previous_succ_comp_dict[component_name] = {}
