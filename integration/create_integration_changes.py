@@ -483,7 +483,7 @@ class IntegrationChangesCreation(object):
             lines.append('Remarks: ')
             lines.append('---')
             for line in node_obj['remark']:
-                lines.append('{}'.format(textwrap.fill(line, 80)))
+                lines.append('{}'.format(textwrap.fill(line, 100)))
             lines.append('---')
             section_showed = True
 
