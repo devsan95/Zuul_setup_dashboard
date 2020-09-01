@@ -11,6 +11,7 @@ from datetime import datetime
 from api import gerrit_rest
 from mod import integration_change as inte_change
 from mod import get_component_info
+from mod import config_yaml
 import operate_integration_change as operate_int
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -27,6 +28,7 @@ def parse_root_change(rest, root_change):
     root['platform_id'] = root_change_obj.get_platform_id()
     root['component_changes'] = root_change_obj.get_all_changes_by_comments()
     root['manager_change'] = root_change_obj.get_components_changes_by_comments()[1]
+    root['project'] = root_change_obj.get_project()
     return root
 
 
@@ -159,6 +161,44 @@ def add_tmp_file(rest, change_number, files, topic):
         rest.publish_edit(change_number)
 
 
+def get_changed_in_global_config_yaml(rest, integration_repo_ticket):
+    changed_sections = {}
+    change_content = rest.get_file_change('config.yaml', integration_repo_ticket)
+    old_config_yaml = yaml.safe_load(change_content['old'])
+    new_config_yaml = yaml.safe_load(change_content['new'])
+    if not new_config_yaml:
+        return changed_sections
+    for config_key, component_info in new_config_yaml['components'].items():
+        if config_key in old_config_yaml['components']:
+            old_component_info = old_config_yaml['components'][config_key]
+            if component_info['version'] != old_component_info['version'] or \
+                    component_info['commit'] != old_component_info['commit']:
+                changed_sections[config_key] = component_info
+        else:
+            print("Info: component {} not exist in old config.yaml".format(config_key))
+            changed_sections[config_key] = component_info
+    return changed_sections
+
+
+def update_component_local_config_yaml(rest, change_number, component, comp_config, changed_section):
+    if component['repo'] in comp_config['config_yaml'].keys():
+        print("Local config.yaml found for component {}".format(component['name']))
+        if changed_section:
+            local_config_yaml = comp_config['config_yaml'][component['repo']]
+            local_yaml_content = ''
+            try:
+                local_yaml_content = rest.get_file_content(local_config_yaml, change_number)
+            except Exception:
+                print('Warn: no local config.yaml in this repo: {}'.format(component['repo']))
+            if local_yaml_content:
+                local_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=local_yaml_content)
+                local_yaml_obj.components.update(changed_section)
+                config_yaml_content = yaml.safe_dump(local_yaml_obj.config_yaml, default_flow_style=False)
+
+                rest.add_file_to_change(change_number, local_config_yaml, config_yaml_content)
+                rest.publish_edit(change_number)
+
+
 def check_external_change(rest, root_change):
     root_change_obj = inte_change.RootChange(rest, root_change)
     comp_change_list, manager_change = root_change_obj.get_components_changes_by_comments()
@@ -258,6 +298,14 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     if 'files' in comp and comp['files']:
         add_tmp_file(rest, comp_change_number, comp['files'], root['topic'])
+
+    # update local_config.yaml according to global_config.yaml if component has one
+    if root['project'] == 'MN/5G/COMMON/integration':
+        changed_section = get_changed_in_global_config_yaml(rest, root_change)
+        if changed_section:
+            update_component_local_config_yaml(rest, comp_change_number,
+                                               comp, comp_config, changed_section)
+
     if comp_name in depends_components:
         for comp_change in root['component_changes']:
             if rest.get_ticket(comp_change)['status'] in ['MERGED', 'ABANDONED']:
