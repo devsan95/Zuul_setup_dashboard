@@ -7,6 +7,7 @@ from scm_tools.wft.api import WftAPI
 from scm_tools.wft.build_content import BuildContent
 
 from api import config
+from api import retry
 
 
 WFT = WftAPI(config_path=os.path.join(config.get_config_path(), 'properties/wft.properties'))
@@ -36,7 +37,7 @@ def get_lasted_success_build(stream):
         'released_with_restrictions',
         'skipped_by_qt'
     ]
-    build_list = WFT.get_build_list(stream, items=100)
+    build_list = WFT.get_build_list(branch_name=stream, items=100)
     xml_tree = ET.fromstring(build_list)
     for build in xml_tree.findall('build'):
         if build.find('state').text in success_state:
@@ -125,6 +126,7 @@ def get_latest_loads_by_streams(stream_list, get_build_function, strip_prefix=Tr
     stream_build = dict()
     for stream in stream_list:
         wft_stream = ''
+        stream_pattern = stream
         try:
             wft_stream = get_stream_name(stream + '.')
         except Exception:
@@ -136,8 +138,8 @@ def get_latest_loads_by_streams(stream_list, get_build_function, strip_prefix=Tr
             continue
         print('Get pcakge for stream {}'.format(stream))
         build_name, release_date = get_build_function(stream)
-        if not build_name:
-            build_name, release_date = get_build_function(stream)
+        if '_{}'.format(stream_pattern) not in build_name:
+            raise Exception('{} is not aligned with {}'.format(build_name, stream))
         if build_name:
             if strip_prefix:
                 stream_build[release_date] = build_name.split('_')[-1]
@@ -149,7 +151,10 @@ def get_latest_loads_by_streams(stream_list, get_build_function, strip_prefix=Tr
 
 
 def get_latest_build_load(stream_list, strip_prefix=True):
-    return get_latest_loads_by_streams(stream_list, get_lasted_success_build, strip_prefix)
+    latest_builds = retry.retry_func(
+        retry.cfn(get_latest_loads_by_streams, stream_list, get_lasted_success_build, strip_prefix),
+        max_retry=5, interval=3)
+    return latest_builds
 
 
 def get_latest_qt_load(stream_list, strip_prefix=True):
