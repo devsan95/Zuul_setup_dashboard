@@ -24,6 +24,8 @@ from mod.integration_change import ManageChange
 
 VERSION_PATTERN = r'export VERSION_PATTERN=([0-9]+.[0-9]+)'
 INTEGRATION_REPO = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
+FEATURE_STREAM_MAP = {r'RCP[0-9]+\.[0-9]+_[0-9\.]+': r'.*_cloudbts_',
+                      r'RCPvDU[0-9]+\.[0-9]+_[0-9\.]+': r'.*_allincloud_'}
 
 
 def get_branch_integration(branch):
@@ -38,7 +40,7 @@ def get_branch_integration(branch):
     return g
 
 
-def get_last_passed_package(branch):
+def get_last_passed_package(branch, feature_id):
     g = get_branch_integration(branch)
     stream_list = []
     base_load_dict = {}
@@ -51,7 +53,19 @@ def get_last_passed_package(branch):
                 if m:
                     stream_list.append(m.group(1))
                     stream_dict[x.split('.config-')[1]] = m.group(1)
-    logging.info('Get pacakges by stream list %s', stream_list)
+    # filter by FEATURE_STREAM_MAP
+    new_streams = []
+    for feature_regex, stream_regex in FEATURE_STREAM_MAP.items():
+        for stream_name, stream_parttern in stream_dict.items():
+            logging.info('Try to match %s by %s', feature_id, feature_regex)
+            if re.match(feature_regex, feature_id):
+                logging.info('Try to match %s by %s', stream_name, stream_regex)
+                m = re.match(stream_regex, stream_name)
+                if m:
+                    new_streams.append(stream_parttern)
+    if new_streams:
+        stream_list = new_streams
+    logging.info('Get packges by stream list %s', stream_list)
     base_load, base_load_list = wft_tools.get_latest_build_load(stream_list, strip_prefix=False)
     for base_load_name in base_load_list:
         for pipeline, stream in stream_dict.items():
@@ -373,8 +387,6 @@ def prepare_workspace(work_dir, repo_url, repo_ver):
 
 def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, *together_comps):
     # remove CR+2 first to aovid change merged
-    # get last passed package
-    last_pass_package, pass_packages, integration_dir = get_last_passed_package(branch)
     # get together_comps
     logging.info('Together_comps: %s', together_comps)
     together_repo_dict = {}
@@ -385,6 +397,10 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, 
     #  if integraiton ticket,  changed section in config.yaml.
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root_change_obj = RootChange(rest, change_no)
+    feature_id = root_change_obj.get_feature_id()
+    platform_id = root_change_obj.get_platform_id()
+    # get last passed package
+    last_pass_package, pass_packages, integration_dir = get_last_passed_package(branch, feature_id)
     comp_change_list, integration_tickt = root_change_obj.get_components_changes_by_comments()
     manage_change_obj = ManageChange(rest, integration_tickt)
     integration_repo_ticket = ''
@@ -432,8 +448,8 @@ def run(gerrit_info_path, change_no, branch, component_config, mysql_info_path, 
             # so may be we need to raise Exception here
             logging.warn('Not find %s in previous loads: %s', component_name, pass_packages)
         else:
-            previous_comp_dict[component_name]['feature_id'] = root_change_obj.get_feature_id()
-            previous_comp_dict[component_name]['platform_id'] = root_change_obj.get_platform_id()
+            previous_comp_dict[component_name]['feature_id'] = feature_id
+            previous_comp_dict[component_name]['platform_id'] = platform_id
 
     if not previous_comp_dict:
         logging.info('No component adaption needed')
