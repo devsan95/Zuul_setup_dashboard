@@ -28,6 +28,7 @@ import ruamel.yaml as yaml
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 MAIL_REGEX = r'^[^@]+@(nokia|nokia-sbell|internal\.nsn|groups\.nokia)\.com'
+PACKAGE_TAG_REGEX = r'[0-9]+.[0-9]+.[0-9]+'
 
 
 def strip_begin(text, prefix):
@@ -491,7 +492,8 @@ def parse_comments_base(change_id, rest, using_cache=True):
                 print(line)
                 m1 = m.group(1).strip().strip('"')
                 m2 = m.group(2).strip().strip('"')
-                retd[m1] = m2
+                if re.match(PACKAGE_TAG_REGEX, m2):
+                    retd[m1] = m2
             if de in line:
                 print(line)
                 retd = {}
