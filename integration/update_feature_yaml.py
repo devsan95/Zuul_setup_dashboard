@@ -526,6 +526,7 @@ def get_stream_yaml_dict(integration_dir):
 
 def unforzen_config_yaml(integration_dir, features_delivered={}):
     stream_config_yaml_changed = []
+    unfreezed_features = {}
     stream_config_yaml_dict = get_stream_yaml_dict(integration_dir)
     # remove sections in stream config yaml
     for stream_config_yaml_file, stream_config_yaml in stream_config_yaml_dict.items():
@@ -561,6 +562,10 @@ def unforzen_config_yaml(integration_dir, features_delivered={}):
                     continue
                 for section_to_removed in sections_to_removed[feature_id]:
                     logging.info('Unfrozen section %s for %s in %s', section_to_removed, feature_id, stream)
+                    if feature_id not in unfreezed_features:
+                        unfreezed_features[feature_id] = []
+                    if stream not in unfreezed_features[feature_id]:
+                        unfreezed_features[feature_id].append(stream)
                     stream_config_yaml['components'].pop(section_to_removed)
                 stream_config_yaml_changed.append(stream_config_yaml_file)
                 logging.info('Update %s for %s in %s', stream_config_yaml_file, feature_id, stream)
@@ -568,8 +573,14 @@ def unforzen_config_yaml(integration_dir, features_delivered={}):
             fw.write(yaml.safe_dump(stream_config_yaml))
     if features_delivered and not stream_config_yaml_changed:
         logging.warn('No stream config.yaml changed for %s', features_delivered)
-        return False
-    return True
+        return ''
+    commit_message = ''
+    for feature_id, streams in unfreezed_features.items():
+        for stream in streams:
+            commit_message += "\n" + "unfrozen feature {} in {}".format(feature_id, stream)
+    if not commit_message:
+        commit_message += "\n" + "unfrozen feature {} in all streams".format(feature_id)
+    return commit_message
 
 
 def update(integration_dir, branch, *together_comps):
@@ -583,7 +594,6 @@ def update(integration_dir, branch, *together_comps):
     integration_obj = integration_repo.INTEGRATION_REPO('', '', work_dir=integration_dir)
     feature_list = get_feature_list(integration_obj)
     all_delivered = True
-    is_delivered = False
     features_delivered = {}
     for feature in feature_list:
         update_feature(feature, integration_obj, together_repo_dict)
@@ -600,10 +610,12 @@ def update(integration_dir, branch, *together_comps):
         unforzen_config_yaml(integration_dir)
         commit_message = 'Unforzen automatically by job as all features ready'
     elif features_delivered:
-        is_delivered = unforzen_config_yaml(integration_dir, features_delivered)
-        if is_delivered:
-            logging.warn('There is one or more feature delivered in %s', features_delivered)
+        delivered_msg = unforzen_config_yaml(integration_dir, features_delivered)
+        if delivered_msg:
+            logging.warn('There is one or more feature delivered:\n %s', delivered_msg)
         commit_message = 'Unforzen automatically by job as some features ready'
+        commit_message += "\n" + delivered_msg
+    logging.info(commit_message)
     push_integration_change(integration_dir, branch, commit_message)
 
 
