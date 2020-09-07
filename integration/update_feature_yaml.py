@@ -499,7 +499,9 @@ def update_feature(feature, integration_obj, together_repo_dict):
     for together_repo, together_comps in together_repo_dict.items():
         logging.info('Set "gnb" components to same status')
         for together_comp in together_comps:
-            if together_comp in matched_components and together_repo == 'MN/5G/NB/gnb':
+            if together_comp in matched_components \
+                    and matched_components[together_comp] \
+                    and together_repo == 'MN/5G/NB/gnb':
                 for stream in matched_components[together_comp].keys():
                     logging.info('In stream %s', stream)
                     logging.info('%s delivered, set sidepackages_components: %s',
