@@ -81,14 +81,22 @@ def gen_component_info(component, integration_obj):
                     if component_regexs and component_regex not in component_regexs:
                         logging.warn('Multi version find in different stream %s %s',
                                      component_regexs[0], component_regex)
-                    if component_regex and component_regex not in component_regexs:
-                        component_regexs.append(component_regex)
-                        component_infos.append(
-                            {'name': component,
-                             'regex': component_regex,
-                             'target': target,
-                             'module': module,
-                             'config_file': config_file})
+                    if component_regex:
+                        stream = config_file.split('.config-')[1]
+                        if component_regex not in component_regexs:
+                            component_regexs.append(component_regex)
+                            component_infos.append(
+                                {'name': component,
+                                 'regex': component_regex,
+                                 'target': target,
+                                 'module': module,
+                                 'config_file': config_file,
+                                 'streams': [stream]})
+                        else:
+                            logging.info('Add %s to %s', stream, component_regex)
+                            for component_info in component_infos:
+                                if component_info['regex'] == component_regex:
+                                    component_info['streams'].append(stream)
     logging.info('Get component info %s', component_infos)
     return component_infos
 
@@ -214,14 +222,19 @@ def update_delivery_status(feature, matched_components, integration_obj):
     for feature_comp in feature['components']:
         name = feature_comp['name']
         feature_comp['delivered'] = True
+        logging.info('Check %s', feature_comp)
         for stream_config_yaml_file, config_dict in stream_config_yaml.items():
+            logging.info('Check %s in %s', name, stream_config_yaml_file)
             stream = os.path.basename(os.path.dirname(stream_config_yaml_file))
             for key, component_value in config_dict['components'].items():
+                logging.info('Find %s in %s', name, component_value)
                 if 'features' in component_value and 'feature_component' in component_value:
+                    logging.info('Check delivery status for %s in %s', name, component_value)
                     feature_dict = copy.deepcopy(component_value['features'])
                     if feature_id not in feature_dict:
                         continue
                     if component_value['feature_component'] == name:
+                        logging.info('Check if %s in %s', stream, matched_components[name])
                         if stream in matched_components[name]:
                             logging.info('Set delivered for %s to True', name)
                             feature_dict[feature_id]['feature_delivered'] = True
@@ -427,7 +440,7 @@ def update_feature(feature, integration_obj, together_repo_dict):
                 logging.info('sub_builds : %s', sub_builds)
                 wft_name = subbuilds_and_env['wft_name']
                 logging.info('wft_name : %s', wft_name)
-                stream = component_info['config_file'].split('.config-')[1]
+                streams = component_info['streams']
                 if wft_name == component['frozen_version']:
                     logging.info('Same as forzen version: %s, skipped', wft_name)
                     continue
@@ -435,7 +448,8 @@ def update_feature(feature, integration_obj, together_repo_dict):
                     logging.info('Component %s is in global config.yaml', component_name)
                     if wft_name == components_in_global[component_name]['version']:
                         logging.info('Same as global version: %s, matched', wft_name)
-                        matched_components[component_name][stream] = True
+                        for stream in streams:
+                            matched_components[component_name][stream] = True
                         continue
                     else:
                         component_not_matched = True
@@ -445,7 +459,8 @@ def update_feature(feature, integration_obj, together_repo_dict):
                     logging.info('Find feature %s in WFT version %s', feature_id, version_in_wft)
                     if feature_id in version_in_wft:
                         logging.info('Find feature id in WFT version')
-                        matched_components[component_name][stream] = True
+                        for stream in streams:
+                            matched_components[component_name][stream] = True
                         continue
                     # check for vdu platforms
                     if multi_platforms_in_global:
@@ -453,12 +468,14 @@ def update_feature(feature, integration_obj, together_repo_dict):
                         for platform_value in multi_platforms_in_global.values():
                             if platform_value['version'] in [k['version'] for k in sub_builds]:
                                 logging.info('Find %s in sub_builds', platform_value['version'])
-                                matched_components[component_name][stream] = True
+                                for stream in streams:
+                                    matched_components[component_name][stream] = True
                                 break
                             else:
                                 logging.info('find value %s from Bitbake_env_out', platform_value['version'])
                                 if find_component_env_value(bitbake_env_out, platform_value['version']):
-                                    matched_components[component_name][stream] = True
+                                    for stream in streams:
+                                        matched_components[component_name][stream] = True
                                     break
                 if components_in_global and sub_builds:
                     logging.info('Find component like gnb for interfaces delivered or not')
@@ -473,7 +490,8 @@ def update_feature(feature, integration_obj, together_repo_dict):
                                 if config_yaml_key == new_wft_obj['config_yaml_key']:
                                     config_yaml_key_matched = True
                                     if sub_build['version'] == new_wft_obj['version']:
-                                        matched_components[component_name][stream] = True
+                                        for stream in streams:
+                                            matched_components[component_name][stream] = True
                                     else:
                                         component_not_matched = True
                             if not config_yaml_key_matched:
@@ -481,7 +499,8 @@ def update_feature(feature, integration_obj, together_repo_dict):
                                 # if comonent with new  interfaces delivered
                                 depends_list = get_component_env_value(bitbake_env_out, ['DEPENDS']).split()
                                 if '{}-{}'.format(interface_component, new_wft_obj['version']) in depends_list:
-                                    matched_components[component_name][stream] = True
+                                    for stream in streams:
+                                        matched_components[component_name][stream] = True
 
                 if component_name not in matched_components and not component_not_matched:
                     logging.info('Get feature from %s commit message', component_name)
@@ -493,7 +512,8 @@ def update_feature(feature, integration_obj, together_repo_dict):
                         logging.info('Get feature from %s repo commit message Failed', component_info)
                     if check_result is not None:
                         if check_result:
-                            matched_components[component_name][stream] = True
+                            for stream in streams:
+                                matched_components[component_name][stream] = True
 
     logging.info('Matched components %s', matched_components)
     for together_repo, together_comps in together_repo_dict.items():
@@ -581,7 +601,7 @@ def unforzen_config_yaml(integration_dir, features_delivered={}):
         for stream in streams:
             commit_message += "\n" + "unfrozen feature {} in {}".format(feature_id, stream)
     if not commit_message:
-        commit_message += "\n" + "unfrozen feature {} in all streams".format(feature_id)
+        commit_message += "\n" + "unfrozen feature {} in all streams".format(unfreezed_features.keys())
     return commit_message
 
 
@@ -607,6 +627,7 @@ def update(integration_dir, branch, *together_comps):
                 if stream_delivered:
                     features_delivered[feature['feature_id']] = feature['stream_status']
                     break
+    logging.info('Feature delivered status: %s', features_delivered)
     commit_message = ''
     if feature_list and all_delivered:
         unforzen_config_yaml(integration_dir)
