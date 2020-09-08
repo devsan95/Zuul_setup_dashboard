@@ -26,6 +26,7 @@ VERSION_PATTERN = r'export VERSION_PATTERN=([0-9]+.[0-9]+)'
 INTEGRATION_REPO = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 FEATURE_STREAM_MAP = {r'RCP[0-9]+\.[0-9]+_[0-9\.]+': r'.*_cloudbts_',
                       r'RCPvDU[0-9]+\.[0-9]+_[0-9\.]+': r'.*_allincloud_'}
+FILETER_STREAMS = ['master_asmrap']
 
 
 def get_branch_integration(branch):
@@ -46,26 +47,30 @@ def get_last_passed_package(branch, feature_id):
     base_load_dict = {}
     stream_dict = {}
     for x in os.listdir(g.working_dir):
-        if x.startswith('.config'):
+        if x.startswith('.config-'):
+            stream_name = x.split('.config-')[1]
+            if stream_name in FILETER_STREAMS:
+                logging.info('Skip stream %s', stream_name)
+                continue
             with open(os.path.join(g.working_dir, x), 'r') as fr:
                 content = fr.read()
                 m = re.search(VERSION_PATTERN, content)
                 if m:
                     stream_list.append(m.group(1))
-                    stream_dict[x.split('.config-')[1]] = m.group(1)
+                    stream_dict[stream_name] = m.group(1)
     # filter by FEATURE_STREAM_MAP
     new_streams = []
     for feature_regex, stream_regex in FEATURE_STREAM_MAP.items():
-        for stream_name, stream_parttern in stream_dict.items():
-            logging.info('Try to match %s by %s', feature_id, feature_regex)
-            if re.match(feature_regex, feature_id):
+        logging.info('Try to match %s by %s', feature_id, feature_regex)
+        if re.match(feature_regex, feature_id):
+            for stream_name, stream_parttern in stream_dict.items():
                 logging.info('Try to match %s by %s', stream_name, stream_regex)
                 m = re.match(stream_regex, stream_name)
                 if m:
                     new_streams.append(stream_parttern)
     if new_streams:
         stream_list = new_streams
-    logging.info('Get packges by stream list %s', stream_list)
+    logging.info('Get packages by stream list %s', stream_list)
     base_load, base_load_list = wft_tools.get_latest_build_load(stream_list, strip_prefix=False)
     for base_load_name in base_load_list:
         for pipeline, stream in stream_dict.items():

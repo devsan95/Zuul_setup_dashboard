@@ -136,15 +136,16 @@ def get_latest_loads_by_streams(stream_list, get_build_function, strip_prefix=Tr
             else wft_stream
         if not stream:
             continue
-        print('Get pcakge for stream {}'.format(stream))
+        print('Get package for stream {}'.format(stream))
         build_name, release_date = get_build_function(stream)
         if '_{}'.format(stream_pattern) not in build_name:
             raise Exception('{} is not aligned with {}'.format(build_name, stream))
-        if build_name:
-            if strip_prefix:
-                stream_build[release_date] = build_name.split('_')[-1]
-            else:
-                stream_build[release_date] = build_name
+        if not build_name:
+            raise Exception('Build is not find from WFT for {}'.format(stream))
+        if strip_prefix:
+            stream_build[release_date] = build_name.split('_')[-1]
+        else:
+            stream_build[release_date] = build_name
     time_stamp = stream_build.keys()
     time_stamp.sort(reverse=True)
     return stream_build[time_stamp[0]], stream_build.values()
