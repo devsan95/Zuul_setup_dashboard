@@ -440,7 +440,8 @@ def get_component_version(knife_json, component, parse=True):
         else:
             log.warning("Failed to parse {}'s version from knife json".format(component))
     else:
-        version = knife_json[component]
+        version = str(knife_json[component])
+        version = re.sub(r"'|\{|\}| ", '', version)
     return version
 
 
