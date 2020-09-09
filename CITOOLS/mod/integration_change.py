@@ -294,6 +294,35 @@ class IntegrationCommitMessage(object):
         self.msg_lines.insert(begin_line + 2, bb_line_value)
         self.msg_lines.insert(begin_line + 3, commit_line_value)
 
+    def update_fifi(self, new_fifi):
+        # no matter current FIFI has value or not
+        for i, v in enumerate(self.msg_lines):
+            if v.startswith('%FIFI='):
+                self.msg_lines.insert(i, '%FIFI={}'.format(new_fifi))
+                self.msg_lines.remove(v)
+
+    def update_topic_in_firstline(self, new_topic):
+        # no matter current topic exist in first line or not
+        reg = common_regex.int_firstline_reg
+        msg = self.get_msg()
+        old_topic = reg.search(msg).groups()[1]
+        to_be_replaced = '<{}>'.format(old_topic)
+
+        new_msg = msg.replace(to_be_replaced, '<{}>'.format(new_topic))
+        self.msg_lines = new_msg.split('\n')
+
+    def update_topic_in_gnb_firstline(self, new_topic):
+        msg = self.get_msg()
+        gnb_first_line = common_regex.gnb_firstline_reg.search(msg)
+        new_msg = msg.replace(gnb_first_line.groups()[3], new_topic) if gnb_first_line else msg
+        self.msg_lines = new_msg.split('\n')
+
+    def update_topic(self, new_topic):
+        if new_topic:
+            self.update_topic_in_gnb_firstline(new_topic)
+            self.update_fifi(new_topic)
+            self.update_topic_in_firstline(new_topic)
+
     def remove_ric(self, change):
         # judge if there is the need to remove
         ol = self.change.get_all_components()
