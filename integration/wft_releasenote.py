@@ -465,7 +465,7 @@ def traverse_element_list(releasenote, knife_json, action="update"):
                     knife_json_key = component
                     break
         if new_version:
-            item['version'] = "{} -> {}".format(item['version'], new_version)
+            item['version'] = new_version
             log.info("Update {}'s version to {}".format(item['name'], new_version))
             knife_json.pop(knife_json_key)
     if knife_json and action == "add":
