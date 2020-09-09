@@ -470,6 +470,21 @@ class GerritRestClient(object):
 
         return self.parse_rest_response(reviewers)
 
+    def delete_reviewer(self, rest_id, reviewer):
+        review_input = {
+            "notify": "NONE"
+        }
+        auth = self.get_auth()
+        url = 'changes/{0}/reviewers/{1}/delete'.format(rest_id, reviewer)
+
+        changes = self.session.post(self.get_rest_url(url),
+                                    json=review_input, auth=auth)
+        if not changes.ok:
+            raise Exception(
+                'In change [{}], delete reviewer via REST api failed.\n '
+                'Status code is [{}], content is [{}]'.format(
+                    rest_id, changes.status_code, changes.content))
+
     def list_account_emails(self, account='self'):
         auth = self.get_auth()
         url = 'accounts/{}/emails'.format(account)
