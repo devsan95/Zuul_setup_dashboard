@@ -73,8 +73,8 @@ class INTEGRATION_REPO(object):
         branch_data = g_repo.branch('--contains', 'HEAD', '-a')
         for line in branch_data.splitlines():
             line_str = line.strip()
-            if line_str == 'master' or line_str.startswith('rel/'):
-                return line_str
+            if line_str == 'master' or 'rel/' in line_str:
+                return re.sub('.*/rel', 'rel', line_str)
         return ''
 
     def run_bitbake_cmd(self, prefix_path, oe_scripts, *bitbake_args):
