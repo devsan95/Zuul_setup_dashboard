@@ -70,7 +70,7 @@ class INTEGRATION_REPO(object):
 
     def get_integration_branch(self):
         g_repo = git.Git(self.work_dir)
-        branch_data = g_repo.branch('--contains', 'HEAD')
+        branch_data = g_repo.branch('--contains', 'HEAD', '-a')
         for line in branch_data.splitlines():
             line_str = line.strip()
             if line_str == 'master' or line_str.startswith('rel/'):
