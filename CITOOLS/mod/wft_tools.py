@@ -176,9 +176,9 @@ def get_staged_from_wft(wft_name, component=None, project=None):
     build_content = ''
     try:
         if component and project:
-            build_content = WFT.get_build_content(wft_name)
-        else:
             build_content = WFT.get_build_content(wft_name, component=component, project=project)
+        else:
+            build_content = WFT.get_build_content(wft_name)
     except Exception:
         print('Cannot get build_content for {}'.format(wft_name))
     if not build_content:

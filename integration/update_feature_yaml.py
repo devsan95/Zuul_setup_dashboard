@@ -27,6 +27,7 @@ def get_feature_list(integration_obj):
     # get feature list info from stream_config.yaml
     for stream_config_yaml_file, stream_config_yaml in stream_config_yaml_dict.items():
         logging.info('Parse %s', stream_config_yaml_file)
+        stream = os.path.basename(os.path.dirname(stream_config_yaml_file))
         for key, component_value in stream_config_yaml['components'].items():
             if 'features' in component_value and 'feature_component' in component_value:
                 logging.info('Get feature info: %s', component_value)
@@ -36,7 +37,10 @@ def get_feature_list(integration_obj):
                         feature_dict[feature_id] = {'feature_id': feature_id,
                                                     'components': [],
                                                     'platform_id': feature_value['platform_id'],
-                                                    'status': ''}
+                                                    'status': '',
+                                                    'streams': [stream]}
+                    if stream not in feature_dict[feature_id]['streams']:
+                        feature_dict[feature_id]['streams'].append(stream)
                     if component not in [x['name'] for x in feature_dict[feature_id]['components']]:
                         component_delivery_info = {'name': component,
                                                    'config_yaml_key': key,
@@ -403,6 +407,58 @@ def get_subbuilds_and_env(components, integration_obj, components_in_global):
     return components_all_info
 
 
+def set_matched_components(component_name, streams, matched_components):
+    for stream in streams:
+        matched_components[component_name][stream] = True
+
+
+def is_feature_delivered_by_wft(feature_id, sub_builds):
+    version_in_wft = [k['version'] for k in sub_builds]
+    logging.info('Find feature %s in WFT version %s', feature_id, version_in_wft)
+    if feature_id in version_in_wft:
+        logging.info('Find feature id in WFT version')
+        return True
+    return False
+
+
+def is_feature_delivered_in_vdu_way(multi_platforms_in_global, sub_builds, bitbake_env_out):
+    logging.info('Find platform versoin in sub builds')
+    for platform_value in multi_platforms_in_global.values():
+        if platform_value['version'] in [k['version'] for k in sub_builds]:
+            logging.info('Find %s in sub_builds', platform_value['version'])
+            return True
+        else:
+            logging.info('find value %s from Bitbake_env_out', platform_value['version'])
+            if find_component_env_value(bitbake_env_out, platform_value['version']):
+                return True
+    return False
+
+
+def is_new_depends_in_wft(components_in_global, sub_builds):
+    for interface_component, new_wft_obj in components_in_global.items():
+        # check in wft if component contains right
+        # interfaces version
+        for sub_build in sub_builds:
+            config_yaml_key = '{}:{}'.format(sub_build['project'], sub_build['component'])
+            logging.info('Find if %s in components_in_global', config_yaml_key)
+            if config_yaml_key == new_wft_obj['config_yaml_key']:
+                if sub_build['version'] == new_wft_obj['version']:
+                    return True, True
+                else:
+                    return False, True
+    return False, False
+
+
+def is_new_depends_in_bitbake(components_in_global, bitbake_env_out):
+    for interface_component, new_wft_obj in components_in_global.items():
+        # check from depends list
+        # if comonent with new  interfaces delivered
+        depends_list = get_component_env_value(bitbake_env_out, ['DEPENDS']).split()
+        if '{}-{}'.format(interface_component, new_wft_obj['version']) in depends_list:
+            return True
+    return False
+
+
 def update_feature(feature, integration_obj, together_repo_dict):
     feature_id = feature['feature_id']
     platform_id = feature['platform_id']
@@ -448,59 +504,32 @@ def update_feature(feature, integration_obj, together_repo_dict):
                     logging.info('Component %s is in global config.yaml', component_name)
                     if wft_name == components_in_global[component_name]['version']:
                         logging.info('Same as global version: %s, matched', wft_name)
-                        for stream in streams:
-                            matched_components[component_name][stream] = True
+                        set_matched_components(component_name, feature['streams'], matched_components)
                         continue
                     else:
                         component_not_matched = True
                 if sub_builds:
                     # check if feature is delivered by WFT
-                    version_in_wft = [k['version'] for k in sub_builds]
-                    logging.info('Find feature %s in WFT version %s', feature_id, version_in_wft)
-                    if feature_id in version_in_wft:
-                        logging.info('Find feature id in WFT version')
-                        for stream in streams:
-                            matched_components[component_name][stream] = True
+                    if is_feature_delivered_by_wft(feature_id, sub_builds):
+                        set_matched_components(component_name, streams, matched_components)
                         continue
                     # check for vdu platforms
                     if multi_platforms_in_global:
-                        logging.info('Find platform versoin in sub builds')
-                        for platform_value in multi_platforms_in_global.values():
-                            if platform_value['version'] in [k['version'] for k in sub_builds]:
-                                logging.info('Find %s in sub_builds', platform_value['version'])
-                                for stream in streams:
-                                    matched_components[component_name][stream] = True
-                                break
-                            else:
-                                logging.info('find value %s from Bitbake_env_out', platform_value['version'])
-                                if find_component_env_value(bitbake_env_out, platform_value['version']):
-                                    for stream in streams:
-                                        matched_components[component_name][stream] = True
-                                    break
+                        if is_feature_delivered_in_vdu_way(multi_platforms_in_global, bitbake_env_out):
+                            set_matched_components(component_name, streams, matched_components)
+                            continue
+
                 if components_in_global and sub_builds:
                     logging.info('Find component like gnb for interfaces delivered or not')
-                    if component_name not in components_in_global:
-                        for interface_component, new_wft_obj in components_in_global.items():
-                            config_yaml_key_matched = False
-                            # check in wft if component contains right
-                            # interfaces version
-                            for sub_build in sub_builds:
-                                config_yaml_key = '{}:{}'.format(sub_build['project'], sub_build['component'])
-                                logging.info('Find if %s in components_in_global', config_yaml_key)
-                                if config_yaml_key == new_wft_obj['config_yaml_key']:
-                                    config_yaml_key_matched = True
-                                    if sub_build['version'] == new_wft_obj['version']:
-                                        for stream in streams:
-                                            matched_components[component_name][stream] = True
-                                    else:
-                                        component_not_matched = True
-                            if not config_yaml_key_matched:
-                                # check from depends list
-                                # if comonent with new  interfaces delivered
-                                depends_list = get_component_env_value(bitbake_env_out, ['DEPENDS']).split()
-                                if '{}-{}'.format(interface_component, new_wft_obj['version']) in depends_list:
-                                    for stream in streams:
-                                        matched_components[component_name][stream] = True
+                    matched, key_in_global = is_new_depends_in_wft(components_in_global, sub_builds)
+                    if matched:
+                        set_matched_components(component_name, streams, matched_components)
+                        continue
+                    if key_in_global:
+                        component_not_matched = True
+                    elif is_new_depends_in_bitbake(components_in_global, bitbake_env_out):
+                        set_matched_components(component_name, streams, matched_components)
+                        continue
 
                 if component_name not in matched_components and not component_not_matched:
                     logging.info('Get feature from %s commit message', component_name)
@@ -512,8 +541,7 @@ def update_feature(feature, integration_obj, together_repo_dict):
                         logging.info('Get feature from %s repo commit message Failed', component_info)
                     if check_result is not None:
                         if check_result:
-                            for stream in streams:
-                                matched_components[component_name][stream] = True
+                            set_matched_components(component_name, streams, matched_components)
 
     logging.info('Matched components %s', matched_components)
     for together_repo, together_comps in together_repo_dict.items():
@@ -522,13 +550,12 @@ def update_feature(feature, integration_obj, together_repo_dict):
             if together_comp in matched_components \
                     and matched_components[together_comp] \
                     and together_repo == 'MN/5G/NB/gnb':
-                for stream in matched_components[together_comp].keys():
-                    logging.info('In stream %s', stream)
-                    logging.info('%s delivered, set sidepackages_components: %s',
-                                 together_comp,
-                                 sidepackages_components)
-                    for sidepackages_component in sidepackages_components:
-                        matched_components[sidepackages_component][stream] = True
+                logging.info('In streams %s', feature['streams'])
+                logging.info('%s delivered, set sidepackages_components: %s',
+                             together_comp,
+                             sidepackages_components)
+                for other_comps in together_comps:
+                    set_matched_components(other_comps, feature['streams'], matched_components)
                 break
     logging.info('Matched components %s', matched_components)
     update_delivery_status(feature, matched_components, integration_obj)
