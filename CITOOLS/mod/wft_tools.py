@@ -1,4 +1,5 @@
 import os
+import re
 import json
 
 import requests
@@ -27,6 +28,7 @@ BUILD_FILTER = "{wft_url}:8091/ALL/api/v1/build.json?" \
                "&view[view_filters_attributes[208462639699611]][column]=deliverer.title" \
                "&view[view_filters_attributes[208462639699611]][operation]=eq" \
                "&view[view_filters_attributes[208462639699611]][value][]=5G_Central&"
+PKG_REGEX_FOR_5G = r"5G[0-9,A-Z]*_[0-9]+\.[0-9]+\.[0-9]"
 
 
 def get_lasted_success_build(stream):
@@ -70,19 +72,16 @@ def get_build_list_from_custom_filter(custom_filter):
 
 def get_stream_name(version):
     stream = ''
-    ignored_keywords = ['INT', 'lonerint', 'airphone']
     r = requests.get(BUILD_FILTER.format(wft_url=WFT.url, access_key=WFT.key, version=version))
     if r.status_code != 200:
         raise Exception('Failed to get build list with filter {0}'.format(version))
     build_list = json.loads(r.text.encode('utf-8'))
     for build in build_list['items']:
-        for ignored_keyword in ignored_keywords:
-            if ignored_keyword in build['branch.title']:
-                break
-        else:
+        if 'version' in build:
+            if not re.match(PKG_REGEX_FOR_5G, build['version']):
+                continue
             stream = build['branch.title']
             break
-        continue
     print(stream)
     return stream
 
