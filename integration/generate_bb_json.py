@@ -77,6 +77,7 @@ def parse_ric_list(rest, subject, zuul_url,
     link_result = {}
     lines = subject.split('\n')
     ric = []
+    abandoned_changes = []
     r = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>( <(\d*)>)?( <t:([^<>]*)>)?')
     for line in lines:
         m = r.match(line)
@@ -88,8 +89,12 @@ def parse_ric_list(rest, subject, zuul_url,
             type_ = m.group(6)
             change = rest.get_change(change_no, using_cache=True)
             project = change['project']
+            change_content = rest.get_ticket(change_no, using_cache=True)
             ric.append([key, value, change_no,
                         need_change, type_, change, project])
+            if 'ABANDONED' in change_content['status']:
+                print('***{} {} is ABANDONED, no need add to json***'.format(key, change_no))
+                abandoned_changes.append(key)
             # project is linked
             if project in config['linked-projects']:
                 if project not in link_result:
@@ -135,7 +140,7 @@ def parse_ric_list(rest, subject, zuul_url,
                     ret_dict[key]['repo_url'] = \
                         ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
                     ret_dict[key]['protocol'] = 'http'
-    return ret_dict, external_dict
+    return ret_dict, external_dict, abandoned_changes
 
 
 def parse_ric_commit_list(subject):
@@ -540,7 +545,7 @@ def form_zuul_ref(zuul_ref, branch):
     return rets
 
 
-def combine_knife_json(json_list):
+def combine_knife_json(json_list, abandoned_changes):
     result = {'all': {}}
     for obj in json_list:
         if 'all' in obj:
@@ -551,6 +556,13 @@ def combine_knife_json(json_list):
                 if target not in result:
                     result[target] = copy.deepcopy(result['all'])
                 result[target].update(obj[target])
+
+    for obj in json_list:
+        for target in obj:
+            comp_list = result[target].keys()
+            for comp in comp_list:
+                if comp in abandoned_changes:
+                    result[target].pop(comp, None)
     return result
 
 
@@ -727,7 +739,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     description, rest_id = get_description(rest, change_id)
 
     # knife json
-    ric_dict, ex_dict = parse_ric_list(
+    ric_dict, ex_dict, abandoned_changes = parse_ric_list(
         rest, description, zuul_url, zuul_ref, project_branch,
         knife_config)
     ric_commit_dict = parse_ric_commit_list(description)
@@ -762,7 +774,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
                        {'all': interfaces_dict},
                        ex_comment_dict,
                        comment_dict
-                   ])],
+                   ], abandoned_changes)],
                    override=True)
 
     # stream base json
