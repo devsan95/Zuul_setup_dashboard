@@ -1,3 +1,4 @@
+import os
 import re
 import fire
 import requests
@@ -5,10 +6,10 @@ from xml.etree import ElementTree
 from scm_tools.wft.api import WftAPI
 from scm_tools.wft.build_content import BuildContent
 from scm_tools.wft.releasenote import Releasenote
-
-
 from api import mysql_api
 from api import log_api
+from mod import wft_tools
+
 
 WFT = WftAPI()
 LOG = log_api.get_console_logger(name='CPI')
@@ -22,7 +23,7 @@ def filter_mb_ps_from_wft():
                 "&custom_filter[sorting_direction]=desc" \
                 "&(custom_filter[state][]=pre_released|" \
                 "custom_filter[state][]=released|" \
-                "custom_filter[state][]=released_with_restrictions&custom_filter[items]=50"
+                "custom_filter[state][]=released_with_restrictions)&custom_filter[items]=50"
     url = WFT.url + ps_filter
     r = requests.get(url, params={'access_key': WFT.key}, verify=False)
     if r.status_code != 200:
@@ -48,7 +49,15 @@ def get_cpi_root_change(issue_key, sql_yaml):
     sql = "SELECT * FROM t_commit_component WHERE issue_key = '{issue_key}' " \
           "AND component = 'root_monitor'".format(issue_key=issue_key)
     search_result = mysql.executor(sql=sql, output=True)
-    return search_result[0][1]
+    return (issue_key, search_result[0][1])
+
+
+def get_mode_and_base(issue_key, sql_yaml):
+    mysql = mysql_api.init_from_yaml(yaml_path=sql_yaml, server_name='skytrack')
+    mysql.init_database('skytrack')
+    sql = "SELECT integration_mode, fixed_base FROM t_issue WHERE issue_key = '{0}'".format(issue_key)
+    search_result = mysql.executor(sql=sql, output=True)
+    return search_result[0]
 
 
 def get_top_two_releases(releases):
@@ -155,7 +164,7 @@ version_name={version_name}""".format(
                 streams=streams,
                 promoted_user_id=promoted_user_id,
                 integration_mode=integration_mode,
-                root_change=root_changes[version_name] if version_name in root_changes else '',
+                root_change=root_changes[version_name][1] if version_name in root_changes else '',
                 version_name=version_name
             )
         )
@@ -164,6 +173,7 @@ version_name={version_name}""".format(
 def cpi_topic_handler(cpi_topics, structure_file, streams,
                       promoted_user_id, integration_mode,
                       root_changes):
+
     for ps_version, action in cpi_topics.items():
         ps_sub_builds = get_ps_sub_builds(ps_version)
         bm_tags = get_bm_from_ps_assignments(ps_version)
@@ -195,6 +205,25 @@ def cpi_topic_handler(cpi_topics, structure_file, streams,
         )
 
 
+def cpi_auto_rebase_handler(root_changes, streams, sql_yaml):
+    if not (root_changes and (os.getenv('enable_rebase') == 'true')):
+        LOG.info("No root changes or rebase disabled")
+        return
+    streams = [stream for stream in re.split(r'\s|,', streams) if stream]
+    base_load, base_load_list = wft_tools.get_latest_qt_load(streams)
+    for mbr, issuechange in root_changes.items():
+        mode, base_current = get_mode_and_base(issuechange[0], sql_yaml)
+        LOG.info('Topic <{0}> integration_mode <{1}>, current base <{2}>, latest base <{3}>'.format(
+            issuechange[0], mode, base_current, ','.join(base_load_list)))
+        isupdated = [re.search(r'{}'.format(p), str(base_current)) for p in base_load_list]
+        if str(mode).lower() == 'fixed_base' and (None in isupdated):
+            with open('switch_mode.pop', 'w+') as parameters_file:
+                parameters_file.write(
+                    """ROOT_CHANGE={0}
+BASE_PACKAGE={1}
+INTEGRATION_MODE={2}""".format(issuechange[1], ','.join(base_load_list), mode))
+
+
 def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, baseline=None):
     mb_releases = [baseline] if baseline else filter_mb_ps_from_wft()
     on_going_cpi_topics = get_on_going_cpi_topics(sql_yaml=sql_yaml)
@@ -212,6 +241,9 @@ def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, b
                       streams=streams,
                       promoted_user_id=promoted_user_id, integration_mode=integration_mode,
                       root_changes=root_changes)
+    cpi_auto_rebase_handler(root_changes=root_changes,
+                            streams=streams,
+                            sql_yaml=sql_yaml)
 
 
 if __name__ == '__main__':
