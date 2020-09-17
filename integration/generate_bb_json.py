@@ -90,11 +90,12 @@ def parse_ric_list(rest, subject, zuul_url,
             change = rest.get_change(change_no, using_cache=True)
             project = change['project']
             change_content = rest.get_ticket(change_no, using_cache=True)
-            ric.append([key, value, change_no,
-                        need_change, type_, change, project])
             if 'ABANDONED' in change_content['status']:
                 print('***{} {} is ABANDONED, no need add to json***'.format(key, change_no))
                 abandoned_changes.append(key)
+                continue
+            ric.append([key, value, change_no,
+                        need_change, type_, change, project])
             # project is linked
             if project in config['linked-projects']:
                 if project not in link_result:
