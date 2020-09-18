@@ -442,6 +442,7 @@ def is_new_depends_in_wft(components_in_global, sub_builds):
             config_yaml_key = '{}:{}'.format(sub_build['project'], sub_build['component'])
             logging.info('Find if %s in components_in_global', config_yaml_key)
             if config_yaml_key == new_wft_obj['config_yaml_key']:
+                logging.info('Find %s in components_in_global', config_yaml_key)
                 if sub_build['version'] == new_wft_obj['version']:
                     return True, True
                 else:
@@ -526,12 +527,12 @@ def update_feature(feature, integration_obj, together_repo_dict):
                         set_matched_components(component_name, streams, matched_components)
                         continue
                     if key_in_global:
+                        logging.info('Find in global but not matched')
                         component_not_matched = True
                     elif is_new_depends_in_bitbake(components_in_global, bitbake_env_out):
                         set_matched_components(component_name, streams, matched_components)
                         continue
-
-                if component_name not in matched_components and not component_not_matched:
+                if not matched_components[component_name] and not component_not_matched:
                     logging.info('Get feature from %s commit message', component_name)
                     check_result = None
                     try:
