@@ -1,9 +1,11 @@
 #! /usr/bin/env python
 import os
+import git
 import argparse
 import requests
 import json
 import yaml
+import shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from api import gerrit_rest, log_api
@@ -155,7 +157,17 @@ def ecl_increment(current_version, change, branch, branch_for, versions_dict):
 
 
 def get_config_yaml_dict(rest, change_no):
-    config_yaml = yaml.load(rest.get_file_content('config.yaml', change_no), Loader=yaml.FullLoader)
+    branch = rest.get_ticket(change_no)['branch']
+    path = os.path.join(os.environ["WORKSPACE"], "integration")
+    if os.path.exists(path):
+        log.info("Remove dir: {}".format(path))
+        shutil.rmtree(path)
+    log.info('Clone integration repo...')
+    repo = git.Repo.clone_from(url=os.environ['INTEGRATION_REPO_URL'], to_path=path)
+    integration = repo.git
+    integration.checkout(branch)
+    with open(os.path.join(path, "config.yaml"), 'r') as config:
+        config_yaml = yaml.safe_load(config)
     log.info('config_yaml dict: {}'.format(config_yaml['components']))
     return config_yaml['components']
 
