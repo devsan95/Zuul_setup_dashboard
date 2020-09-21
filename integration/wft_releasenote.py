@@ -372,7 +372,11 @@ def get_knife_json_dict(pkg, base_pkg, integration):
     for tbody in soup.find_all('tbody'):
         td = tbody.find('td', class_="setting-name")
         if td and td.get_text() == "KNIFE_JSON":
-            knife_json = tbody.find('textarea').get_text()
+            try:
+                knife_json = tbody.find('textarea').get_text()
+            except AttributeError:
+                log.info("Get textarea failed, try get input value.")
+                knife_json = tbody.find('input').get('value')
             break
     else:
         raise Exception("Get upstream job knofe json text failed!")
