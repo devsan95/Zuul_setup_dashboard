@@ -336,6 +336,7 @@ class Runner(object):
         parser.add_argument('-l', '--sky-username', dest='sky_usr', help='SKY DB username')
         parser.add_argument('-m', '--sky-password', dest='sky_passwd', help='SKY DB password')
         parser.add_argument('-n', '--sky-table', dest='sky_table', help='SKY DB test table')
+        parser.add_argument('-z', '--timezone', dest='timezone', help='timezone used')
         parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="logging level")
         return parser
 
@@ -347,12 +348,17 @@ class Runner(object):
             logging.basicConfig(level=logging.DEBUG,
                                 format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                                 datefmt='%a, %d %b %Y %H:%M:%S')
+
+        if self.jto_args.timezone:
+            used_tz = self.jto_args.timezone.strip()
+        else:
+            used_tz = 'America/New_York'
         if self.jto_args.tdate:
             tdate = self.jto_args.tdate.strip()
             # tdate = "{} 00:00:00".format(self.jto_args.tdate.strip())
         else:
             # tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d 00:00:00")
-            tdate = datetime.datetime.now(tz=pytz.timezone('UTC')).strftime("%Y-%m-%d")
+            tdate = datetime.datetime.now(tz=pytz.timezone(used_tz)).strftime("%Y-%m-%d")
         jto_ins = JobTreeOper(self.jto_args.zuul_host,
                               self.jto_args.zuul_usr,
                               self.jto_args.zuul_passwd,
@@ -375,7 +381,7 @@ class Runner(object):
                     except Exception as time_err:
                         log.debug(time_err)
                         continue
-                    fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'], tz=pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')
+                    fjlDate = datetime.datetime.fromtimestamp(v['firstJobLaunch'], tz=pytz.timezone(used_tz)).strftime('%Y-%m-%d %H:%M:%S')
                     try:
                         sky_ins.update_skytrack((v['pipeline'],
                                                  v['queueitem'],
