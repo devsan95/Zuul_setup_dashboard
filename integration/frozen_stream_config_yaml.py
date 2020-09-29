@@ -26,7 +26,7 @@ VERSION_PATTERN = r'export VERSION_PATTERN=([0-9]+.[0-9]+)'
 INTEGRATION_REPO = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 FEATURE_STREAM_MAP = {r'RCP[0-9]+\.[0-9]+_[0-9\.]+': r'.*_cloudbts_',
                       r'RCPvDU[0-9]+\.[0-9]+_[0-9\.]+': r'.*_allincloud_'}
-FILETER_STREAMS = ['master_asmrap']
+FILETER_STREAMS = ['master_asmrap', 'master_distcc_classicalbts_all']
 
 
 def get_branch_integration(branch):
