@@ -157,15 +157,59 @@ fi
 
 cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
-conda install -y certifi 
-pip install --no-cache-dir jenkins-job-builder PyZMQ ruamel.yaml networkx requests configobj jenkinsapi python-jenkins
-pip install --no-cache-dir paramiko beautifulsoup4
-pip install --no-cache-dir gitpython arrow sh pyyaml ptpython pydocstyle python-slugify pymysql pygerrit2
-pip install --no-cache-dir jinja2 fire jira python-gitlab jsonschema click mysql-connector pytz xlwt
-pip uninstall -y flake8 pylint
-pip install  --no-cache-dir  -U flake8 pylint
-pip install --no-cache-dir -U git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
-pip install --no-cache-dir -U git+https://gerrite1.ext.net.nokia.com:443/scm_tools
+conda install -y certifi
+
+pip install --no-cache-dir \
+    configobj \
+    jenkins-job-builder \
+    jenkinsapi \
+    networkx \
+    python-jenkins \
+    PyZMQ \
+    requests \
+    ruamel.yaml
+
+pip install --no-cache-dir \
+    beautifulsoup4 \
+    paramiko
+
+pip install --no-cache-dir \
+    arrow \
+    gitpython \
+    ptpython \
+    pydocstyle \
+    pygerrit2 \
+    pymysql \
+    python-slugify \
+    pyyaml \
+    sh
+
+pip install --no-cache-dir \
+    click \
+    fire \
+    jinja2 \
+    jira \
+    jsonschema \
+    mysql-connector \
+    pyrsistent==0.16.1 \
+    python-gitlab \
+    pytz \
+    xlwt
+
+pip uninstall -y \
+    flake8 \
+    pylint
+
+pip install --no-cache-dir -U \
+    flake8 \
+    pylint
+
+pip install --no-cache-dir -U \
+    git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
+
+pip install --no-cache-dir -U \
+    git+https://gerrite1.ext.net.nokia.com:443/scm_tools
+
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
 cd "$OLD_PATH"
 }
