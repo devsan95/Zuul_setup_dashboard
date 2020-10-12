@@ -207,7 +207,7 @@ def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_
     rest.init_cache(1000)
     description, rest_id = generate_bb_json.get_description(rest, change_id)
     knife_config = generate_bb_json.parse_config(rest, change_id)
-    ric_dict, ex_dict = generate_bb_json.parse_ric_list(
+    ric_dict, ex_dict, abandoned_changes = generate_bb_json.parse_ric_list(
         rest, description, zuul_url='', zuul_ref='', project_branch={}, config=knife_config)
     messages = get_build_content(knife_path, base_path, ex_dict, build_streams,
                                  integration_mode, compare=compare)
