@@ -462,6 +462,8 @@ def is_new_depends_in_bitbake(components_in_global, bitbake_env_out):
 
 def update_feature(feature, integration_obj, together_repo_dict):
     feature_id = feature['feature_id']
+    if feature_id.startswith('L1_'):
+        feature_id = feature_id.split('L1_', 1)[1]
     platform_id = feature['platform_id']
     multi_platforms_in_global = {}
     if platform_id == 'RCPvDU':
