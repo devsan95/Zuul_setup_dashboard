@@ -69,14 +69,33 @@ class ConfigYaml(object):
             if internal_key in section and section[internal_key] == internal_key_name:
                 section[option_key] = option_value
 
-    def replace_comonent_value(self, component_name, option_key, option_value):
+    def get_env_change_section(self, key_name):
+        if key_name in self.components:
+            print('get section from section key')
+            return key_name, self.components[key_name]
+        section_key, section = self.get_component_section(key_name)
+        if section:
+            print('get section from component')
+            return section_key, section
+        section_key, section = self.get_section_by_internal_key('env_key', key_name)
+        if section:
+            print('get section from env_key')
+            return section_key, section
+        return None, None
+
+    def get_component_section(self, component_name):
         for section_key, section in self.components.items():
             if 'feature_component' in section and section['feature_component'] == component_name:
-                section[option_key] = option_value
-                return True
+                return section_key, section
             elif section_key.endswith(':{}'.format(component_name)):
-                section[option_key] = option_value
-                return True
+                return section_key, section
+        return None, None
+
+    def replace_comonent_value(self, component_name, option_key, option_value):
+        section_key, section = self.get_component_section(component_name)
+        if section:
+            section[option_key] = option_value
+            return True
         return False
 
     def update_config_yaml(self, update_local=False, update_all_to_origin=False):
@@ -104,15 +123,18 @@ class ConfigYaml(object):
 
     def update_by_env_change(self, env_change_dict):
         for key, value in env_change_dict.items():
+            replace_section_key, replace_section = self.get_env_change_section(key)
+            if not replace_section:
+                raise Exception('Cannot find env key {}'.format(key))
             # update env_change version in config.yaml
-            self.replace_internal_key_value('env_key', key, 'version', value)
-            wft_component, wft_project = self.get_wft_comp_proj('env_key', key)
+            if replace_section['version'] == replace_section['commit']:
+                replace_section['commit'] = value
+            replace_section['version'] = value
+            wft_component, wft_project = replace_section_key.split(':')
             # update staged infos if exists
-            staged_dict = {}
-            if wft_component != key:
-                staged_dict = wft_tools.get_staged_from_wft(value, wft_component, wft_project)
-            else:
+            staged_dict = wft_tools.get_staged_from_wft(value, wft_component, wft_project)
+            if not staged_dict:
                 staged_dict = wft_tools.get_staged_from_wft(value)
             for staged_key, staged_value in staged_dict.items():
                 if staged_value:
-                    self.replace_internal_key_value('env_key', key, staged_key, staged_value)
+                    replace_section[staged_key] = staged_value

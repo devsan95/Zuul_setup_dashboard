@@ -16,12 +16,13 @@ from api import gitlab_api
 from api import gerrit_rest
 from api import env_repo as get_env_repo
 from mod import wft_tools
+from mod import env_changes
 from mod import mailGenerator
 from mod import get_component_info
 from update_with_zuul_rebase import update_with_rebase_info
 from generate_bb_json import parse_comments_mail
 from int_gitlab_opt import get_branch_and_srv
-from rebase_env import clear_change, create_file_change_by_env_change, create_config_yaml_by_env_change
+from rebase_env import clear_change
 from mod.integration_change import RootChange, IntegrationChange, IntegrationCommitMessage
 
 
@@ -235,12 +236,21 @@ def rebase_by_load(rest, change_no, base_package,
 
 def clear_and_rebase_file(rest, change_no, file_path, env_hash):
     env_change = rest.get_file_change(file_path, change_no)
+    config_yaml_change = {}
+    try:
+        config_yaml_change = rest.get_file_change('config.yaml', change_no)
+    except Exception:
+        print('Cannot find config.yaml for %s', change_no)
     print('Env change {}'.format(env_change))
     # Get current ENV changes
-    if 'new_diff' in env_change and env_change['new_diff']:
-        env_change = env_change['new_diff']
-        env_change = env_change.strip()
-        env_change_list = shlex.split(env_change)
+    if ('new_diff' in env_change and env_change['new_diff']) \
+            or ('new_diff' in config_yaml_change and config_yaml_change['new_diff']) \
+            or ('old_diff' in config_yaml_change and config_yaml_change['old_diff']):
+        env_change_list = []
+        if 'new_diff' in env_change and env_change['new_diff']:
+            env_change = env_change['new_diff']
+            env_change = env_change.strip()
+            env_change_list = shlex.split(env_change)
         print('Update env for change {}'.format(change_no))
         # delete edit
         print('delete edit for change {}'.format(change_no))
@@ -272,15 +282,24 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
         print('add new env for change {}'.format(change_no))
         env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
         base_env = rest.get_file_content(env_path, change_no)
-        change_map = create_file_change_by_env_change(
-            env_change_list,
-            base_env,
-            file_path)
-        # update config.yaml content
-        change_map.update(create_config_yaml_by_env_change(
-            env_change_list,
-            rest,
-            change_no))
+        if env_change_list:
+            change_map = env_changes.create_file_change_by_env_change(
+                env_change_list,
+                base_env,
+                file_path)
+            # update config.yaml content
+            change_map.update(env_changes.create_config_yaml_by_env_change(
+                env_change_list,
+                rest,
+                change_no))
+        if ('new_diff' in config_yaml_change and config_yaml_change['new_diff']) \
+                or ('old_diff' in config_yaml_change and config_yaml_change['old_diff']):
+            # get changed config_yaml dict
+            change_map.update(env_changes.create_config_yaml_by_content_change(
+                rest,
+                config_yaml_change['old'],
+                config_yaml_change['new'],
+                change_no))
         for key, value in change_map.items():
             rest.add_file_to_change(change_no, key, value)
         rest.publish_edit(change_no)

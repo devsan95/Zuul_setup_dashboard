@@ -14,6 +14,7 @@ from api import retry
 from api import gerrit_rest, jira_api
 from api import env_repo as get_env_repo
 from api import config
+from mod import env_changes
 from mod import common_regex
 from mod.integration_change import RootChange
 from mod.integration_change import IntegrationChange
@@ -29,54 +30,6 @@ JIRA_DICT = CONF.get_dict('jira3')
 DEFAULT_JIRA_URL = JIRA_DICT['server']
 DEFAULT_USER = JIRA_DICT['user']
 DEFAULT_PASSWD = JIRA_DICT['password']
-
-
-def create_config_yaml_by_env_change(env_change_split, rest, change_id, config_yaml_file='config.yaml'):
-    change_content = rest.get_file_change(config_yaml_file, change_id)
-    old_config_yaml = yaml.safe_load(change_content['old'])
-    if not old_config_yaml:
-        try:
-            old_config_yaml = yaml.safe_load(rest.get_file_content(config_yaml_file, change_id))
-        except Exception:
-            print('Cannot find {} in {}'.format(config_yaml_file, change_id))
-    if not old_config_yaml:
-        return {}
-    changed = False
-    if env_change_split:
-        # update based on old config.yaml
-        for component_info in old_config_yaml['components'].values():
-            if 'env_key' in component_info and component_info['env_key']:
-                comp_env_key = component_info['env_key']
-                for env_line in env_change_split:
-                    if '=' in env_line:
-                        key, value = env_line.split('=', 1)
-                        if key == comp_env_key:
-                            if value != component_info['version'] and value != component_info['commit']:
-                                print('Update {} to {} in {}'.format(key, value, config_yaml_file))
-                                if component_info['commit'] == component_info['version']:
-                                    component_info['commit'] = value
-                                component_info['version'] = value
-                                changed = True
-    if changed:
-        return {config_yaml_file: yaml.safe_dump(old_config_yaml)}
-    return {}
-
-
-def create_file_change_by_env_change(env_change_split, file_content, filename):
-    lines = file_content.split('\n')
-    for i, line in enumerate(lines):
-        if '=' in line:
-            key2, value2 = line.strip().split('=', 1)
-            for env_line in env_change_split:
-                if '=' in env_line:
-                    key, value = env_line.split('=', 1)
-                    if key.strip() == key2.strip():
-                        lines[i] = key2 + '=' + value
-    for env_line in env_change_split:
-        if env_line.startswith('#'):
-            lines.append(env_line)
-    ret_dict = {filename: '\n'.join(lines)}
-    return ret_dict
 
 
 def clear_change(rest, change_id, only_clear_env=True):
@@ -224,7 +177,7 @@ def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_d
         comp_project = int_change_obj.get_project()
         if comp_project in config_yaml_dict:
             local_config_yaml = config_yaml_dict[comp_project]
-            change_file_dict[comp_change] = create_config_yaml_by_env_change(
+            change_file_dict[comp_change] = env_changes.create_config_yaml_by_env_change(
                 env_change_list, rest, comp_change, config_yaml_file=local_config_yaml)
     for comp_change, file_dict in change_file_dict.items():
         for key, value in file_dict.items():
@@ -310,14 +263,14 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         print('add new env for change {}'.format(change_no))
         old_env = rest.get_file_content(env_path, change_no)
         # update env/env-config.d/ENV content
-        change_map = create_file_change_by_env_change(
+        change_map = env_changes.create_file_change_by_env_change(
             env_change_list,
             old_env,
             env_path
         )
 
         # update config.yaml content
-        change_map.update(create_config_yaml_by_env_change(
+        change_map.update(env_changes.create_config_yaml_by_env_change(
             env_change_list,
             rest,
             change_no))

@@ -293,6 +293,7 @@ class IntegrationChangesCreation(object):
             # env change
             env_change = self.meta.get('env_change')
             print('env_change: {}'.format(env_change))
+            # update env file
             if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] in env_repo:
                 if env_change:
                     node_obj['env_change'] = env_change
@@ -300,21 +301,7 @@ class IntegrationChangesCreation(object):
                     env_content = self.gerrit_rest.get_file_content(env_path, rest_id)
                     node_obj['add_files'] = self.create_file_change_by_env_change(env_content,
                                                                                   env_path)
-                    config_yaml_content = ''
-                    try:
-                        # get file content of config.yaml
-                        config_yaml_content = self.gerrit_rest.get_file_content('config.yaml', rest_id)
-                    except Exception:
-                        print ('Warn: no config.yaml in this branch: {}'.format(node_obj['branch']))
-                    if config_yaml_content:
-                        config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_content)
-                        # update env_change in config.yaml
-                        # update staged infos if exists
-                        config_yaml_obj.update_by_env_change(self.get_env_chagne_dict())
-                        print(config_yaml_obj.config_yaml)
-                        config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
-                        node_obj['add_files']['config.yaml'] = config_yaml_content
-            # local config yaml
+            # update config yaml
             if node_obj['repo'] in self.comp_config['config_yaml'].keys():
                 if env_change:
                     local_config_yaml = self.comp_config['config_yaml'][node_obj['repo']]
@@ -324,6 +311,7 @@ class IntegrationChangesCreation(object):
                     except Exception:
                         print('Warn: no local config.yaml in this repo: {}'.format(node_obj['repo']))
                     if local_yaml_content:
+                        print('update config yaml file {} in: {}'.format(local_config_yaml, node_obj['repo']))
                         local_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=local_yaml_content)
                         local_yaml_obj.update_by_env_change(self.get_env_chagne_dict())
                         config_yaml_content = yaml.safe_dump(local_yaml_obj.config_yaml, default_flow_style=False)
