@@ -117,11 +117,11 @@ def frozen_config_yaml(previous_comp_dict, integration_dir, rest, integration_re
             component_value = {}
             for config_key, component_info in stream_config_yaml['components'].items():
                 if 'feature_component' in component_info and component_info['feature_component'] == name:
+                    component_value = component_info
                     if 'features' in component_info:
                         features = component_info['features']
-                        component_value = component_info
                     else:
-                        logging.warn('Cannot find compnoent info for %s', name)
+                        logging.warn('Cannot find features for %s', name)
                     break
             feature_id = comp_dicts['feature_id']
             feature_list.append(feature_id)
