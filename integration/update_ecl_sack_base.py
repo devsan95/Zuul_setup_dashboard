@@ -13,7 +13,11 @@ from scm_tools.wft.api import WftAPI
 
 
 log = log_api.get_console_logger("update_ecl_sack_base")
-branch_match = {"master": "5G00_ECL_SACK_BASE", "rel/5G20A_B1": "5G20A_B1_ECL_SACK_BASE"}
+branch_match = {
+    "master": "5G00_ECL_SACK_BASE",
+    "rel/5G20A_B1": "5G20A_B1_ECL_SACK_BASE",
+    "rel/5G20B_B1": "5G20B_B1_ECL_SACK_BASE",
+}
 WFT_API_URL = os.environ['WFT_API_URL']
 WFT_KEY = os.environ['WFT_KEY']
 wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
