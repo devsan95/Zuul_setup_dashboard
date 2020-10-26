@@ -175,7 +175,7 @@ def rebase_by_load(rest, change_no, base_package,
             except Exception:
                 traceback.print_exc()
                 # if is env:
-                if comp_name == 'env':
+                if comp_name == 'env' or project == 'MN/5G/COMMON/integration':
                     env_path = get_env_repo.get_env_repo_info(rest, comp_change)[1]
                     try:
                         clear_and_rebase_file(rest, comp_change,

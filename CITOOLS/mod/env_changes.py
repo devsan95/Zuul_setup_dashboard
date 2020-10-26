@@ -37,7 +37,7 @@ def create_config_yaml_by_content_change(rest, old_content, new_content,
                                          change_no, config_yaml_file='config.yaml'):
     old_config_yaml = config_yaml.ConfigYaml(config_yaml_content=old_content)
     new_config_yaml = config_yaml.ConfigYaml(config_yaml_content=new_content)
-    file_content = rest.get_file_change(config_yaml_file, change_no)
+    file_content = rest.get_file_content(config_yaml_file, change_no)
     final_config_yaml = config_yaml.ConfigYaml(config_yaml_content=file_content)
     for new_key, section in new_config_yaml.components.items():
         if new_key in final_config_yaml.components:
@@ -52,7 +52,7 @@ def create_config_yaml_by_content_change(rest, old_content, new_content,
             final_config_yaml.components.pop(old_key)
     config_yaml_content = yaml.safe_dump(final_config_yaml.config_yaml, default_flow_style=False)
     if config_yaml_content != file_content:
-        return {config_yaml_file: yaml.safe_dump(config_yaml_content)}
+        return {config_yaml_file: config_yaml_content}
     return {}
 
 
