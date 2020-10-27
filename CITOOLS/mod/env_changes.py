@@ -33,6 +33,23 @@ def create_config_yaml_by_env_change(env_change_split, rest,
     return {}
 
 
+def equal_string_dicts(dict1, dict2):
+    key_list1 = dict1.keys()
+    key_list2 = dict2.keys()
+    for key1 in key_list1:
+        if key1 not in dict2:
+            return False
+        if isinstance(dict1[key1], dict) and isinstance(dict2[key1], dict):
+            if not equal_string_dicts(dict1[key1], dict2[key1]):
+                return False
+        elif dict1[key1] != dict2[key1]:
+            return False
+    for key2 in key_list2:
+        if key2 not in dict1:
+            return False
+    return True
+
+
 def create_config_yaml_by_content_change(rest, old_content, new_content,
                                          change_no, config_yaml_file='config.yaml'):
     old_config_yaml = config_yaml.ConfigYaml(config_yaml_content=old_content)
@@ -40,6 +57,9 @@ def create_config_yaml_by_content_change(rest, old_content, new_content,
     file_content = rest.get_file_content(config_yaml_file, change_no)
     final_config_yaml = config_yaml.ConfigYaml(config_yaml_content=file_content)
     for new_key, section in new_config_yaml.components.items():
+        if new_key in old_config_yaml.components and \
+                equal_string_dicts(section, old_config_yaml.components[new_key]):
+            continue
         if new_key in final_config_yaml.components:
             print('update section {}'.format(new_key))
             final_config_yaml.components[new_key].update(section)
