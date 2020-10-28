@@ -29,6 +29,7 @@ from api import gerrit_rest
 from api import job_tool
 from api import config
 from api import env_repo as get_env_repo
+from mod import env_changes
 from mod import get_component_info
 from mod import wft_tools
 from mod import config_yaml
@@ -237,34 +238,15 @@ class IntegrationChangesCreation(object):
             self.auto_branch_status[repo].add(branch)
             return
 
-    def get_env_chagne_dict(self):
+    def get_env_change_dict(self, env_change):
         env_change_dict = {}
-        env_change = self.meta.get('env_change')
         env_change_split = shlex.split(env_change)
         for env_line in env_change_split:
             if '=' in env_line:
                 key, value = env_line.split('=', 1)
                 env_change_dict[key] = value
+        print('get env_change_dict: {}'.format(env_change_dict))
         return env_change_dict
-
-    def create_file_change_by_env_change(self, file_content, filename):
-        env_change = self.meta.get('env_change')
-        lines = file_content.split('\n')
-        env_change_split = shlex.split(env_change)
-        for i, line in enumerate(lines):
-            if '=' in line:
-                print ('env_change line: {}'.format(line))
-                key2, value2 = line.strip().split('=', 1)
-                for env_line in env_change_split:
-                    if '=' in env_line:
-                        key, value = env_line.split('=', 1)
-                        if key.strip() == key2.strip():
-                            lines[i] = key2 + '=' + value
-        for env_line in env_change_split:
-            if env_line.startswith('#'):
-                lines.append(env_line)
-        ret_dict = {filename: '\n'.join(lines)}
-        return ret_dict
 
     def create_ticket_by_node(self, node_obj, integration_mode, ext_commit_msg=None):
         nodes = self.info_index['nodes']
@@ -293,14 +275,7 @@ class IntegrationChangesCreation(object):
             # env change
             env_change = self.meta.get('env_change')
             print('env_change: {}'.format(env_change))
-            # update env file
-            if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] in env_repo:
-                if env_change:
-                    node_obj['env_change'] = env_change
-                    env_path = get_env_repo.get_env_repo_info(self.gerrit_rest, rest_id)[1]
-                    env_content = self.gerrit_rest.get_file_content(env_path, rest_id)
-                    node_obj['add_files'] = self.create_file_change_by_env_change(env_content,
-                                                                                  env_path)
+            env_file_changes = {}
             # update config yaml
             if node_obj['repo'] in self.comp_config['config_yaml'].keys():
                 if env_change:
@@ -313,9 +288,18 @@ class IntegrationChangesCreation(object):
                     if local_yaml_content:
                         print('update config yaml file {} in: {}'.format(local_config_yaml, node_obj['repo']))
                         local_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=local_yaml_content)
-                        local_yaml_obj.update_by_env_change(self.get_env_chagne_dict())
+                        env_file_changes = local_yaml_obj.update_by_env_change(self.get_env_change_dict(env_change))
                         config_yaml_content = yaml.safe_dump(local_yaml_obj.config_yaml, default_flow_style=False)
                         node_obj['add_files'][local_config_yaml] = config_yaml_content
+            # update env file
+            if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] in env_repo:
+                print('env_file_changes: {}'.format(env_file_changes))
+                if env_change and env_file_changes:
+                    node_obj['env_change'] = env_change
+                    env_path = get_env_repo.get_env_repo_info(self.gerrit_rest, rest_id)[1]
+                    env_content = self.gerrit_rest.get_file_content(env_path, rest_id)
+                    node_obj['add_files'].update(env_changes.create_file_change_by_env_change_dict(
+                        env_file_changes, env_content, env_path))
         # restore
         copy_from_id = None
         gop = gerrit_int_op.IntegrationGerritOperation(self.gerrit_rest)

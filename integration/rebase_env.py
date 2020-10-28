@@ -178,7 +178,7 @@ def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_d
         if comp_project in config_yaml_dict:
             local_config_yaml = config_yaml_dict[comp_project]
             change_file_dict[comp_change] = env_changes.create_config_yaml_by_env_change(
-                env_change_list, rest, comp_change, config_yaml_file=local_config_yaml)
+                env_change_list, rest, comp_change, config_yaml_file=local_config_yaml)[0]
     for comp_change, file_dict in change_file_dict.items():
         for key, value in file_dict.items():
             print('update file {} in {}'.format(key, comp_change))
@@ -259,26 +259,27 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             except Exception as e:
                 print('Change cannot be rebased, reason:')
                 print(str(e))
-        # add new env
-        print('add new env for change {}'.format(change_no))
-        old_env = rest.get_file_content(env_path, change_no)
-        # update env/env-config.d/ENV content
-        change_map = env_changes.create_file_change_by_env_change(
-            env_change_list,
-            old_env,
-            env_path
-        )
 
         # update config.yaml content
-        change_map.update(env_changes.create_config_yaml_by_env_change(
+        change_map, env_file_changes = env_changes.create_config_yaml_by_env_change(
             env_change_list,
             rest,
-            change_no))
+            change_no)
         update_component_config_yaml(
             env_change_list,
             rest,
             change_no,
             config_yaml_dict)
+        # add new env
+        print('add new env for change {}'.format(change_no))
+        old_env = rest.get_file_content(env_path, change_no)
+        # update env/env-config.d/ENV content
+        new_change_map = env_changes.create_file_change_by_env_change_dict(
+            env_file_changes,
+            old_env,
+            env_path
+        )
+        change_map.update(new_change_map)
         print('Change map: {}'.format(change_map))
 
         # get root ticket

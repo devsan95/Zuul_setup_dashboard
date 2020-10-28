@@ -122,11 +122,17 @@ class ConfigYaml(object):
             fhandler_w.write(yaml.safe_dump(copy_of_config_yaml))
 
     def update_by_env_change(self, env_change_dict):
+        # used to restore changes to env file
+        # will be removed after env file removed
+        env_file_changes = {}
         for key, value in env_change_dict.items():
             replace_section_key, replace_section = self.get_env_change_section(key)
             if not replace_section:
                 raise Exception('Cannot find env key {}'.format(key))
+            if 'env_key' in replace_section:
+                env_file_changes[replace_section['env_key']] = value
             # update env_change version in config.yaml
+            print('update key: {} to {}'.format(key, replace_section_key))
             if replace_section['version'] == replace_section['commit']:
                 replace_section['commit'] = value
             replace_section['version'] = value
@@ -138,3 +144,4 @@ class ConfigYaml(object):
             for staged_key, staged_value in staged_dict.items():
                 if staged_value:
                     replace_section[staged_key] = staged_value
+        return env_file_changes

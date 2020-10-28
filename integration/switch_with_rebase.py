@@ -282,6 +282,7 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
         print('add new env for change {}'.format(change_no))
         env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
         base_env = rest.get_file_content(env_path, change_no)
+        change_map = {}
         if env_change_list:
             change_map = env_changes.create_file_change_by_env_change(
                 env_change_list,
@@ -291,7 +292,7 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
             change_map.update(env_changes.create_config_yaml_by_env_change(
                 env_change_list,
                 rest,
-                change_no))
+                change_no)[0])
         if ('new_diff' in config_yaml_change and config_yaml_change['new_diff']) \
                 or ('old_diff' in config_yaml_change and config_yaml_change['old_diff']):
             # get changed config_yaml dict

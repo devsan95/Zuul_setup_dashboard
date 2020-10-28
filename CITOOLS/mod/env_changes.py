@@ -26,11 +26,11 @@ def create_config_yaml_by_env_change(env_change_split, rest,
     config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=old_content)
     # update env_change in config.yaml
     # update staged infos if exists
-    config_yaml_obj.update_by_env_change(parse_env_change_split(env_change_split))
+    env_file_changes = config_yaml_obj.update_by_env_change(parse_env_change_split(env_change_split))
     config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
     if config_yaml_content != old_content:
-        return {config_yaml_file: config_yaml_content}
-    return {}
+        return {config_yaml_file: config_yaml_content}, env_file_changes
+    return {}, env_file_changes
 
 
 def equal_string_dicts(dict1, dict2):
@@ -77,15 +77,22 @@ def create_config_yaml_by_content_change(rest, old_content, new_content,
 
 
 def create_file_change_by_env_change(env_change_split, file_content, filename):
-    lines = file_content.split('\n')
     change_dict = parse_env_change_split(env_change_split)
+    return create_file_change_by_env_change_dict(change_dict, file_content, filename, env_change_split)
+
+
+def create_file_change_by_env_change_dict(change_dict, file_content, filename, env_change_split=None):
+    lines = file_content.split('\n')
     for i, line in enumerate(lines):
         if '=' in line:
             key2, value2 = line.strip().split('=', 1)
+            print('try to find key {}'.format(key2))
             if key2.strip() in change_dict:
+                print('find key {}'.format(key2))
                 lines[i] = key2 + '=' + change_dict[key2.strip()]
-    for env_line in env_change_split:
-        if env_line.startswith('#'):
-            lines.append(env_line)
+    if env_change_split:
+        for env_line in env_change_split:
+            if env_line.startswith('#'):
+                lines.append(env_line)
     ret_dict = {filename: '\n'.join(lines)}
     return ret_dict
