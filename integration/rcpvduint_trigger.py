@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 import re
-import codecs
 import time
 import json
 import yaml
@@ -201,7 +200,7 @@ def update_env_config_file(version_dict):
     os.chdir(origin_cwd)
 
 
-def generate_releasenote(version_dict, latest_build, tar_pkg, build_url, description):
+def generate_releasenote(version_dict, latest_build, tar_pkg, build_url, download_urls):
     if "5G_" not in latest_build:
         latest_build = "5G_{}".format(latest_build)
     json_file = '5G_{}.json'.format(
@@ -218,25 +217,16 @@ def generate_releasenote(version_dict, latest_build, tar_pkg, build_url, descrip
     note['releasenote']['baseline']['homepage'] = build_url
     note['releasenote']['baseline']['version'] = '5G_' \
         + tar_pkg.replace('knifeanonymous', 'RCPVDUINT')
-    old_downloads = note['releasenote']['baseline'].pop('download')
     downloads = list()
+    for url in download_urls:
+        log.info(url)
+        downloads.append({
+            'path': url,
+            'storage': "Artifactory" if "artifactory" in url else "S3",
+            'name': tar_pkg
+        })
+    note['releasenote']['baseline']['download'] = downloads
     elements = list()
-    for item in old_downloads:
-        if "/System_Release/" not in item["path"]:
-            item['name'] = description
-            item["path"] = item["path"].replace(
-                latest_build.replace('5G_', ''),
-                description
-            )
-            downloads.append(item)
-    for download in download_list:
-        downloads.append(
-            {
-                'name': tar_pkg,
-                'path': download + tar_pkg,
-                'storage': 'S3'
-            }
-        )
     old_elements = note['releasenote'].pop('element_list')
     for comp in old_elements:
         for item in version_dict:
@@ -245,7 +235,6 @@ def generate_releasenote(version_dict, latest_build, tar_pkg, build_url, descrip
                 comp['version'] = version_dict[item]
                 break
         elements.append(comp)
-    note['releasenote']['baseline']['download'] = downloads
     note['releasenote']['element_list'] = elements
     json_str = json.dumps(
         note,
@@ -313,7 +302,6 @@ def trigger_jenkins_job(job_name, params, interval_time):
 
 
 def trigger_knife_job(rest, mails, latest_build, change_hash, change_id):
-    desc = None
     url = None
     params = {
         'MAIL_LIST': mails,
@@ -323,21 +311,21 @@ def trigger_knife_job(rest, mails, latest_build, change_hash, change_id):
     }
     build_id, build_info = trigger_jenkins_job(knife_job, params, 512)
     tar_pkg_name = ''
-    with codecs.open('console.log', 'w+', 'utf-8') as f:
-        f.write(server.get_build_console_output(knife_job, build_id))
-        f.seek(0)
-        for line in f:
-            if 'PKG_NAME={}'.format(latest_build.replace('5G_', '')) in line:
-                print(line)
-                tar_pkg_name = line.split('=')[1].strip()
-                break
+    console_output = server.get_build_console_output(knife_job, build_id)
+    download_urls = re.findall(
+        r'(?:hangzhou_|espoo_)[\w ]*(?:=|value )(http[^\n]*)\n',
+        console_output
+    )
+    tar_pkg_name = re.search(
+        r'Setting variable from ECL PKG_NAME=([^\n]*)\n',
+        console_output
+    ).groups()[0].strip()
     if build_info['result'] == 'SUCCESS':
-        desc = build_info['description']
         url = build_info['url']
     else:
         rest.abandon_change(change_id)
         raise Exception("Knife job failed: {}".format(build_info['url']))
-    return desc, url, tar_pkg_name
+    return url, tar_pkg_name, download_urls
 
 
 def get_version_dict(versions):
@@ -358,15 +346,21 @@ def main():
     rest = gerrit_rest.init_from_yaml(args.gerrit)
     version_dict = get_version_dict(args.changes)
     change_hash, base_build, change_id = create_integration_change(args.base, version_dict)
-    description, build_url, tar_pkg = trigger_knife_job(
+    build_url, tar_pkg, download_urls = trigger_knife_job(
         rest,
         args.mails,
         base_build,
         change_hash,
         change_id
     )
-    if description and build_url:
-        generate_releasenote(version_dict, base_build, tar_pkg, build_url, description)
+    if download_urls and build_url:
+        generate_releasenote(
+            version_dict,
+            base_build,
+            tar_pkg,
+            build_url,
+            download_urls
+        )
     rest.abandon_change(change_id)
 
 
