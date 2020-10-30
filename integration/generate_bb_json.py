@@ -557,6 +557,7 @@ def combine_knife_json(json_list, abandoned_changes):
                 if target not in result:
                     result[target] = copy.deepcopy(result['all'])
                 result[target].update(obj[target])
+            result[target]['sync_global_config_changes'] = True
 
     for obj in json_list:
         for target in obj:
