@@ -335,16 +335,29 @@ class IntegrationChangesCreation(object):
                     need_publish = True
 
         if 'type' in node_obj and node_obj['type'] == 'integration':
+            new_file_list = list()
             if 'platform' in self.info_index['meta'] and self.info_index['meta']['platform']:
                 for stream in self.info_index['meta']['streams']:
                     file_path = self.info_index['meta']['platform'] + '/' + \
                         stream + '/' + slugify(topic) + '.inte_tmp'
                     file_paths.append(file_path)
+                    new_file_list.append(file_path)
+            if 'additional_tests' in self.info_index['meta'] \
+                    and self.info_index['meta']['additional_tests']:
+                for additional_test in self.info_index['meta']['additional_tests'].split(','):
+                    additional_test = additional_test.strip().lower()
+                    if additional_test:
+                        file_path = additional_test + '/integration_tmp/' + \
+                            slugify(topic) + '.inte_tmp'
+                        file_paths.append(file_path)
+                        new_file_list.append(file_path)
+            if new_file_list:
+                for new_file in new_file_list:
                     self.gerrit_rest.add_file_to_change(
                         node_obj['rest_id'],
-                        file_path,
-                        datetime.utcnow().
-                        strftime('%Y%m%d%H%M%S'))
+                        new_file,
+                        datetime.utcnow().strftime('%Y%m%d%H%M%S')
+                    )
                 need_publish = True
 
         # add files for env
@@ -405,6 +418,19 @@ class IntegrationChangesCreation(object):
             if node_obj['type'] == 'root':
                 lines.append('ROOT CHANGE')
                 lines.append('Please do not modify this change.')
+                if 'project' in self.meta and self.meta['project']:
+                    lines.append('project: {}'.format(self.meta['project']))
+                if 'branch' in self.meta and self.meta['branch']:
+                    lines.append('ecl_branch: {}'.format(
+                        self.comp_config['branch_ecl_map'][self.meta['branch']]
+                    ))
+                if 'ecl_int_branch' in self.meta and self.meta['ecl_int_branch']:
+                    lines.append('ecl_int_branch: {}'.format(self.meta['ecl_int_branch']))
+                    lines.append('int_branch: {}'.format(
+                        self.comp_config['ecl_int_map'][self.meta['ecl_int_branch']]
+                    ))
+                if 'integration_type' in self.meta and self.meta['integration_type']:
+                    lines.append('integration_type: {}'.format(self.meta['integration_type']))
             elif node_obj['type'] == 'integration' or \
                     node_obj['type'] == 'integration_all' or node_obj['type'] == 'integration_coam':
                 lines.append('MANAGER CHANGE')
@@ -912,6 +938,84 @@ class IntegrationChangesCreation(object):
                         self.gerrit_rest.change_commit_msg_to_edit(node['ticket_id'], new_msg)
                         self.gerrit_rest.publish_edit(node['ticket_id'])
 
+    def get_inherit_change(self, component, version, inherit_list):
+        change_list = [{'name': component, 'version': version}]
+        if not inherit_list:
+            return change_list
+        for sub_build in wft_tools.get_subuild_from_wft(version):
+            project_component = "{}:{}".format(sub_build['project'], sub_build['component'])
+            if project_component in inherit_list:
+                change_list.append({'name': project_component, 'version': sub_build['version']})
+                inherit_list.remove(project_component)
+                print("{} sub build {}'s version is {}".format(
+                    version,
+                    project_component,
+                    sub_build['version'])
+                )
+                if not inherit_list:
+                    break
+        else:
+            raise Exception("Can not get {} version from {}'s sub_build".format(inherit_list, version))
+        return change_list
+
+    def generate_trigger_file(self, yaml_change_list):
+        '''
+        :yaml_change_list: [{'name':'project:component', 'version': 'component_version'}, ...]
+        '''
+        if self.meta['project'] == "5G" or 'ecl_int_branch' not in self.meta \
+                or not self.meta['ecl_int_branch']:
+            return
+        change_dict = dict()
+        trigger_file = os.path.join(os.environ['WORKSPACE'], "increment_ecl.prop")
+        for item in yaml_change_list:
+            change_dict[item['name']] = {'version': item['version']}
+        with open(trigger_file, 'w') as trigger_file_fd:
+            trigger_file_fd.write(
+                "ecl_branch={}\nchanged_content={}\n".format(
+                    self.meta['ecl_int_branch'],
+                    json.dumps(change_dict)
+                )
+            )
+        print("Create trigger file {} finish.".format(trigger_file))
+
+    def generate_env_change(self, yaml_change_list):
+        '''
+        :yaml_change_list: [{'name':'project:component', 'version': 'component_version'}, ...]
+        '''
+        if self.meta['project'] == "SBTS":
+            print('Project is SBTS, do not need create gerrit changes, exit!')
+            sys.exit(0)
+        change_lines = list()
+        print("env_change:")
+        for yaml_change in yaml_change_list:
+            line = "{}={}".format(yaml_change['name'], yaml_change['version'])
+            print("  {}".format(line))
+            change_lines.append(line)
+        return '\n'.join(change_lines)
+
+    def process_yaml_entry(self, env_change):
+        if 'yaml_entry' in self.meta and self.meta['yaml_entry']:
+            yaml_change_list = list()
+            for entry in self.meta['yaml_entry']:
+                if entry['name'] == 'Feature_ID':
+                    continue
+                inherit_list = list()
+                if entry['name'] in self.comp_config['inheritance']:
+                    inherit_list = self.comp_config['inheritance'][entry['name']]
+                yaml_change_list.extend(
+                    self.get_inherit_change(entry['name'], entry['value'], inherit_list)
+                )
+            if not yaml_change_list:
+                return None
+            self.generate_trigger_file(yaml_change_list)
+            return self.generate_env_change(yaml_change_list)
+        elif env_change:
+            return env_change
+        elif 'project' in self.meta and self.meta['project'] == 'SBTS':
+            print('Project is SBTS, but no yaml_entry provide, exit!')
+            sys.exit(0)
+        return None
+
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
             if_restore=False, integration_mode=None, base_load=None,
@@ -919,11 +1023,18 @@ class IntegrationChangesCreation(object):
             comp_config=None,
             open_jira=False, skip_jira=False):
 
+        if comp_config:
+            self.comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
+        if 'jira_key' in self.meta and self.meta['jira_key']:
+            feature_id = self.meta['jira_key']
+        if 'integration_mode' in self.meta and self.meta['integration_mode']:
+            integration_mode = self.meta['integration_mode']
+        if 'base_load' in self.meta and self.meta['base_load']:
+            base_load = self.meta['base_load']
+        env_change = self.process_yaml_entry(env_change)
         # handle integration topic
         utc_dt = datetime.utcnow()
         timestr = utc_dt.replace(microsecond=0).isoformat().replace(':', '_')
-        if comp_config:
-            self.comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
         if not topic_prefix:
             topic = 't_{}'.format(timestr)
         else:
@@ -948,11 +1059,12 @@ class IntegrationChangesCreation(object):
         self.info_index['nodes'] = nodes
         self.info_index['graph'] = graph_obj
 
-        if streams:
+        stream_list = list()
+        if 'streams' in self.meta and self.meta['streams']:
+            stream_list = [x for x in self.meta['streams'].split(',') if x]
+        elif streams:
             stream_list = [x for x in streams.split(',') if x]
-            if not stream_list:
-                stream_list = ['default']
-        else:
+        if not stream_list:
             stream_list = ['default']
 
         self.meta['streams'] = stream_list

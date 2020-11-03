@@ -8,7 +8,7 @@ if [[ -n "${interface_version}" ]];then
         echo "**** Not find bb_file for ${interface_version} ****"
         exit 2
     fi
-    bb_file_no=$(echo ${bb_file} |wc -l)
+    bb_file_no=$(echo "${bb_file}" |wc -l)
     if [[ ${bb_file_no} -ne 1 ]];then
         echo "**** Find multi bb file for ${interface_version}  *****"
         echo "**** result: ${bb_file} ****"
@@ -81,5 +81,5 @@ python ${WORKSPACE}/script/integration/create_integration_changes.py \
                                       --open-jira True \
                                       --ext_commit_msg """${ext_msg_param}""" \
                                       --mysql_info "${MYSQL_INFO}" \
-                                      --comp_config "${WORKSPACE}/yaml/config/component-config.yaml" \
+                                      --comp_config "${WORKSPACE}/yaml/config/integration-config.yaml" \
                                       --version_name "${version_name}"

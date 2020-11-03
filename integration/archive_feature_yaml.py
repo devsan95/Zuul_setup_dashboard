@@ -35,18 +35,20 @@ def save_to_gerrit(
         output_path=None):
     adt = arrow.utcnow()
     name = adt.isoformat()
-    if identity:
+    if isinstance(yaml, dict):
+        yaml_obj = yaml
+    else:
+        yaml_obj = yamllib.load(
+            yaml, Loader=yamllib.Loader, version='1.1')
+    if 'jira_key' in yaml_obj['meta'] and yaml_obj['meta']['jira_key']:
+        name = name + '_' + yaml_obj['meta']['jira_key']
+    elif identity:
         name = name + '_' + identity
     name = slugify(name)
     name += '.yaml'
     file_path = 'feature_archive/{}'.format(name)
     print('Archive into gerrit, path {}'.format(file_path))
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
-    if isinstance(yaml, dict):
-        yaml_obj = yaml
-    else:
-        yaml_obj = yamllib.load(
-            yaml, Loader=yamllib.Loader, version='1.1')
     if schema_path:
         print('Verify schema')
         with open(schema_path) as f:
