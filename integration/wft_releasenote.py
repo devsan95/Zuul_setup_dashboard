@@ -23,7 +23,7 @@ from multiprocessing import Process, Queue
 
 log = log_api.get_console_logger("releasenote")
 wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
-wft_get_url = os.environ['WFT_URL'] + '/ext/releasenote/{}.json'
+wft_url = os.environ['WFT_URL']
 wft_post_url = '{}/ext/api/json'.format(os.environ['WFT_URL'])
 jenkins_server = 'http://wrlinb147.emea.nsn-net.net:9090/'
 integration_repo = os.environ['INTEGRATION_REPO_URL']
@@ -80,6 +80,31 @@ filter_str = '''
     }%(version)s
   },
   "access_key": "%(WFT_KEY)s"
+}
+'''
+releasenote_template = '''{
+    "releasenote": {
+        "baseline": {
+            "author": "5g_cb.scm@nokia.com",
+            "basedOn": {
+                "name": "5G_Central",
+                "project": "5G:WMP",
+                "version": ""
+            },
+            "branch": "",
+            "branchFor": [],
+            "download": [],
+            "homepage": "",
+            "importantNotes": [],
+            "name": "5G_Central",
+            "project": "5G:WMP",
+            "releaseDate": "",
+            "releaseTime": "",
+            "version": ""
+        },
+        "element_list": [],
+        "releasenote_version": "2"
+    }
 }
 '''
 
@@ -540,21 +565,47 @@ def update_release_date(releasenote):
     if not date_str:
         raise Exception("Get date string from {} #{} failed".format(job, build))
     log.info(date_str)
-    date_time = datetime.datetime.strptime(date_str, '%a %b %d %X CEST %Y').strftime('%Y-%m-%d %H:%M:%S')
+    time_zone = date_str.split(' ')[4]
+    date_time = datetime.datetime.strptime(
+        date_str,
+        f'%a %b %d %X {time_zone} %Y'
+    ).strftime('%Y-%m-%d %H:%M:%S')
     build_date, build_time = date_time.split(' ')
     releasenote['releasenote']['baseline']['releaseDate'] = build_date
     releasenote['releasenote']['baseline']['releaseTime'] = build_time
 
 
+def generate_local_releasenote(build_config):
+    element_list = list()
+    component_list = yaml.safe_load(build_config)['components']
+    for component in component_list:
+        element_list.append({
+            'name': component.split(':')[-1].strip(),
+            'project': component.split(':')[0].strip(),
+            'version': component_list[component]['version']
+        })
+    local_template = json.loads(releasenote_template)
+    local_template['releasenote']["element_list"] = element_list
+    return local_template
+
+
 def get_releasenote(base_pkg, wft_prefix):
     base_wft_name = "{}_{}".format(wft_prefix, base_pkg)
     response = requests.get(
-        wft_get_url.format(base_wft_name),
+        f"{wft_url}/ext/releasenote/{base_wft_name}.json",
         params={'access_key': os.environ['WFT_KEY']},
         verify=verify_ssl
     )
     if not response.ok:
-        raise Exception("Get releasenote failed!")
+        log.warn("Get releasenote failed, try download build configration!")
+        build_config = requests.get(
+            f"{wft_url}/ext/build_config/{base_wft_name}",
+            params={'access_key': os.environ['WFT_KEY']},
+            verify=verify_ssl
+        )
+        if not build_config.ok:
+            raise Exception(f"Get {base_wft_name}'s configuration and releasenote failed!")
+        return generate_local_releasenote(build_config.text)
     return json.loads(response.text)
 
 
