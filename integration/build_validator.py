@@ -22,6 +22,8 @@ def get_base_parent(rest, base_obj_list, comp):
         else:
             comp_hash = base_obj.get_comp_hash_from_mapping_file(comp)
         if comp_hash:
+            if '=' in comp_hash:
+                comp_hash = comp_hash.split('=')[1]
             base_parent.append(comp_hash)
     print("{}'s base parent hash: {}".format(comp, base_parent))
     return base_parent
