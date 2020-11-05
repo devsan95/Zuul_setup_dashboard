@@ -24,6 +24,8 @@ from api import job_tool
 from api import gerrit_rest
 from mod import utils
 
+import integration_add_component
+
 
 INTEGRTION_URL = 'ssh://gerrit.ext.net.nokia.com' \
                  ':29418/MN/5G/COMMON/integration'
@@ -48,13 +50,15 @@ INTERFACE_COMPONENTS = ['interfaces-cpnrtcm', 'interfaces-cpnbcm',
 
 def generate_int_json(comp_name, branch, comp_config):
     component = get_comp_obj(comp_name, comp_config)
-    ric_name = component['ric']
-    if ric_name in ALTER_COMP_DICT:
-        ric_name = ALTER_COMP_DICT[ric_name]
-    comp_sets = comp_config['component_sets']
+    ric_name_list = list()
+    for ric_name in component['ric'].split(','):
+        if ric_name in ALTER_COMP_DICT:
+            ric_name = ALTER_COMP_DICT[ric_name]
+        ric_name_list.append(ric_name)
+    comp_sets = comp_config['components_set']
     root_repo = comp_config['root'][0]['repo']
     print("root_repo: {}".format(root_repo))
-    print('ric_name: {}'.format(ric_name))
+    print('ric_name: {}'.format(ric_name_list))
     print('component_sets: {}'.format(comp_sets))
     int_dict = {}
     with open(MAIN_TEMPLATE, 'r') as fr:
@@ -64,25 +68,62 @@ def generate_int_json(comp_name, branch, comp_config):
     with open(META_TEMPLATE, 'r') as fr:
         meta_content = fr.read().replace(r'{{branch}}', branch)
         int_dict['meta'] = json.loads(meta_content)
-    if ric_name in comp_sets:
-        for sub_comp in comp_sets[ric_name]:
-            if sub_comp != comp_name and sub_comp != ric_name:
-                print('Add {} info to yaml'.format(sub_comp))
-                int_dict['structure'].append(
-                    generate_comp_json(sub_comp, branch, comp_config))
+    matched_rics = list(set(ric_name_list) & set(comp_sets.keys()))
+    if matched_rics:
+        processd_sub_comps = list()
+        for ric_name in matched_rics:
+            for sub_comp in comp_sets[ric_name]:
+                if sub_comp != comp_name and sub_comp not in ric_name_list \
+                        and sub_comp not in processd_sub_comps:
+                    processd_sub_comps.append(sub_comp)
+                    print('Add {} info to yaml'.format(sub_comp))
+                    int_dict['structure'].append(
+                        generate_comp_json(sub_comp, branch, comp_config))
     else:
-        raise Exception('Cannot find {} in components sets'.format(ric_name))
+        raise Exception('Cannot find {} in components sets'.format(ric_name_list))
     return json.dumps(int_dict)
 
 
+def get_comp_obj_from_hierarchy(comp_name, comp_config, components):
+    comp_obj = dict()
+    path_list = list()
+    file_list = list()
+    sub_components_dict = integration_add_component.parse_hierarchy(comp_config['hierarchy'])
+    if comp_name in sub_components_dict:
+        sub_components = sub_components_dict[comp_name]
+    else:
+        return comp_obj
+    for component in components:
+        if component['name'] in sub_components:
+            if not comp_obj:
+                comp_obj = component
+            if 'path' in component and component['path']:
+                path_list.extend(component['path'].split(','))
+            if 'files' in component and component['files']:
+                file_list.extend(component['files'].split(','))
+    if comp_obj:
+        comp_obj['name'] = comp_name
+        comp_obj['ric'] = sub_components
+        if path_list:
+            comp_obj['path'] = path_list
+        if file_list:
+            comp_obj['files'] = file_list
+    return comp_obj
+
+
 def get_comp_obj(comp_name, comp_config):
-    for component in comp_config['components']:
+    components = [
+        component for group in comp_config['components']
+        for component in comp_config['components'][group]
+    ]
+    for component in components:
         if component['name'] == comp_name \
-                or 'ric' in component \
-                and component['ric'] == comp_name:
+                or ('ric' in component and comp_name in component['ric']):
             return component
-    raise Exception(
-        'Cannot get info for {} from {}'.format(comp_name, comp_config))
+    component_from_hierarchy = get_comp_obj_from_hierarchy(comp_name, comp_config, components)
+    if component_from_hierarchy:
+        return component_from_hierarchy
+    raise Exception('Cannot get info for {}'.format(comp_name))
 
 
 def generate_comp_json(comp_name, branch, comp_config):
@@ -99,9 +140,9 @@ def generate_comp_json(comp_name, branch, comp_config):
         comp_content = comp_content.replace(r'{{comp_name}}', comp_name)
         comp_dict = json.loads(comp_content)
         if 'files' in component:
-            comp_dict['files'] = [component['files']]
+            comp_dict['files'] = component['files'].split(',') if isinstance(component['files'], str) else component['files']
         if 'path' in component:
-            comp_dict['paths'] = [component['path']]
+            comp_dict['paths'] = component['path'].split(',') if isinstance(component['path'], str) else component['path']
         return comp_dict
     raise Exception(
         'Cannot get info for {} from {}'.format(comp_name, COMP_TEMPLATE))

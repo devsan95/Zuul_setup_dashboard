@@ -25,7 +25,7 @@ class MonitorStreams(object):
         <p><b>{}</b></p>
         <p>below streams need to be deleted from yaml file</p>
         <p><b>{}</b></p>
-        <p>yaml file:comp-deps/config/component-config.yaml</p>
+        <p>yaml file:comp-deps/config/integration-config.yaml</p>
         """.format(list(need_update_streams), list(need_delete_streams))
         message = MIMEText(mail_msg, 'html', 'utf-8')
         subject = "{} active, please update yaml file".format(list(need_update_streams))

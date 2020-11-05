@@ -200,9 +200,9 @@ def update_depends(rest, change_id, dep_file_list,
 def get_dep_comps(comp_name, comp_config):
     component = get_comp_obj(comp_name, comp_config)
     component_list = []
-    for key, component_set in comp_config['component_sets'].items():
+    for key, component_set in comp_config['components_set'].items():
         if key == component['name'] or \
-                ('ric' in component and component['ric'] == key):
+                ('ric' in component and key in component['ric']):
             component_list = copy.copy(component_set)
             break
     for comp in copy.copy(component_list):

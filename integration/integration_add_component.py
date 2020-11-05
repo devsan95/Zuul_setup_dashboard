@@ -55,7 +55,8 @@ def generate_commit_message(comp, root, base_commit):
     msg_list.append('This change contains following component(s):')
     if 'ric' in comp:
         if isinstance(comp['ric'], str):
-            msg_list.append('  - COMP <{}>'.format(comp['ric']))
+            for ric_name in comp['ric'].split(','):
+                msg_list.append('  - COMP <{}>'.format(ric_name))
         if isinstance(comp['ric'], list):
             for ric in comp['ric']:
                 msg_list.append('  - COMP <{}>'.format(ric))
@@ -102,7 +103,17 @@ def get_base_commit(rest, comp, root, base_load):
         if 'MN/SCMTA/zuul/inte_ric' in comp['repo']:
             commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
             commit_hash = commit_info['revision']
-            base_commit = get_comp_info.get_comp_hash(comp['ric'])
+            if isinstance(comp['ric'], str):
+                comp['ric'] = comp['ric'].split(',')
+            for ric_name in comp['ric']:
+                try:
+                    base_commit = get_comp_info.get_comp_hash(ric_name)
+                    break
+                except Exception:
+                    print("Get {}'s base_commit failed".format(ric_name))
+                    continue
+            else:
+                raise Exception("Get {}'s base_commit failed".format(comp['ric']))
         else:
             if isinstance(comp['ric'], str):
                 if comp['ric'] == 'integration':
@@ -243,12 +254,16 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     comp_dict = parse_hierarchy(comp_config['hierarchy'])
     comp['files'] = []
     depends_components = comp_config['depends_components']
-    for component in comp_config['components']:
+    components = [
+        component for group in comp_config['components']
+        for component in comp_config['components'][group]
+    ]
+    for component in components:
         if not comp_name == component['name']:
             continue
         comp_found = True
         if 'ric' in component and component['ric']:
-            comp['ric'] = component['ric']
+            comp['ric'] = component['ric'].split(",")
         if 'files' in component and component['files']:
             comp['files'].append(component['files'])
         if 'repo' in component:
@@ -261,7 +276,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     if not comp_found:
         if comp_name in comp_dict:
             comp['ric'] = comp_dict[comp_name]
-            for component in comp_config['components']:
+            for component in components:
                 if comp['ric'][0] not in component['name']:
                     continue
                 if 'repo' in component:
@@ -269,7 +284,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
                 elif 'type' in component and 'external' in component['type']:
                     comp['repo'] = 'MN/SCMTA/zuul/inte_ric'
             for com in comp_dict[comp_name]:
-                for c in comp_config['components']:
+                for c in components:
                     if com == c['name']:
                         if 'files' in c and c['files']:
                             comp['files'].append(c['files'])

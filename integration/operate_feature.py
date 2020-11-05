@@ -55,9 +55,8 @@ class OperateFeature(object):
         comp_list = data['components']
         for comp in comp_list:
             if 'ric' in comp:
-                if 'feature_needed' in comp:
-                    if comp['feature_needed'] is False:
-                        feature_not_needed_list.append(comp['ric'])
+                if 'feature_needed' in comp and comp['feature_needed'] is False:
+                    feature_not_needed_list.extend(comp['ric'].split(','))
         return feature_not_needed_list
 
     def add_by_path(self, feature_yaml_path):
