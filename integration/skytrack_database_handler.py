@@ -199,6 +199,25 @@ def clean_build_info(integration_change, gerrit_info_path, database_info_path, d
         )
 
 
+def add_integration_tickets(jira_key, change_list, database_info_path, dry_run=False):
+    mydb = mysql_api.init_from_yaml(database_info_path, server_name='skytrack')
+    mydb.init_database('skytrack')
+    print('Add change info for {0}'.format(jira_key))
+    if dry_run:
+        print('DRY-RUN MODE:')
+        print('changes for {0} will be added'.format(jira_key))
+        return
+    for gerrit_change in change_list:
+        values = {
+            'topic_key': jira_key,
+            '`change`': gerrit_change
+        }
+        mydb.insert_info(
+            table='t_integration_topic',
+            values=values
+        )
+
+
 def update_qt_result(database_info_path, jira_key, package_name, type_name, result, start_time=None, end_time=None):
     result_map = {
         'released': 1,

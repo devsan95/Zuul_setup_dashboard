@@ -1043,9 +1043,8 @@ class IntegrationChangesCreation(object):
         self.add_structure_string()
         self.label_all_tickets()
         self.update_oam_description()
+        comp_change_list = [node['ticket_id'] for node in self.info_index['nodes'].values() if node.get('type') != 'auto_submodule']
         if 'interface info:' in ext_commit_msg:
-            comp_change_list = [node['ticket_id'] for node in self.info_index['nodes'].values() if
-                                node.get('type') != 'auto_submodule']
             update_interfaces_refs(rest=self.gerrit_rest,
                                    comp_change_list=comp_change_list,
                                    comp_name=re.search(r'comp_name:\W+(.*)', ext_commit_msg).group(1),
@@ -1058,6 +1057,10 @@ class IntegrationChangesCreation(object):
         self.print_result()
         send_result_email.run(self.info_index)
         if mysql_info:
+            skytrack_database_handler.add_integration_tickets(
+                jira_key=self.meta["jira_key"],
+                change_list=comp_change_list,
+                database_info_path=mysql_info)
             retry = 5
             while True:
                 if not skytrack_database_handler.if_issue_exist(
