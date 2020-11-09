@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import fire
 from mod import wft_tools
 
@@ -13,7 +15,7 @@ def get_rcp_vdu_info(baseline):
         if "GNU toolchain" in build["component"]:
             gcc_path = build["version"].split("toolchain")[0]
             print("gcc path is {0}".format(gcc_path))
-        if "GCCVersion" in build["component"]:
+        if "GCC9Version" in build["component"]:
             gcc_version = build["version"]
             print("gcc version is {0}".format(gcc_version))
         if "OSVersion" in build["component"]:
@@ -23,8 +25,8 @@ def get_rcp_vdu_info(baseline):
     if gcc_path and gcc_version and os_version:
         return gcc_path, gcc_version + "-" + os_version
     else:
-        raise Exception("Can not get GNU toolchain or GCCVersion or OSVersion from WFT, \
-        please check if the sub builds in {} from WFT is correct!".format(baseline))
+        raise Exception("Can not get GNU toolchain or GCCVersion or OSVersion from WFT, "
+                        "please check if the sub builds in {} from WFT is correct!".format(baseline))
 
 
 def create_prop_fie(baseline, gcc_version, gcc_path):
@@ -36,7 +38,10 @@ def create_prop_fie(baseline, gcc_version, gcc_path):
         f.write(content)
 
     with open("vdu_param.prop", "w") as vdu_f:
-        vdu_f.write("RCP_VERSION={0}".format(str(baseline).split("_")[1]))
+        rcp_verison = str(baseline).split("_")[1]
+        # ingore rcp patch version
+        plain_rcp_verison = rcp_verison.rsplit(".", 1)[0] + ".0"
+        vdu_f.write("RCP_VERSION={0}".format(plain_rcp_verison))
 
 
 def main(baseline):
