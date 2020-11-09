@@ -17,6 +17,7 @@ import json
 import datetime
 import pexpect
 from api import log_api
+from api import gerrit_rest
 from bs4 import BeautifulSoup
 from multiprocessing import Process, Queue
 
@@ -219,9 +220,12 @@ def get_latest_build(branch, build_status=None):
         data=str_filter,
         verify=False
     )
-    if not response.ok:
+    if response.ok:
+        return json.loads(response.text)['items'][0]['version']
+    elif "No records" in response.text:
+        return "_000000_000000"
+    else:
         raise Exception("get latest build from wft error!")
-    return json.loads(response.text)['items'][0]['version']
 
 
 def check_config_yaml_change(base_pkg, pkg, integration):
@@ -252,6 +256,8 @@ def arguments():
     parse.add_argument('--topic', '-t', required=True, help="TOPIC")
     parse.add_argument('--ver_pattern', '-v', required=False, help="ver_pattern")
     parse.add_argument('--branch', '-b', required=False, help="BRANCH")
+    parse.add_argument('--branch_for', '-d', required=False, help="BRANCHFOR")
+    parse.add_argument('--gerrit_info_path', '-f', required=False, help="gerrit_info_path")
     parse.add_argument('--upload_to_wft', '-u', required=True, help="UPLOAD_TO_WFT")
     return parse.parse_args()
 
@@ -269,9 +275,25 @@ def get_branch(pkg, ver_pattern):
         branch = "{}_lonerint".format(stream_name)
     elif stream_name and branch in branch_type and "cloud" in stream_name:
         branch = "{}_cloudbts".format(branch)
+    elif branch in ["PSINT", "NIDDINT"] and "sran" in stream_name:
+        branch = "{}_5G_IN_SRAN".format(branch)
     log.info("branch: {}".format(branch))
     return branch
 
+def set_branch_for(args, knife_json):
+    if args.branch_for:
+        return
+
+    args.branch_for = args.branch
+    if args.pkg_name.startswith('0.990') and 'integration' in knife_json:
+        log.info("Only 5G_IN_SRAN need to reset branchFor from root subject")
+        commitid = knife_json['integration']['repo_ver']
+        gerritclient = gerrit_rest.init_from_yaml(args.gerrit_info_path)
+        rootchange = gerritclient.get_detailed_ticket(commitid)
+        subject = rootchange['subject']
+        branch = re.search(r'int_branch:\s*(\w+)', subject)
+        if branch:
+            args.branch_for = branch.group(1)
 
 def get_stream_config_file(ver_pattern, file_pattern='.config-master*'):
     wft_prefix = None
@@ -621,7 +643,8 @@ def generate_releasenote(args, base_pkg, knife_json, wft_prefix, docker_info):
     docker_info['pkg'] = args.pkg_name
     update_element_list(releasenote, knife_json, docker_info)
     update_downloads_url(args.pkg_name, releasenote)
-    releasenote['releasenote']['baseline']['branchFor'] = [args.branch]
+    set_branch_for(args, knife_json)
+    releasenote['releasenote']['baseline']['branchFor'] = [args.branch_for]
     releasenote['releasenote']['baseline']['importantNotes'] = [important_notes]
     releasenote['releasenote']['baseline']['basedOn']['version'] = latest_build
     releasenote['releasenote']['baseline']['notes'] = args.topic

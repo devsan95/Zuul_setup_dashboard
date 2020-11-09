@@ -9,14 +9,18 @@ A module to do gerrit rest operation.
 """
 
 import json
+import sys
 import threading
-from urlparse import urljoin
 
 import requests
 import ruamel.yaml as yaml
 import urllib3
-
 import extra_api
+
+if sys.version_info[0] == 2:
+    from urlparse import urljoin
+else:
+    from urllib.parse import urljoin
 
 cachetools = extra_api.try_import('cachetools')
 
@@ -98,7 +102,7 @@ class GerritRestClient(object):
     @staticmethod
     def parse_rest_response(response):
         content = response.content
-        content = content.split("\n", 1)[1]
+        content = content.decode('utf-8').split("\n", 1)[1]
         return json.loads(content)
 
     def get_change_address(self, change_no):
