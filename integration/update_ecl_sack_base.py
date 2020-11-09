@@ -20,7 +20,7 @@ branch_match = {
 }
 WFT_API_URL = os.environ['WFT_API_URL']
 WFT_KEY = os.environ['WFT_KEY']
-wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
+wft_api = '{}/Common/api/v1/build_branch.json'.format(os.environ['WFT_API_URL'])
 filter_str = '''
 {
   "page": "",
@@ -98,25 +98,16 @@ def get_latest_ecl_sack_base_from_wft(branch):
 
 def arguments():
     parse = argparse.ArgumentParser()
-    parse.add_argument('--change_no', '-c', required=True, help="change id")
-    parse.add_argument('--branch', '-b', required=True, help="branch")
+    parse.add_argument('--change_no', '-c', required=False, help="change id")
+    parse.add_argument('--branch', '-b', required=False, help="branch")
     parse.add_argument('--gerrit_yaml', '-g', required=True, help="gerrit_yaml")
-    parse.add_argument(
-        '--framework_only',
-        '-f',
-        action='store_true',
-        default=False,
-        help='create new ECL_SACK_BASE for integration framework change only'
-    )
+    parse.add_argument('--ecl_branch', required=False, help="ecl branch in WFT")
+    parse.add_argument('--changed_content', required=False, help="content change in sub builds")
     return parse.parse_args()
 
 
-def get_latest_ecl_sack_base_content(branch):
+def get_latest_ecl_sack_base_content(wft_branch):
     data = {'accept': 'text/legacy', 'access_key': WFT_KEY}
-    if branch in branch_match:
-        wft_branch = branch_match[branch]
-    else:
-        raise Exception("No gerrit branch and wft branch match info!")
     log.info("ecl_sack_base's wft branch: {}".format(wft_branch))
     current_version, branch_for, versions_dict = get_latest_ecl_sack_base_from_wft(wft_branch)
     url = "{}/api/v1/Common/ECL_SACK_BASE/builds/{}.json?items[]=sub_builds".format(
@@ -129,7 +120,7 @@ def get_latest_ecl_sack_base_content(branch):
     sub_builds = json.loads(response.text)["sub_builds"]
     log.info("Latest ECL_SACL_BASE content:\n{}".format(sub_builds))
     log.info("Latest ECL_SACK_BASE branch_for: {}".format(branch_for))
-    return current_version, sub_builds, wft_branch, branch_for, versions_dict
+    return current_version, sub_builds, branch_for, versions_dict
 
 
 def ecl_increment(current_version, change, branch, branch_for, versions_dict):
@@ -243,36 +234,30 @@ def get_diff(config_yaml_dict, sub_builds):
     return diff_list
 
 
-def whether_integration_ticket(rest, framework, change_no):
-    if framework:
-        commit_msg = rest.get_commit(change_no)['message']
-        if "%JR=SCMHGH-" in commit_msg and "%FIFI=" in commit_msg:
-            log.info(
-                "{} is integration framework change, need to create new ECL_SACK_BASE".format(
-                    change_no
-                )
-            )
-            return True
-        else:
-            log.info(
-                "{} is not integration framework change, no need to create new ECL_SACK_BASE".format(
-                    change_no
-                )
-            )
-            return False
-    else:
-        return True
-
-
 def main():
     args = arguments()
     rest = gerrit_rest.init_from_yaml(args.gerrit_yaml)
-    if not whether_integration_ticket(rest, args.framework_only, args.change_no):
-        return
-    config_yaml_dict = get_config_yaml_dict(rest, args.change_no)
-    latest_version, sub_build_list, branch_wft, branch_for, versions_dict = get_latest_ecl_sack_base_content(args.branch)
+
+    if args.branch:
+        if args.branch in branch_match:
+            wft_branch = branch_match[args.branch]
+        else:
+            raise Exception("No gerrit branch and wft branch match info! Please add config")
+    elif args.ecl_branch:
+        wft_branch = args.ecl_branch
+    else:
+        raise Exception("Not supported case!")
+    latest_version, sub_build_list, branch_for, versions_dict = get_latest_ecl_sack_base_content(wft_branch)
+
+    if args.change_no:
+        config_yaml_dict = get_config_yaml_dict(rest, args.change_no)
+    elif args.changed_content:
+        config_yaml_dict = json.loads(args.changed_content)
+    else:
+        raise Exception("Not supported case!")
+
     change_list = get_diff(config_yaml_dict, sub_build_list)
-    ecl_increment(latest_version, change_list, branch_wft, branch_for, versions_dict)
+    ecl_increment(latest_version, change_list, wft_branch, branch_for, versions_dict)
 
 
 if __name__ == "__main__":
