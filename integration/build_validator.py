@@ -163,7 +163,7 @@ def get_build_content(knife_json_path, base_info_path, ex_dict, build_streams,
         print('Compare Function need to be done')
     for stream, content in build_info_dict.items():
         for component, component_content in content.items():
-            if component in handled_component:
+            if component in handled_component or not isinstance(component_content, dict):
                 continue
             if 'repo_ver' in component_content and not component_content['repo_ver']:
                 change_info = get_component_change_info(ex_dict, component)
