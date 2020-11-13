@@ -110,6 +110,7 @@ def rebase_by_load(rest, change_no, base_package,
     if base_package != 'HEAD':
         get_comp_info = get_component_info.GET_COMPONENT_INFO(base_package)
     rebase_failed = {}
+    rebase_skipped = {}
     rebase_succeed = {}
     comp_change_list.append(change_no)
     extra_base_repos = {}
@@ -135,9 +136,14 @@ def rebase_by_load(rest, change_no, base_package,
                     comp_hash = rest.get_tag(
                         'MN/5G/COMMON/integration', base_package)['object']
                 else:
-                    comp_hash = get_comp_info.get_comp_hash(comp_name)
+                    for sub_comp_name in comp_names:
+                        comp_hash = get_comp_info.get_comp_hash(sub_comp_name)
+                        if comp_hash:
+                            comp_name = sub_comp_name
+                            break
             except Exception:
                 print('Cannot get hash for {}'.format(comp_name))
+            if not comp_hash:
                 print('Try get hash from {}'.format(extra_bases))
                 for extra_base in extra_bases:
                     if extra_base not in extra_base_repos:
@@ -153,10 +159,10 @@ def rebase_by_load(rest, change_no, base_package,
                     else:
                         print('Get hash from {}'.format(extra_base))
                         break
-                if not comp_hash:
-                    rebase_failed[comp_name_with_change] = 'No component in packages: {},{}'.format(
-                        base_package, extra_bases)
-                    continue
+            if not comp_hash:
+                rebase_skipped[comp_name_with_change] = 'No component in packages: {},{}'.format(
+                    base_package, extra_bases)
+                continue
         parent_hash = rest.get_parent(comp_change)
         print('Parent for [{}] now is [{}]'.format(comp_change, parent_hash))
         print('need to rebase to [{}]'.format(comp_hash))
@@ -223,6 +229,9 @@ def rebase_by_load(rest, change_no, base_package,
     if rebase_succeed:
         for comp, ver in rebase_succeed.items():
             rebase_out_msg += '\n### Rebase {} to {} Succeed ###'.format(comp, ver)
+    if rebase_skipped:
+        for comp, ver in rebase_skipped.items():
+            rebase_out_msg += '\n### No need to rebase {} as {} ###'.format(comp, ver)
     if rebase_failed:
         for comp, ver in rebase_failed.items():
             rebase_out_msg += '\n*** Rebase {} to {} Failed ***'.format(comp, ver)
