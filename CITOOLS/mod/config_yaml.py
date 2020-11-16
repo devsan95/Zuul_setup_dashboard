@@ -142,6 +142,7 @@ class ConfigYaml(object):
             if not staged_dict:
                 staged_dict = wft_tools.get_staged_from_wft(value)
             for staged_key, staged_value in staged_dict.items():
-                if staged_value:
+                # some section like ENV_SBTS_PS_REL do not want to update type
+                if staged_value and staged_key != 'type':
                     replace_section[staged_key] = staged_value
         return env_file_changes
