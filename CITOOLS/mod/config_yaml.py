@@ -146,3 +146,41 @@ class ConfigYaml(object):
                 if staged_value and staged_key != 'type':
                     replace_section[staged_key] = staged_value
         return env_file_changes
+
+    def get_changes(self, origin_config_yaml=None):
+        update_dict = {}
+        removed_dict = {}
+        if not origin_config_yaml:
+            origin_config_yaml = self.origin_config_yaml
+        for section_key, section in self.components.items():
+            if section_key in origin_config_yaml['components']:
+                if not equal_string_dicts(section, origin_config_yaml['components'][section_key]):
+                    update_dict[section_key] = section
+            else:
+                removed_dict[section_key] = section
+        return update_dict, removed_dict
+
+    def update_changes(self, update_dict, removed_dict=None):
+        print('Update config yaml by section: {}'.format(update_dict))
+        self.components.update(update_dict)
+        if removed_dict:
+            for key_to_remove in removed_dict:
+                print('Section: {} is removed'.format(key_to_remove))
+                del self.components[key_to_remove]
+
+
+def equal_string_dicts(dict1, dict2):
+    key_list1 = dict1.keys()
+    key_list2 = dict2.keys()
+    for key1 in key_list1:
+        if key1 not in dict2:
+            return False
+        if isinstance(dict1[key1], dict) and isinstance(dict2[key1], dict):
+            if not equal_string_dicts(dict1[key1], dict2[key1]):
+                return False
+        elif dict1[key1] != dict2[key1]:
+            return False
+    for key2 in key_list2:
+        if key2 not in dict1:
+            return False
+    return True

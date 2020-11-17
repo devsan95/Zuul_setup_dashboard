@@ -19,6 +19,10 @@ commit_ID_reg = re.compile(r'\s+commit-ID: ')
 comp_reg = re.compile(r'  - COMP <(.*?)>')
 fifi_reg = re.compile(r'%FIFI=(.*)')
 create_feature = re.compile(r'create_feature_yaml=(.*)\b')
+int_project_reg = re.compile(r'project: (.*)')
+ecl_branch_reg = re.compile(r'ecl_branch: (.*)')
+ecl_int_branch_reg = re.compile(r'ecl_int_branch: (.*)')
+int_branch_reg = re.compile(r'int_branch: (.*)')
 ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
 depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
 depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
@@ -229,6 +233,34 @@ class RootChange(IntegrationChange):
         if m:
             return m.groups()[0]
         return 'true'
+
+    def get_int_project(self):
+        msg = self.commit_info.get('message')
+        m = int_project_reg.search(msg)
+        if m:
+            return m.groups()[0]
+        return None
+
+    def get_ecl_branch(self):
+        msg = self.commit_info.get('message')
+        m = ecl_branch_reg.search(msg)
+        if m:
+            return m.groups()[0]
+        return None
+
+    def get_ecl_int_branch(self):
+        msg = self.commit_info.get('message')
+        m = ecl_int_branch_reg.search(msg)
+        if m:
+            return m.groups()[0]
+        return None
+
+    def get_int_branch(self):
+        msg = self.commit_info.get('message')
+        m = int_branch_reg.search(msg)
+        if m:
+            return m.groups()[0]
+        return None
 
 
 class ManageChange(IntegrationChange):
