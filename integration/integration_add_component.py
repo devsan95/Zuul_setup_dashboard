@@ -13,6 +13,7 @@ from mod import integration_change as inte_change
 from mod import get_component_info
 from mod import config_yaml
 import operate_integration_change as operate_int
+import skytrack_database_handler
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -314,6 +315,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
     int_operator.add(comp_change_number)
+    skytrack_database_handler.add_integration_tickets(jira_key=root['jira_id'], change_list=[comp_change_number], database_info_path=mysql_info_path)
     return comp_change_number
 
 
