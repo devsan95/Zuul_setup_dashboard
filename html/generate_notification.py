@@ -1,3 +1,4 @@
+import os
 import click
 import cgi
 import arrow
@@ -56,6 +57,7 @@ def generate_html(notification, history_no=None):
 
 
 @click.command()
+@click.option('--env-type', default='normal')
 @click.option('--title', required=True)
 @click.option('--content', required=True)
 @click.option('--author', required=True)
@@ -75,7 +77,7 @@ def generate_html(notification, history_no=None):
 @click.option('--archiving-path', default=None)
 @click.option('--history-count', default=3)
 @click.option('--archiving-threshold', default=100)
-def main(title, content, author, alert_type, icon, label, label_type,
+def main(env_type, title, content, author, alert_type, icon, label, label_type,
          gerrit_path, zuul_server_name, gerrit_available, project, branch, file_path, history_path, list_path,
          archiving_path, history_count, archiving_threshold):
     title = cgi.escape(title)
@@ -119,8 +121,17 @@ def main(title, content, author, alert_type, icon, label, label_type,
     print("DEBUG_INFO: main: Output is: {}".format(output))
 
     # copy list.yaml from docker container
-    subprocess.check_call("rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;"
-                          "docker cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/".format(zuul_server_name), shell=True)
+    if env_type == 'normal':
+        subprocess.check_call("rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;"
+                              "docker cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/".format(zuul_server_name), shell=True)
+    elif env_type == 'k8s':
+        # Seems the kubectl command has a bug, it still report error event if the list.yaml file fetched
+        # Just check if file exists or not, if yes, ignore this error
+        print("DEBUG_INFO: main: begin to update k8s zuul web page banner")
+        subprocess.call("rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;pwd;"
+                        "{}/kubectl --kubeconfig {} cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/list.yaml".format(
+                            os.environ['HOME'], os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD']), shell=True)
+
     print("DEBUG_INFO: main: copy list.yaml from docker container success!")
 
     if gerrit_available:
@@ -158,8 +169,9 @@ def main(title, content, author, alert_type, icon, label, label_type,
                 rest.submit_change(change_id)
                 print("DEBUG_INFO: main: push file to change and submit finished!")
                 # result = zuul_server_container.exec_run(cmd="cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git pull")
-                update_git_repo(zuul_server_name=zuul_server_name, branch=branch)
+                update_git_repo(zuul_server_name=zuul_server_name, branch=branch, env_type=env_type)
             except Exception as e:
+                print(e)
                 print("DEBUG_INFO: main: submit with merge_conflict=False failed!")
                 print("DEBUG_INFO: main: set merge_conflict=True, and retry with push file to change and submit")
                 rest.abandon_change(change_id)
@@ -184,7 +196,7 @@ def main(title, content, author, alert_type, icon, label, label_type,
                                        {'Code-Review': 2, 'Verified': 1, 'Gatekeeper': 1})
                     rest.submit_change(new_change_id)
                     print("DEBUG_INFO: main: retry with merge_conflict=True, push file to change and submit finished!")
-                    update_git_repo(zuul_server_name=zuul_server_name, branch=branch)
+                    update_git_repo(zuul_server_name=zuul_server_name, branch=branch, env_type=env_type)
                 except Exception as e:
                     rest.abandon_change(new_change_id)
                     print("DEBUG_INFO: main: change {} has been abandoned!".format(new_change_id))
@@ -212,7 +224,13 @@ def main(title, content, author, alert_type, icon, label, label_type,
         create_changed_file(data_str=history_str, changed_file_name="history.html")
 
         # put list.yaml index.html history.html to docker container
-        subprocess.check_call("docker cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(zuul_server_name), shell=True)
+        if env_type == 'normal':
+            subprocess.check_call("docker cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(zuul_server_name), shell=True)
+
+        elif env_type == 'k8s':
+            subprocess.check_call("{}/kubectl --kubeconfig {} cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(
+                                  os.environ['HOME'], os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD']), shell=True)
+
         print("DEBUG_INFO: main: Copy files into container success!")
 
 
@@ -269,11 +287,19 @@ def add_files_to_change(history_path, history_str, list_save, rest, change_no,
     print("DEBUG_INFO: add_files_to_change: end!")
 
 
-def update_git_repo(zuul_server_name, branch):
+def update_git_repo(zuul_server_name, branch, env_type="normal"):
     print("DEBUG_INFO: update_git_repo: start!")
-    result = subprocess.call(
-        'docker exec {} bash -c "cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull"'.format(zuul_server_name, branch),
-        shell=True)
+
+    if env_type == "normal":
+        print("DEBUG_INFO: update_git_repo: env_type=normal")
+        result = subprocess.call(
+            'docker exec {} bash -c "cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull"'.format(zuul_server_name, branch),
+            shell=True)
+    elif env_type == "k8s":
+        print("DEBUG_INFO: update_git_repo: env_type=k8s")
+        result = subprocess.call("{}/kubectl --kubeconfig {} exec {} -- /bin/bash -c  \"cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull\"".format(
+            os.environ['HOME'], os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'], branch), shell=True)
+
     if result == 0:
         print("DEBUG_INFO: update_git_repo: update notification REPO in container")
     else:
@@ -308,6 +334,7 @@ def update_history(current_dict, rest, change_no, history_path, list_path,
         with open("origin_notification/list.yaml", 'r') as f:
             list_yaml = f.read()
         list_list = yaml.load(list_yaml, Loader=yaml.Loader, version='1.1')
+        print("DEBUG_INFO: update_history: merge_conflict = False !")
 
         history_str, list_save, list_archiving = get_file_contents(current_dict=current_dict,
                                                                    show_in_history=show_in_history,
