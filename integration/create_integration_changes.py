@@ -771,6 +771,7 @@ class IntegrationChangesCreation(object):
         node_list = self.info_index['nodes'].values()
         print("[Info] Start to parse base load for node_list: {}".format(node_list))
         for node in node_list:
+            com_name = node['name']
             print("[Info] Parse component: {}".format(node['name']))
             if 'type' in node and 'root' in node['type']:
                 if 'MN/5G/COMMON/env' in node['repo']:
@@ -792,40 +793,37 @@ class IntegrationChangesCreation(object):
                     print e
                     print("[Warning] failed to find commit in base package, will use HEAD instead!")
                 continue
-            if 'type' in node and 'external' in node['type']:
-                if 'ric' in node and node['ric']:
-                    for ric_com in node['ric']:
-                        com_ver = ''
-                        try:
-                            com_ver = get_comp_info.get_comp_hash(ric_com)
-                            print("[Info] Base commit for component {} is {}".format(ric_com, com_ver))
-                        except Exception as e:
-                            print e
-                        if not com_ver:
-                            print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
-                            com_ver = self.get_base_commit_from_other(base_load, ric_com)
-                        if com_ver:
-                            base_commits[ric_com] = com_ver
-                        else:
-                            print("[Warning] failed to find commit in base package, will use HEAD instead!")
-
             else:
-                if 'ric' in node and node['ric']:
-                    com_ver = ''
-                    try:
-                        com_ver = get_comp_info.get_comp_hash(node['ric'][0])
-                    except Exception as e:
-                        print e
-                    if not com_ver:
-                        print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
-                        com_ver = self.get_base_commit_from_other(base_load, node['ric'][0])
-                    base_commits[node['name']] = com_ver
-                    print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
+                com_name, com_ver = self.get_base_commit_for_node(node, get_comp_info, base_load)
+            base_commits[com_name] = com_ver
         if base_commits.values():
             print("[Info] value for base_commits is: {}".format(base_commits))
             return base_commits
         print("[Error] Failed to parse base_commits!")
         return None
+
+    def get_base_commit_for_node(self, node, get_comp_info, base_load):
+        com_ver = ''
+        com_name = node['name']
+        if 'ric' in node and node['ric']:
+            for ric_com in node['ric']:
+                print("[Info] get base commit for {}".format(ric_com))
+                try:
+                    com_ver = get_comp_info.get_comp_hash(ric_com)
+                except Exception as e:
+                    print e
+                if com_ver:
+                    com_name = ric_com
+                    break
+            if not com_ver:
+                print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
+                for ric_com in node['ric']:
+                    com_ver = self.get_base_commit_from_other(base_load, node['ric'][0])
+                    if com_ver:
+                        com_name = ric_com
+                        break
+        print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
+        return com_name, com_ver
 
     def insert_integration_mode(self, integration_mode, base_load, base_commits):
         if not integration_mode:
