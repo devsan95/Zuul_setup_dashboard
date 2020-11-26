@@ -847,14 +847,14 @@ class IntegrationChangesCreation(object):
                         else:
                             self.info_index['nodes'][node['name']]['comments'] = ['update_base:{},{}'.format(build.rsplit('.', 1)[0], build)]
                 if base_commits and 'MN/SCMTA/zuul/inte_ric' in node['repo']:
+                    base_commit_info = ''
                     if node['name'] in base_commits:
                         base_commit_info = base_commits[node['name']]
                     elif 'ric' in node:
                         for ric_com in node['ric']:
                             if ric_com in base_commits:
                                 base_commit_info = base_commits[ric_com]
-                    else:
-                        base_commit_info = ''
+                                break
                     if base_commit_info:
                         if 'remark' in node:
                             self.info_index['nodes'][node['name']]['remark'].append('base_commit:{}'
