@@ -784,18 +784,13 @@ class IntegrationChangesCreation(object):
                 continue
             if 'type' in node and 'integration' in node['type']:
                 continue
-            if 'airphone' in node['repo']:
-                try:
-                    com_ver = get_comp_info.get_comp_hash(node['ric'][0])
-                    base_commits[node['ric'][0]] = com_ver
-                    print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
-                except Exception as e:
-                    print e
-                    print("[Warning] failed to find commit in base package, will use HEAD instead!")
-                continue
             else:
                 com_name, com_ver = self.get_base_commit_for_node(node, get_comp_info, base_load)
-            base_commits[com_name] = com_ver
+                if 'airphone' in node['repo'] and not com_ver:
+                    continue
+                if 'type' in node and 'external' in node['type'] and not com_ver:
+                    continue
+                base_commits[com_name] = com_ver
         if base_commits.values():
             print("[Info] value for base_commits is: {}".format(base_commits))
             return base_commits
@@ -818,11 +813,11 @@ class IntegrationChangesCreation(object):
             if not com_ver:
                 print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
                 for ric_com in node['ric']:
-                    com_ver = self.get_base_commit_from_other(base_load, node['ric'][0])
+                    com_ver = self.get_base_commit_from_other(base_load, ric_com)
                     if com_ver:
                         com_name = ric_com
                         break
-        print("[Info] Base commit for component {} is {}".format(node['ric'][0], com_ver))
+        print("[Info] Base commit for component {} is {}".format(com_name, com_ver))
         return com_name, com_ver
 
     def insert_integration_mode(self, integration_mode, base_load, base_commits):
@@ -854,8 +849,10 @@ class IntegrationChangesCreation(object):
                 if base_commits and 'MN/SCMTA/zuul/inte_ric' in node['repo']:
                     if node['name'] in base_commits:
                         base_commit_info = base_commits[node['name']]
-                    elif 'ric' in node and node['ric'][0] in base_commits:
-                        base_commit_info = base_commits[node['ric'][0]]
+                    elif 'ric' in node:
+                        for ric_com in node['ric']:
+                            if ric_com in base_commits:
+                                base_commit_info = base_commits[ric_com]
                     else:
                         base_commit_info = ''
                     if base_commit_info:
