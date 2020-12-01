@@ -33,7 +33,7 @@ RESERVED_KEYS = ['repo_ver',
 logging.basicConfig(level=logging.INFO)
 VERSION_REGEX = [r'-[a-z0-9]{24,}', r'-[0-9\.\-_]+', r'-[a-zA-Z0-9\.\-_]+', '']
 GIT_USER = 'CA 5GCV'
-GIT_EMAIL = 'I_5GCI@internal.nsn.com'
+GIT_EMAIL = '5g_cb.scm@nokia.com'
 
 
 class INTEGRATION_REPO(object):
