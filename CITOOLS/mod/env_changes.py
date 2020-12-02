@@ -12,7 +12,8 @@ def parse_env_change_split(env_change_split):
 
 
 def create_config_yaml_by_env_change(env_change_split, rest,
-                                     change_id, config_yaml_file='config.yaml'):
+                                     change_id, config_yaml_file='config.yaml',
+                                     config_yaml_updated_dict=None, config_yaml_removed_dict=None):
     change_content = rest.get_file_change(config_yaml_file, change_id)
     old_content = change_content['old']
     if not old_content:
@@ -24,6 +25,10 @@ def create_config_yaml_by_env_change(env_change_split, rest,
     if not old_content:
         return {}
     config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=old_content)
+    # update config_yaml change in config.yaml if there's any
+    if config_yaml_updated_dict or config_yaml_removed_dict:
+        print("Updating config yaml with config_yaml_change")
+        config_yaml_obj.update_changes(config_yaml_updated_dict, config_yaml_removed_dict)
     # update env_change in config.yaml
     # update staged infos if exists
     env_file_changes = config_yaml_obj.update_by_env_change(parse_env_change_split(env_change_split))

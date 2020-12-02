@@ -16,6 +16,7 @@ from api import env_repo as get_env_repo
 from api import config
 from mod import env_changes
 from mod import common_regex
+from mod import config_yaml
 from mod.integration_change import RootChange
 from mod.integration_change import IntegrationChange
 from difflib import SequenceMatcher
@@ -120,13 +121,30 @@ def change_message_by_env_change(change_no, env_change_list, rest):
 
 def get_current_ps(rest, change_no):
     current_ps = None
-    env_content = rest.get_file_content("env/env-config.d/ENV", change_no)
+    try:
+        print('Getting PS version from env/env-config.d/ENV...')
+        env_content = rest.get_file_content("env/env-config.d/ENV", change_no)
+    except Exception:
+        print('Cannot find {} in {}'.format('env/env-config.d/ENV', change_no))
+        return None
     env_content_list = shlex.split(env_content)
     for line in env_content_list:
         if re.match(r'^ENV_PS_REL *=', line):
             current_ps = line.strip().split('=', 1)[1]
             print("current ps: {}".format(current_ps))
             break
+    return current_ps
+
+
+def get_current_ps_from_config_yaml(rest, change_no, config_yaml_file='config.yaml'):
+    current_ps = None
+    try:
+        print('Getting PS version from {}...'.format(config_yaml_file))
+        config_yaml_content = rest.get_file_content(config_yaml_file, change_no)
+        config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_content)
+        current_ps = config_yaml_obj.get_section_value('PS:PS', 'version')
+    except Exception:
+        print('Cannot find {} in {}'.format(config_yaml_file, change_no))
     return current_ps
 
 
@@ -168,7 +186,8 @@ def call_vcf_diff(current_ps, new_ps):
         return "FAILURE"
 
 
-def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_dict):
+def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_dict,
+                                 config_yaml_updated_dict=None, config_yaml_removed_dict=None):
     change_file_dict = {}
     op = RootChange(rest, change_no)
     comp_change_list, int_change = op.get_components_changes_by_comments()
@@ -178,7 +197,9 @@ def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_d
         if comp_project in config_yaml_dict:
             local_config_yaml = config_yaml_dict[comp_project]
             change_file_dict[comp_change] = env_changes.create_config_yaml_by_env_change(
-                env_change_list, rest, comp_change, config_yaml_file=local_config_yaml)[0]
+                env_change_list, rest, comp_change, config_yaml_file=local_config_yaml,
+                config_yaml_updated_dict=config_yaml_updated_dict,
+                config_yaml_removed_dict=config_yaml_removed_dict)[0]
     for comp_change, file_dict in change_file_dict.items():
         for key, value in file_dict.items():
             print('update file {} in {}'.format(key, comp_change))
@@ -186,6 +207,24 @@ def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_d
             rest.add_file_to_change(comp_change, key, value)
         rest.publish_edit(comp_change)
     return change_file_dict
+
+
+def get_combined_env_changes(origin_env_change, new_env_change_dict, new_env_change_list):
+    # get origin env diff
+    origin_env_change_list = []
+    if 'new_diff' in origin_env_change and origin_env_change['new_diff']:
+        origin_env_change = origin_env_change['new_diff']
+        origin_env_change = origin_env_change.strip()
+        origin_env_change_list = shlex.split(origin_env_change)
+    print("Origin env change is {}".format(origin_env_change_list))
+    # combine env change: origin diff + new change
+    combine_env_list = []
+    for env_entry in origin_env_change_list:
+        key, value = env_entry.split('=')
+        if key not in new_env_change_dict.keys():
+            combine_env_list.append(env_entry)
+    combine_env_list.extend(new_env_change_list)
+    return combine_env_list
 
 
 def run(gerrit_info_path, change_no, comp_config, change_info=None, database_info_path=None):
@@ -216,6 +255,8 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
     root_msg = get_commit_msg(change_no, rest)
     auto_rebase = False if re.findall(r'<without-zuul-rebase>', root_msg) else True
     current_ps = get_current_ps(rest, change_no)
+    if not current_ps:
+        current_ps = get_current_ps_from_config_yaml(rest, change_no)
     if need_vcf_diff(current_ps, env_change_dict):
         check_result = call_vcf_diff(current_ps, env_change_dict["ENV_PS_REL"])
         if "I_KNOW_WHAT_I_AM_DOING" in root_msg and check_result == "FAILURE":
@@ -224,6 +265,33 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             new_commit_msg = re.sub(r'(\n)*Change-Id: [a-zA-Z0-9]{41}(\n)*$', '', new_commit_msg)
 
     env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
+
+    # get origin env diff
+    try:
+        origin_env_change = rest.get_file_change(env_path, change_no)
+        if 'new_diff' in origin_env_change:
+            origin_env_diff = origin_env_change['new_diff']
+        print('Origin Env change {}'.format(origin_env_change))
+    except Exception as e:
+        print('Cannot find env for %s', change_no)
+        print(str(e))
+    combine_env_list = []
+    updated_dict, removed_dict = None, None
+    if not origin_env_diff:
+        combine_env_list = env_change_list
+        # get origin config.yaml change
+        try:
+            config_yaml_change = rest.get_file_change('config.yaml', change_no)
+            config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
+            updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+        except Exception as e:
+            print('Cannot find config.yaml for %s', change_no)
+            print(str(e))
+    else:
+        print("New env change is {}".format(env_change_list))
+        # get combined env change
+        combine_env_list = get_combined_env_changes(origin_env_change, env_change_dict, env_change_list)
+    print("Combined env change is {}".format(combine_env_list))
 
     # 1 try rebase env change (if fail then pass)
     if auto_rebase and not env_change:
@@ -262,24 +330,33 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
 
         # update config.yaml content
         change_map, env_file_changes = env_changes.create_config_yaml_by_env_change(
-            env_change_list,
-            rest,
-            change_no)
-        update_component_config_yaml(
-            env_change_list,
+            combine_env_list,
             rest,
             change_no,
-            config_yaml_dict)
+            config_yaml_updated_dict=updated_dict,
+            config_yaml_removed_dict=removed_dict)
+        update_component_config_yaml(
+            combine_env_list,
+            rest,
+            change_no,
+            config_yaml_dict,
+            config_yaml_updated_dict=updated_dict,
+            config_yaml_removed_dict=removed_dict)
+
         # add new env
         print('add new env for change {}'.format(change_no))
-        old_env = rest.get_file_content(env_path, change_no)
-        # update env/env-config.d/ENV content
-        new_change_map = env_changes.create_file_change_by_env_change_dict(
-            env_file_changes,
-            old_env,
-            env_path
-        )
-        change_map.update(new_change_map)
+        try:
+            old_env = rest.get_file_content(env_path, change_no)
+            # update env/env-config.d/ENV content
+            new_change_map = env_changes.create_file_change_by_env_change_dict(
+                env_file_changes,
+                old_env,
+                env_path
+            )
+            change_map.update(new_change_map)
+        except Exception as e:
+            print('Cannot find env for %s, will not update env', change_no)
+            print(str(e))
         print('Change map: {}'.format(change_map))
 
         # get root ticket
