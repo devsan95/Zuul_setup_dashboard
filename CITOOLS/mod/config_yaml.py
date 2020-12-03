@@ -139,8 +139,6 @@ class ConfigYaml(object):
             wft_component, wft_project = replace_section_key.split(':')
             # update staged infos if exists
             staged_dict = wft_tools.get_staged_from_wft(value, wft_component, wft_project)
-            if not staged_dict:
-                staged_dict = wft_tools.get_staged_from_wft(value)
             for staged_key, staged_value in staged_dict.items():
                 # some section like ENV_SBTS_PS_REL do not want to update type
                 if staged_value and staged_key != 'type':
@@ -162,7 +160,8 @@ class ConfigYaml(object):
 
     def update_changes(self, update_dict, removed_dict=None):
         print('Update config yaml by section: {}'.format(update_dict))
-        self.components.update(update_dict)
+        if update_dict:
+            self.components.update(update_dict)
         if removed_dict:
             for key_to_remove in removed_dict:
                 print('Section: {} is removed'.format(key_to_remove))
