@@ -14,9 +14,9 @@ from api import gerrit_rest
 from api import git_api
 
 
-def safe_get(l, idx, default=None):
+def safe_get(v_list, idx, default=None):
     try:
-        return l[idx]
+        return v_list[idx]
     except IndexError:
         return default
 
@@ -103,9 +103,13 @@ def run(info_path,
 
             # save env file
             content = None
-            with open(os.path.join(env_temp_path, env_path)) as f:
-                content = f.read()
-                print(content)
+            try:
+                with open(os.path.join(env_temp_path, env_path)) as f:
+                    content = f.read()
+                    print(content)
+            except Exception as e:
+                print(str(e))
+                print("There's no env file {0}/{1}, will not update env file".format(env_temp_path, env_path))
             if content:
                 print('Write env')
                 file_api.save_file(content, env_path)
