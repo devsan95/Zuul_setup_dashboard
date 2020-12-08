@@ -1,7 +1,6 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
 
-import copy
 import fire
 import ruamel.yaml as yaml
 import urllib3
@@ -12,6 +11,7 @@ from api import gerrit_rest
 from mod import integration_change as inte_change
 from mod import get_component_info
 from mod import config_yaml
+from mod import parse_integration_config_yaml
 import operate_integration_change as operate_int
 import skytrack_database_handler
 
@@ -130,38 +130,6 @@ def get_base_commit(rest, comp, root, base_load):
     return base_commit, base_change
 
 
-def parse_hierarchy(hierarchy, pkey=None):
-    parse_dict = {}
-    if isinstance(hierarchy, dict):
-        for key, value in hierarchy.items():
-            if isinstance(value, (dict, list)):
-                sub_dict = parse_hierarchy(value, key)
-                parse_dict.update(sub_dict)
-                if not pkey:
-                    continue
-                if pkey not in parse_dict:
-                    parse_dict[pkey] = copy.deepcopy(sub_dict.values()[0])
-                else:
-                    parse_dict[pkey].extend(sub_dict.values()[0])
-                    parse_dict[pkey] = list(set(parse_dict[pkey]))
-            else:
-                raise Exception('{} dict and not list'.format(hierarchy))
-    elif isinstance(hierarchy, list):
-        for list_obj in hierarchy:
-            if isinstance(list_obj, basestring):
-                if not pkey:
-                    raise Exception('{} not have key'.format(hierarchy))
-                if pkey not in parse_dict:
-                    parse_dict[pkey] = [list_obj]
-                else:
-                    parse_dict[pkey].append(list_obj)
-            else:
-                parse_dict.update(parse_hierarchy(list_obj, pkey))
-    else:
-        raise Exception('{} dict and not list'.format(hierarchy))
-    return parse_dict
-
-
 def add_tmp_file(rest, change_number, files, topic):
     need_publish = False
     if len(files) > 0:
@@ -251,13 +219,10 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     comp = {}
     comp['name'] = comp_name
     comp_found = False
-    comp_dict = parse_hierarchy(comp_config['hierarchy'])
+    comp_dict = parse_integration_config_yaml.parse_hierarchy(comp_config['hierarchy'])
     comp['files'] = []
     depends_components = comp_config['depends_components']
-    components = [
-        component for group in comp_config['components']
-        for component in comp_config['components'][group]
-    ]
+    components = parse_integration_config_yaml.get_component_list(comp_config)
     for component in components:
         if not comp_name == component['name']:
             continue

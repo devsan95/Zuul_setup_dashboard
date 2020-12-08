@@ -23,8 +23,7 @@ import ruamel.yaml as yaml
 from api import job_tool
 from api import gerrit_rest
 from mod import utils
-
-import integration_add_component
+from mod import parse_integration_config_yaml
 
 
 INTEGRTION_URL = 'ssh://gerrit.ext.net.nokia.com' \
@@ -88,7 +87,7 @@ def get_comp_obj_from_hierarchy(comp_name, comp_config, components):
     comp_obj = dict()
     path_list = list()
     file_list = list()
-    sub_components_dict = integration_add_component.parse_hierarchy(comp_config['hierarchy'])
+    sub_components_dict = parse_integration_config_yaml.parse_hierarchy(comp_config['hierarchy'])
     if comp_name in sub_components_dict:
         sub_components = sub_components_dict[comp_name]
     else:
