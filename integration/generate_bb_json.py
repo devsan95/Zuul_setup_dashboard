@@ -129,7 +129,7 @@ def parse_ric_list(rest, subject, zuul_url,
                                  'repo_ver': zuul_ref}
                 if change_no:
                     if project == 'MN/5G/COMMON/integration':
-                        ret_dict[key] = {'repo_ver': rest.get_commit(change_no)['commit']}
+                        ret_dict['integration'] = {'repo_ver': rest.get_commit(change_no)['commit']}
                         continue
                     if project in project_branch:
                         branch = project_branch[project]
