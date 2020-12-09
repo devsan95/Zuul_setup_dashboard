@@ -136,9 +136,13 @@ class ConfigYaml(object):
             if replace_section['version'] == replace_section['commit']:
                 replace_section['commit'] = value
             replace_section['version'] = value
-            wft_component, wft_project = replace_section_key.split(':')
+            wft_project, wft_component = replace_section_key.split(':')
             # update staged infos if exists
-            staged_dict = wft_tools.get_staged_from_wft(value, wft_component, wft_project)
+            staged_dict = wft_tools.get_staged_from_wft(
+                value,
+                component=wft_component,
+                project=wft_project
+            )
             for staged_key, staged_value in staged_dict.items():
                 # some section like ENV_SBTS_PS_REL do not want to update type
                 if staged_value and staged_key != 'type':
