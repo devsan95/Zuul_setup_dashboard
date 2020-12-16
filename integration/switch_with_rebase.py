@@ -186,7 +186,6 @@ def rebase_by_load(rest, change_no, base_package,
                     try:
                         clear_and_rebase_file(rest, comp_change,
                                               env_path, comp_hash)
-                        rest.rebase(comp_change, comp_hash)
                         rebase_succeed['env {}'.format(comp_change)] = comp_hash
                     except Exception:
                         traceback.print_exc()
@@ -244,7 +243,12 @@ def rebase_by_load(rest, change_no, base_package,
 
 
 def clear_and_rebase_file(rest, change_no, file_path, env_hash):
-    env_change = rest.get_file_change(file_path, change_no)
+    env_change = {}
+    try:
+        env_change = rest.get_file_change(file_path, change_no)
+    except Exception:
+        print('Cannot find {0} for {1}'.format(file_path, change_no))
+
     config_yaml_change = {}
     try:
         config_yaml_change = rest.get_file_change('config.yaml', change_no)
@@ -287,12 +291,12 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
         except Exception as e:
             print('Change cannot be rebased, reason: {}')
             print(str(e))
-        # add new env
+        # add new env entry
         print('add new env for change {}'.format(change_no))
-        env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
-        base_env = rest.get_file_content(env_path, change_no)
         change_map = {}
         if env_change_list:
+            env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
+            base_env = rest.get_file_content(env_path, change_no)
             change_map = env_changes.create_file_change_by_env_change(
                 env_change_list,
                 base_env,
