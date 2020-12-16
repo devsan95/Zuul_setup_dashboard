@@ -108,12 +108,12 @@ def create_integration_change(base, version_dict):
         log.info("use specify version {} as base".format(base))
         latest_ver = base
     integration.checkout(re.sub("^5G_", "", latest_ver))
-    update_env_config_file(version_dict)
+    updated_filist = update_env_config_file(version_dict)
     if not integration.diff():
         raise Exception("config.yaml and env file no change!")
     integration.config("user.name", "CA 5GCV")
     integration.config("user.email", "5g_cb.scm@nokia.com")
-    integration.add("config.yaml", "env/env-config.d/ENV")
+    integration.add(updated_filist)
     integration.commit('-m', 'Automated rcpvduint trigger')
     process = subprocess.Popen(
         "gitdir=$(git rev-parse --git-dir); scp -p -P 8282 ca_5gcv@gerrit.ext.net.nokia.com:hooks/commit-msg ${gitdir}/hooks/",
@@ -166,23 +166,33 @@ def arguments():
 
 
 def update_env_config_file(version_dict):
+    updated_flist = []
     origin_cwd = os.getcwd()
     os.chdir(os.path.join(os.getcwd(), "integration"))
-    with open('env/env-config.d/ENV', 'r') as env, open('config.yaml', 'r') as config:
-        env_content = env.read()
+    if os.path.exists('env/env-config.d/ENV'):
+        # update env file
+        with open('env/env-config.d/ENV', 'r') as env:
+            env_content = env.read()
+        log.info(env_content)
+        for item in version_dict:
+            if re.search(r'\n *{}=[^\n]*\n'.format(item), env_content):
+                log.info("update env {} version".format(item))
+                env_content = re.sub(
+                    r'\n *{}=[^\n]*\n'.format(item),
+                    '\n{}={}\n'.format(item, version_dict[item]),
+                    env_content
+                )
+            else:
+                raise Exception("Can not find {} from env file!".format(item))
+        with open('env/env-config.d/ENV', 'w') as env:
+            log.info("start writing env file")
+            env.write(env_content)
+        updated_flist.append('env/env-config.d/ENV')
+    # update config.yaml
+    with open('config.yaml', 'r') as config:
         config_yaml = yaml.safe_load(config)
-    log.info(env_content)
     log.info(config_yaml)
     for item in version_dict:
-        if re.search(r'\n *{}=[^\n]*\n'.format(item), env_content):
-            log.info("update env {} version".format(item))
-            env_content = re.sub(
-                r'\n *{}=[^\n]*\n'.format(item),
-                '\n{}={}\n'.format(item, version_dict[item]),
-                env_content
-            )
-        else:
-            raise Exception("Can not find {} from env file!".format(item))
         for project_comp in config_yaml['components']:
             if "env_key" in config_yaml['components'][project_comp] \
                     and item == config_yaml['components'][project_comp]["env_key"]:
@@ -192,12 +202,14 @@ def update_env_config_file(version_dict):
                 break
         else:
             raise Exception("Can not find {} from config.yaml file!".format(item))
-    with open('env/env-config.d/ENV', 'w') as env, open('config.yaml', 'w') as config:
-        log.info("start write env and config.yaml file")
+    with open('config.yaml', 'w') as config:
+        log.info("start write config.yaml file")
         yaml.safe_dump(config_yaml, config, default_flow_style=False)
-        env.write(env_content)
-    log.info("env and config.yaml file update finish.")
+    updated_flist.append('config.yaml')
+
+    log.info("Finished updating below files: {}.".format(updated_flist))
     os.chdir(origin_cwd)
+    return updated_flist
 
 
 def generate_releasenote(version_dict, latest_build, tar_pkg, build_url, download_urls):
