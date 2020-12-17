@@ -308,14 +308,24 @@ class INTEGRATION_REPO(object):
         logging.info("checkout_ver: %s", self.repo_ver)
         logging.debug("#### work_dir: %s ###", self.work_dir)
         g = git.Git(self.work_dir)
-        # g.init()
-        g.checkout(self.repo_ver)
-        g.submodule('init')
         try:
-            g.submodule('update', '--init', '--recursive')
+            g.checkout(self.repo_ver)
+        except git.exc.GitCommandError:
+            logging.info("Executing git fetch %s %s", self.repo_url, self.repo_ver)
+            g.fetch(self.repo_url, self.repo_ver)
+            g.checkout(self.repo_ver)
+        try:
+            self.update_workspace_submodule()
         except Exception:
             # wa, skip poky clone issue
             logging.warn("#### update submodule failed ###")
+
+    def update_workspace_submodule(self):
+        git_integration = git.Git(self.work_dir)
+        logging.info("Executing git submodule init + sync + update --init")
+        git_integration.submodule("init")
+        git_integration.submodule("sync")
+        git_integration.submodule("update", "-f", "--init", "--recursive")
 
     def get_comp_info_by_regx(self,
                               comp_name,

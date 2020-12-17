@@ -1,18 +1,25 @@
+import os
 import re
 import copy
 import fire
 import yaml
 import logging
+import time
+import git
 
 from api import config
 from api import gerrit_rest
 from mod import common_regex
+from mod import integration_repo
+from mod import utils
 from mod.integration_change import RootChange
 from mod.integration_change import ManageChange
 from mod.integration_change import IntegrationChange
 from integration_trigger import get_comp_obj
 from update_submodule_by_change import update_commitmsg
 
+
+logging.basicConfig(level=logging.INFO)
 LOCAL_CONFIG_YAML_MAP = {'MN/5G/NB/gnb': 'externals/local_config_yaml/config.yaml'}
 CONF = config.ConfigTool()
 CONF.load('config_yaml')
@@ -86,9 +93,11 @@ def search_interfaces(rest, change_id):
             else:
                 repo_version = m.group(1)
             find_interfaces = True
-            interface_infos.append({"component": component,
-                                    "comp_version": comp_version,
-                                    "repo_version": repo_version})
+            interface_infos.append({
+                "component": component,
+                "comp_version": comp_version,
+                "repo_version": repo_version
+            })
     return find_interfaces, interface_infos
 
 
@@ -123,6 +132,89 @@ def get_interface_sections(rest, integration_repo_ticket, interface_infos):
     return origin_interface_sections
 
 
+def get_bb_path_list(work_dir, interface_infos):
+    recipes_path_list = list()
+    meta5g_dir = os.path.join(work_dir, "meta-5g")
+    git_meta5g = git.Git(meta5g_dir)
+    origin_hash = git_meta5g.rev_parse('HEAD')
+    git_meta5g.checkout('master')
+    for interface_info in interface_infos:
+        regex_file_name = "{}_{}.bb".format(
+            interface_info['component'],
+            interface_info['comp_version']
+        )
+        match_files = utils.find_files(meta5g_dir, regex_str=regex_file_name)
+        if len(match_files) != 1:
+            raise Exception("Can not find {} in meta-5g repo".format(regex_file_name))
+        recipes_path_list.append(match_files[0].split(meta5g_dir)[1].lstrip('/'))
+    git_meta5g.checkout(origin_hash)
+    # This function will return a list which contains like:
+    # recipes-interfaces/interfaces-cprtcm/interfaces-cprtcm_0.0.0-202012210001.bb
+    return recipes_path_list
+
+
+def remove_meta5g_change(rest, root_change):
+    find_interfaces = search_interfaces(rest, root_change)[0]
+    files_dict = rest.get_file_list(root_change)
+    if 'meta-5g' not in files_dict or not find_interfaces:
+        return
+    logging.info("restore %s meta-5g change", root_change)
+    rest.restore_file_to_change(root_change, "meta-5g")
+    rest.publish_edit(root_change)
+
+
+def add_new_recipe_to_meta5g(work_dir, recipe_list):
+    meta5g_dir = os.path.join(work_dir, "meta-5g")
+    git_meta5g = git.Git(meta5g_dir)
+    need_update = False
+    for recipe in recipe_list:
+        logging.info("Trying to add %s to meta-5g", recipe)
+        if os.path.exists(os.path.join(meta5g_dir, recipe)):
+            logging.info("%s already exists in meta-5g", recipe)
+            continue
+        recipe_log = git_meta5g.log("--all", "--", recipe)
+        commit = re.findall(r'commit ([a-z0-9]{40})\s', recipe_log)[-1]
+        git_meta5g.checkout(commit, recipe)
+        git_meta5g.reset("HEAD", recipe)
+        need_update = True
+    return need_update
+
+
+def add_interface_bb_to_root(rest, root_change):
+    change_object = IntegrationChange(rest, root_change)
+    if change_object.get_type() != "root":
+        return
+    integration_mode = change_object.get_integration_mode()
+    jira_key = change_object.get_feature_id()
+    if integration_mode.lower() == "head":
+        return
+    find_interfaces, interface_infos = search_interfaces(rest, root_change)
+    if not find_interfaces:
+        return
+    work_dir = os.path.join(os.environ['WORKSPACE'], "adapt_inteface_release")
+    integration = integration_repo.INTEGRATION_REPO(
+        "ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration",
+        rest.get_commit(root_change)['commit'],
+        work_dir=work_dir
+    )
+    recipe_list = get_bb_path_list(work_dir, interface_infos)
+    if not add_new_recipe_to_meta5g(work_dir, recipe_list):
+        return
+    time_string = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
+    tag_name = "{}_{}".format(jira_key, time_string)
+    tag_commit = commit_and_tag_meta5g(integration, tag_name)
+    rest.add_file_to_change(root_change, "meta-5g", tag_commit)
+    rest.publish_edit(root_change)
+
+
+def commit_and_tag_meta5g(integration, tag_name):
+    integration.commit_submodule("meta-5g", tag_name)
+    integration.tag_submodule("meta-5g", tag_name)
+    git_meta5g = git.Git(os.path.join(integration.work_dir, "meta-5g"))
+    tag_info = git_meta5g.show(tag_name)
+    return re.search(r'\ncommit ([a-z0-9]{40})', tag_info).group(1)
+
+
 def update_depends(rest, change_id, dep_file_list,
                    dep_submodule_dict, comp_config, project):
     # check if there is interfaces info in commit-msg
@@ -130,6 +222,8 @@ def update_depends(rest, change_id, dep_file_list,
     if not find_interfaces:
         logging.warn('Not find interfaces in commit-msg')
         return
+
+    add_interface_bb_to_root(rest, change_id)
 
     op = RootChange(rest, change_id)
     comp_change_list, int_change = op.get_components_changes_by_comments()
@@ -332,5 +426,4 @@ def run(gerrit_info_path, change_id, dep_files,
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     fire.Fire()

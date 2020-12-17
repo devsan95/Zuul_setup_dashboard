@@ -9,6 +9,7 @@ from api import gerrit_rest
 from api import gerrit_api
 from mod import config_yaml
 from mod.integration_change import RootChange
+import update_depends
 
 
 def check_root_integrated(ssh_server, ssh_port, ssh_user, ssh_key, root_change):
@@ -90,6 +91,7 @@ def prepare_trigger_file(rest, root_change, skytrack_log_collector):
 def main(root_change, gerrit_info_path, ssh_server, ssh_port, ssh_user, ssh_key):
 
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
+    update_depends.remove_meta5g_change(rest, root_change)
     skytrack_log_collector = []
     if not check_root_integrated(ssh_server, ssh_port, ssh_user, ssh_key, root_change):
         gerrit_api.review_patch_set(ssh_user, ssh_server, root_change,

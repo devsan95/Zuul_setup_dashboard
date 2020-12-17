@@ -113,6 +113,15 @@ class IntegrationChange(object):
             return m.groups()[0]
         return None
 
+    def get_integration_mode(self):
+        msg = self.commit_info.get('message')
+        if "<with-zuul-rebase>" in msg:
+            return "HEAD"
+        elif "<without-zuul-rebase>" in msg:
+            return "FIXED_BASE"
+        else:
+            raise Exception("Can not get integration mode form commit message.")
+
     def review(self, comment, label_dict=None):
         self.rest.review_ticket(self.change_no, comment, label_dict)
 

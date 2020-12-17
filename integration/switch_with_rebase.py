@@ -10,6 +10,7 @@ import shlex
 import shutil
 import traceback
 
+import update_depends
 import skytrack_database_handler
 from api import config
 from api import gitlab_api
@@ -411,7 +412,9 @@ def send_rebase_results(mail_list, mail_params, rebase_succeed, rebase_failed):
 def run(root_change, gerrit_info_path,
         gitlab_info_path='', base_package='HEAD', database_info_path=None):
     rest = init_gerrit_rest(gerrit_info_path)
+    update_depends.remove_meta5g_change(rest, root_change)
     rebase_result = switch_with_rebase_mod(root_change, rest, base_package, gitlab_info_path)
+    update_depends.add_interface_bb_to_root(rest, root_change)
     origin_msg = rest.get_commit(root_change)['message']
     msg = " ".join(origin_msg.split("\n"))
     reg = re.compile(r'%JR=(\w+-\d+)')
