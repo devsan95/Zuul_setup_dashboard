@@ -65,7 +65,7 @@ class WftBuildQuery(object):
         self.columns = [
             'deliverer.project.full_path', 'deliverer.title', 'baseline',
             'branch.title', 'state', 'planned_delivery_date', 'common_links',
-            'compare_link', 'id', 'created_at'
+            'compare_link', 'id', 'created_at', 'version'
         ]
 
     def set_columns(self, columns):

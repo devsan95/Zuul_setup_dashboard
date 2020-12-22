@@ -962,17 +962,22 @@ class IntegrationChangesCreation(object):
         '''
         :yaml_change_list: [{'name':'project:component', 'version': 'component_version'}, ...]
         '''
-        if self.meta['project'] == "5G" or 'ecl_int_branch' not in self.meta \
-                or not self.meta['ecl_int_branch']:
+        if not (self.meta['project'].count('SBTS') and self.meta.get('ecl_int_branch')):
             return
+
+        ecl_int_branch = self.meta['ecl_int_branch']
+        base_load = self.meta.get('SBTS_base_load', '')
+        ecl_map_branch = self.comp_config['ecl_int_map'][ecl_int_branch]
         change_dict = dict()
         trigger_file = os.path.join(os.environ['WORKSPACE'], "increment_ecl.prop")
         for item in yaml_change_list:
             change_dict[item['name']] = {'version': item['version']}
         with open(trigger_file, 'w') as trigger_file_fd:
             trigger_file_fd.write(
-                "ecl_branch={}\nchanged_content={}\n".format(
-                    self.meta['ecl_int_branch'],
+                "ecl_branch={}\nbase_branch={}\nbase_load={}\nchanged_content={}\n".format(
+                    ecl_int_branch,
+                    ecl_map_branch,
+                    base_load,
                     json.dumps(change_dict)
                 )
             )
