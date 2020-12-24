@@ -125,12 +125,18 @@ def main(env_type, title, content, author, alert_type, icon, label, label_type,
         subprocess.check_call("rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;"
                               "docker cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/".format(zuul_server_name), shell=True)
     elif env_type == 'k8s':
-        # Seems the kubectl command has a bug, it still report error event if the list.yaml file fetched
-        # Just check if file exists or not, if yes, ignore this error
         print("DEBUG_INFO: main: begin to update k8s zuul web page banner")
-        subprocess.call("rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;pwd;"
-                        "{}/kubectl --kubeconfig {} cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/list.yaml".format(
-                            os.environ['HOME'], os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD']), shell=True)
+        cmd = "rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;pwd;kubectl --kubeconfig {} cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/list.yaml".format(os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'])
+        print("DEBUG_INFO: main: execute command: " + cmd)
+        subprocess.call(cmd, shell=True)
+
+    elif env_type == "openstack":
+        print("DEBUG_INFO: main: begin to update openstack zuul web page banner")
+
+        # Run ansible task to fetch remote notification/list.yaml to current job workspace
+        cmd = "rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;pwd;ansible-playbook -i {workspace}/ansible-deployment/ansible/inventory/zuul/static/{org}/hosts.ini {workspace}/ansible-deployment/ansible/site.yml --tags=fetch-web-notification --extra-vars \"extvar_notification_branch={branch}\" --extra-vars \"extvar_current_job_workspace={workspace}/script\"".format(workspace=os.environ['WORKSPACE'], org=os.environ['org'], branch=branch)
+        print("DEBUG_INFO: main: execute command: " + cmd)
+        subprocess.call(cmd, shell=True)
 
     print("DEBUG_INFO: main: copy list.yaml from docker container success!")
 
@@ -228,8 +234,13 @@ def main(env_type, title, content, author, alert_type, icon, label, label_type,
             subprocess.check_call("docker cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(zuul_server_name), shell=True)
 
         elif env_type == 'k8s':
-            subprocess.check_call("{}/kubectl --kubeconfig {} cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(
-                                  os.environ['HOME'], os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD']), shell=True)
+            subprocess.check_call("kubectl --kubeconfig {} cp ./notification_changed/. {}:/ephemeral/zuul/www/notification/".format(
+                os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD']), shell=True)
+
+        elif env_type == 'openstack':
+            cmd = "ansible-playbook -i {workspace}/ansible-deployment/ansible/inventory/zuul/static/{org}/hosts.ini {workspace}/ansible-deployment/ansible/site.yml --tags=update-web-notification --extra-vars \"extvar_current_job_workspace={workspace}/script\"".format(workspace=os.environ['WORKSPACE'], org=os.environ['org'])
+            print("DEBUG_INFO: main: execute command: " + cmd)
+            subprocess.call(cmd, shell=True)
 
         print("DEBUG_INFO: main: Copy files into container success!")
 
@@ -295,10 +306,17 @@ def update_git_repo(zuul_server_name, branch, env_type="normal"):
         result = subprocess.call(
             'docker exec {} bash -c "cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull"'.format(zuul_server_name, branch),
             shell=True)
+
     elif env_type == "k8s":
         print("DEBUG_INFO: update_git_repo: env_type=k8s")
-        result = subprocess.call("{}/kubectl --kubeconfig {} exec {} -- /bin/bash -c  \"cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull\"".format(
-            os.environ['HOME'], os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'], branch), shell=True)
+        result = subprocess.call("kubectl --kubeconfig {} exec {} -- /bin/bash -c  \"cd /ephemeral/zuul/www/notification/;git reset --hard HEAD;git checkout {};git pull\"".format(
+            os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'], branch), shell=True)
+
+    elif env_type == "openstack":
+        print("DEBUG_INFO: update_git_repo: env_type=openstack")
+        cmd = "ansible-playbook -i {workspace}/ansible-deployment/ansible/inventory/zuul/static/{org}/hosts.ini {workspace}/ansible-deployment/ansible/site.yml --tags=git-pull-web-notification  --extra-vars \"extvar_notification_branch={branch}\" --extra-vars \"extvar_current_job_workspace={workspace}\"".format(workspace=os.environ['WORKSPACE'], org=os.environ['org'], branch=branch)
+        print("DEBUG_INFO: main: execute command: " + cmd)
+        result = subprocess.call(cmd, shell=True)
 
     if result == 0:
         print("DEBUG_INFO: update_git_repo: update notification REPO in container")
