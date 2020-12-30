@@ -136,7 +136,9 @@ class ConfigYaml(object):
             if replace_section['version'] == replace_section['commit']:
                 replace_section['commit'] = value
             replace_section['version'] = value
-            wft_project, wft_component = replace_section_key.split(':')
+            # some component's project contain colon, like: RCP:Containers:RCP_httpd
+            wft_project = ":".join(replace_section_key.split(':')[:-1])
+            wft_component = replace_section_key.split(':')[-1]
             # update staged infos if exists
             staged_dict = wft_tools.get_staged_from_wft(
                 value,
