@@ -304,6 +304,7 @@ def integration_verification_check(rest, component_list):
 def build_trigger(gerrit_info_path, change_no):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.review_ticket(change_no, 'reexperiment')
+    rest.review_ticket(change_no, 'reintegrate')
 
 
 if __name__ == '__main__':
