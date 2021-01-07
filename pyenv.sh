@@ -179,7 +179,7 @@ pip install --no-cache-dir \
     ptpython \
     pydocstyle \
     pygerrit2 \
-    pymysql \
+    pymysql==0.10.1 \
     python-slugify \
     pyyaml \
     sh
