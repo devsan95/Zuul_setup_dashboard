@@ -280,6 +280,7 @@ def get_branch(pkg, ver_pattern):
     log.info("branch: {}".format(branch))
     return branch
 
+
 def set_branch_for(args, knife_json):
     if args.branch_for:
         return
@@ -294,6 +295,7 @@ def set_branch_for(args, knife_json):
         branch = re.search(r'int_branch:\s*(\w+)', subject)
         if branch:
             args.branch_for = branch.group(1)
+
 
 def get_stream_config_file(ver_pattern, file_pattern='.config-master*'):
     wft_prefix = None
@@ -409,6 +411,15 @@ def sync_wft_name(knife_json, docker_info):
     return knife_json_wft
 
 
+def optimize_json_dict(knife_json):
+    for key in list(knife_json.keys()):
+        if ":" in key:
+            version = knife_json.pop(key)
+            component = key.split(":")[-1]
+            if component not in knife_json:
+                knife_json[component] = version
+
+
 def get_knife_json_dict(pkg, base_pkg, integration):
     knife_json = None
     job, build = get_upstream_job()
@@ -428,6 +439,7 @@ def get_knife_json_dict(pkg, base_pkg, integration):
     else:
         raise Exception("Get upstream job knofe json text failed!")
     knife_json = json.loads(knife_json)
+    optimize_json_dict(knife_json)
     check_integration_change(pkg, base_pkg, integration, knife_json)
     log.info("KNIFE_JSON: {}".format(knife_json))
     return knife_json
@@ -447,7 +459,7 @@ def get_config_yaml_change(base_pkg, pkg, integration):
         new_config_yaml = yaml.safe_load(config)['components']
     for comp in new_config_yaml:
         if new_config_yaml[comp]['version'] != base_config_yaml[comp]['version']:
-            comp_name = comp.split(':')[1]
+            comp_name = comp.split(':')[-1]
             comp_ver = new_config_yaml[comp]['version']
             change_dict[comp_name] = {"version": comp_ver}
             log.info("config.yaml: {} version is {}".format(comp_name, comp_ver))
@@ -464,7 +476,7 @@ def check_integration_change(pkg, base_pkg, integration, knife_json):
 
 
 def get_component_version(knife_json, component, parse=True):
-    ver_fields = ['repo_ver', 'bb_ver', 'version', 'PV', 'BIN_VER', 'SVNREV', 'WFT_NAME']
+    ver_fields = ['repo_ver', 'bb_ver', 'version', 'PV', 'BIN_VER', 'SVNREV', 'WFT_NAME', "commit"]
     version = None
     if parse:
         for ver_field in ver_fields:
@@ -603,7 +615,7 @@ def generate_local_releasenote(build_config):
     for component in component_list:
         element_list.append({
             'name': component.split(':')[-1].strip(),
-            'project': component.split(':')[0].strip(),
+            'project': ":".join(component.split(':')[:-1]).strip(),
             'version': component_list[component]['version']
         })
     local_template = json.loads(releasenote_template)

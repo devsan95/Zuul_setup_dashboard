@@ -185,7 +185,7 @@ def add_interface_bb_to_root(rest, root_change):
     if change_object.get_type() != "root":
         return
     integration_mode = change_object.get_integration_mode()
-    jira_key = change_object.get_feature_id()
+    jira_key = change_object.get_jira_id()
     if integration_mode.lower() == "head":
         return
     find_interfaces, interface_infos = search_interfaces(rest, root_change)
