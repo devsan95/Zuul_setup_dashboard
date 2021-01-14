@@ -39,9 +39,7 @@ def create_prop_fie(baseline, gcc_version, gcc_path):
 
     with open("vdu_param.prop", "w") as vdu_f:
         rcp_verison = str(baseline).split("_")[1]
-        # ingore rcp patch version
-        plain_rcp_verison = rcp_verison.rsplit(".", 1)[0] + ".0"
-        vdu_f.write("RCP_VERSION={0}".format(plain_rcp_verison))
+        vdu_f.write("RCP_VERSION={0}".format(rcp_verison))
 
 
 def main(baseline):
