@@ -323,7 +323,7 @@ def get_upstream_job():
     server = jenkins.Jenkins(jenkins_server)
     build_info = server.get_build_info(os.environ["JOB_NAME"], int(os.environ["BUILD_NUMBER"]))
     for action in build_info['actions']:
-        if "upstreamProject" in action['causes'][0]:
+        if "causes" in action and "upstreamProject" in action['causes'][0]:
             upstream_project = action['causes'][0]['upstreamProject']
             upstream_build = action['causes'][0]['upstreamBuild']
             break
