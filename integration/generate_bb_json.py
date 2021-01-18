@@ -125,12 +125,13 @@ def parse_ric_list(rest, subject, zuul_url,
                         'will be added in knife json'.format(project))
                     need_change = True
             if need_change:
+                if project == 'MN/5G/COMMON/integration':
+                    ret_dict['integration'] = {'repo_ver': rest.get_commit(change_no)['commit']}
+                    continue
+
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
                                  'repo_ver': zuul_ref}
                 if change_no:
-                    if project == 'MN/5G/COMMON/integration':
-                        ret_dict['integration'] = {'repo_ver': rest.get_commit(change_no)['commit']}
-                        continue
                     if project in project_branch:
                         branch = project_branch[project]
                         ret_dict[key]['repo_ver'] = \
