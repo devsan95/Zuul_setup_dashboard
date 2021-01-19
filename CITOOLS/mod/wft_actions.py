@@ -112,7 +112,8 @@ class BuildIncrement(object):
             "branch": current_detail['branch'],
             "branch_for": current_detail['branch_for'],
             "repository_url": current_detail['repository_url'],
-            "increment": diff_list
+            "increment": diff_list,
+            "check_before_freeze": 'false'
         }
         inc_service = "{}/api/v1/{}/{}/builds/{}/increment.json".format(
             WFT_API_URL, current_detail['project'], current_detail['component'], new_version
