@@ -297,9 +297,13 @@ class IntegrationChangesCreation(object):
                 if env_change and env_file_changes:
                     node_obj['env_change'] = env_change
                     env_path = get_env_repo.get_env_repo_info(self.gerrit_rest, rest_id)[1]
-                    env_content = self.gerrit_rest.get_file_content(env_path, rest_id)
-                    node_obj['add_files'].update(env_changes.create_file_change_by_env_change_dict(
-                        env_file_changes, env_content, env_path))
+                    try:
+                        env_content = self.gerrit_rest.get_file_content(env_path, rest_id)
+                        node_obj['add_files'].update(env_changes.create_file_change_by_env_change_dict(
+                            env_file_changes, env_content, env_path))
+                    except Exception as e:
+                        print('No env content from CR: {}, env file: {}'.format(rest_id, env_path))
+
         # restore
         copy_from_id = None
         gop = gerrit_int_op.IntegrationGerritOperation(self.gerrit_rest)
