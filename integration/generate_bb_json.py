@@ -614,7 +614,7 @@ def get_description(rest, change_id):
     retried = 0
     while True:
         if retried >= 6:
-            raise Exception('Can not get {} data'.format(change_id))
+            raise Exception('Can not get {} data, please check if Gerrit issue or make sure triggerred knife from Skytrack !'.format(change_id))
         data = ''
         try:
             data = rest.get_ticket(change_id, using_cache=True)
