@@ -28,4 +28,4 @@ if __name__ == '__main__':
     except Exception as e:
         print("An exception %s occurred, msg: %s" % (type(e), str(e)))
         traceback.print_exc()
-        sys.exit(2)
+        sys.exit(213)
