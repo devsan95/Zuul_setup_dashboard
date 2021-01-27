@@ -17,6 +17,7 @@ import urllib3
 from slugify import slugify
 from api import mysql_api
 from mod import integration_change
+from mod import wft_tools
 
 import api.file_api
 import api.gerrit_api
@@ -25,7 +26,10 @@ import update_depends
 import api.http_api
 import submodule_handle
 import ruamel.yaml as yaml
+import xml.etree.ElementTree as ET
 
+
+wft = wft_tools.WFT
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 MAIL_REGEX = r'^[^@]+@(nokia|nokia-sbell|internal\.nsn|groups\.nokia)\.com'
 PACKAGE_TAG_REGEX = r'[0-9]+.[0-9]+.[0-9]+'
@@ -224,6 +228,89 @@ def parse_comments(change_id, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
     print('Comments of integration parse result:')
     print(retd)
     return retd
+
+
+def get_available_base(change_id, rest, comp_config):
+    stream_json = dict()
+    inte_change = integration_change.ManageChange(rest, change_id)
+    build_stream_list = inte_change.get_build_streams()
+    print(build_stream_list)
+    for build_stream in build_stream_list:
+        for stream in comp_config['streams']:
+            if build_stream == stream['value']:
+                stream_json[build_stream] = ET.fromstring(
+                    wft.get_build_list(stream['name'], items=1)
+                ).findall('.//baseline')[0].text
+                break
+    print(stream_json)
+    return stream_json
+
+
+def get_subbuild_json(isar_version, build_content, subbuild_list):
+    subbuild_dict = dict()
+    for subbuild in build_content.findall('.//baseline'):
+        if subbuild.get("sc") in subbuild_list:
+            key = "{}:{}".format(subbuild.get("project"), subbuild.get("sc"))
+            subbuild_content = ET.fromstring(wft.get_build_content(subbuild.text))
+            subbuild_commit = get_bitbake_setting(subbuild_content)[1]
+            if not subbuild_commit:
+                raise Exception("Can not get {} commit hash!".format(subbuild.text))
+            subbuild_dict[key] = {'commit': subbuild_commit, 'version': subbuild.text}
+            print("{}: {}".format(key, subbuild_dict[key]))
+            subbuild_list.remove(subbuild.get("sc"))
+    if subbuild_list:
+        raise Exception("Can not find {} from {} sub build!".format(subbuild_list, isar_version))
+    return subbuild_dict
+
+
+def get_bitbake_setting(build_content):
+    bbrecipe = build_content.find('bbrecipe')
+    if bbrecipe is not None:
+        bbrecipe_location = bbrecipe.get("location", '')
+        bbrecipe_commit = bbrecipe.get("commit", '')
+        bbrecipe_type = bbrecipe.get("type", '')
+    else:
+        bbrecipe_location = ''
+        bbrecipe_commit = ''
+        bbrecipe_type = ''
+    return bbrecipe_location, bbrecipe_commit, bbrecipe_type
+
+
+def parse_isar_subbuild(isar_version, change_id, rest, comp_config):
+    build_content = ET.fromstring(wft.get_build_content(isar_version))
+    bbrecipe_type = get_bitbake_setting(build_content)[2]
+    if bbrecipe_type != "staged":
+        return {}
+    print("ISAR_XML is staged...")
+    isar_subbuild_list = list()
+    base_list = get_available_base(change_id, rest, comp_config)
+    if not base_list:
+        return {}
+    for stream in base_list:
+        isar_subbuild_list = wft_tools.filter_inherit_subbuilds(base_list[stream], "ISAR_XML")
+        if isar_subbuild_list:
+            break
+    else:
+        return {}
+    return get_subbuild_json(isar_version, build_content, isar_subbuild_list)
+
+
+def add_isar_subbuild(ex_comment_dict, change_id, rest, comp_config):
+    if "Common:ISAR_XML" in ex_comment_dict['all'] and \
+            "version" in ex_comment_dict['all']['Common:ISAR_XML'] and \
+            ex_comment_dict['all']['Common:ISAR_XML']["version"]:
+        print("Find ISAR_XML in ex_comment_dict: {}".format(
+            ex_comment_dict['all']['Common:ISAR_XML']["version"]
+        ))
+        isar_subbuilds = parse_isar_subbuild(
+            ex_comment_dict['all']['Common:ISAR_XML']["version"],
+            change_id,
+            rest,
+            comp_config
+        )
+        if isar_subbuilds:
+            ex_comment_dict['all'].update(isar_subbuilds)
+            print("Add isar subbuild finish")
 
 
 def parse_ex_comments(ex_dict, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
@@ -726,9 +813,10 @@ def add_isar(comment_dict):
 
 
 def run(zuul_url, zuul_ref, output_path, change_id,
-        gerrit_info_path, zuul_changes, gnb_list_path, db_info_path):
+        gerrit_info_path, zuul_changes, gnb_list_path, db_info_path, comp_config):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.init_cache(1000)
+    comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
     project_branch = parse_zuul_changes(zuul_changes)
 
     # path
@@ -768,6 +856,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     if feature_id and 'NIDD' in feature_id:
         add_isar(ex_comment_dict)
         add_isar(comment_dict)
+
+    add_isar_subbuild(ex_comment_dict, change_id, rest, comp_config)
 
     save_json_file(knife_path,
                    [combine_knife_json([

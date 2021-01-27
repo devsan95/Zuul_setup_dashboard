@@ -29,6 +29,47 @@ BUILD_FILTER = "{wft_url}:8091/ALL/api/v1/build.json?" \
                "&view[view_filters_attributes[208462639699611]][operation]=eq" \
                "&view[view_filters_attributes[208462639699611]][value][]=5G_Central&"
 PKG_REGEX_FOR_5G = r"5G[0-9,A-Z]*_[0-9]+\.[0-9]+\.[0-9]"
+inherit_json = '''{
+  "page": "",
+  "items": "20",
+  "sorting_field": "created_at",
+  "sorting_direction": "DESC",
+  "group_by": "",
+  "group_by_processor": "",
+  "columns": {
+    "0": {
+      "id": "deliverer.project.full_path"
+    },
+    "1": {
+      "id": "deliverer.title"
+    },
+    "2": {
+      "id": "version"
+    },
+    "3": {
+      "id": "branch.title"
+    },
+    "4": {
+      "id": "state"
+    },
+    "5": {
+      "id": "build_deliverers"
+    }
+  },
+  "projects": [
+    "ALL"
+  ],
+  "view_filters_attributes": {
+    "0": {
+      "column": "version",
+      "operation": "eq",
+      "value": "%(build)s",
+      "parameter": ""
+    }
+  },
+  "access_key": "%(wft_key)s"
+}
+'''
 
 
 def get_lasted_success_build(stream):
@@ -227,3 +268,19 @@ def get_subuild_from_wft(wft_name, component=None):
     else:
         raise Exception('Cannot find from WFT version:{}, component:{}'.format(wft_name, component))
     return sub_builds
+
+
+def filter_inherit_subbuilds(build, parent_component):
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    wft_url = "{}:8091/ALL/api/v1/build.json".format(WFT.url)
+    values = {"build": build, "wft_key": WFT.key}
+    response = requests.post(wft_url, headers=headers, data=inherit_json % values, verify=False)
+    if not response.ok:
+        return None
+    subbuild_list = list()
+    base_subbuild_list = json.loads(response.text)['items'][0]['build_deliverers']
+    for subbuild in base_subbuild_list:
+        if "inherited_from" in subbuild and subbuild['inherited_from']['component'] == parent_component:
+            subbuild_list.append(subbuild['sc'])
+    print("{} matchd subbuild: {}".format(len(subbuild_list), subbuild_list))
+    return subbuild_list

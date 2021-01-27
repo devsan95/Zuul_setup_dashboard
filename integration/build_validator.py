@@ -181,7 +181,8 @@ def get_build_content(knife_json_path, base_info_path, ex_dict, build_streams,
 
 
 def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_path,
-                          gnb_list_path, db_info_path, build_streams, integration_mode, compare=False):
+                          gnb_list_path, db_info_path, build_streams, integration_mode,
+                          comp_config, compare=False):
     print('Update MZOAM commit info')
     update_oam_commit.run(
         zuul_changes='',
@@ -200,8 +201,8 @@ def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_
         gerrit_info_path=gerrit_info_path,
         zuul_changes='',
         gnb_list_path=gnb_list_path,
-        db_info_path=db_info_path
-
+        db_info_path=db_info_path,
+        comp_config=comp_config
     )
     knife_path = os.path.join(output_path, 'knife.json')
     base_path = os.path.join(output_path, 'base.json')
@@ -217,7 +218,8 @@ def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_
 
 
 def build_info_post(change_id, gerrit_info_path, gitlab_info_path, output_path,
-                    db_info_path, build_streams, integration_mode, compare=False, closed_changes=None):
+                    db_info_path, build_streams, integration_mode, comp_config,
+                    compare=False, closed_changes=None):
     message = list()
     if closed_changes:
         message.append("Build Pre-check Succeed")
@@ -236,6 +238,7 @@ def build_info_post(change_id, gerrit_info_path, gitlab_info_path, output_path,
             db_info_path=db_info_path,
             build_streams=build_streams,
             integration_mode=integration_mode,
+            comp_config=comp_config,
             compare=compare
         ))
     except Exception:
@@ -251,7 +254,7 @@ def build_info_post(change_id, gerrit_info_path, gitlab_info_path, output_path,
 
 
 def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
-              db_info_path, compare=False):
+              db_info_path, comp_config, compare=False):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     inte_change = integration_change.ManageChange(rest, change_no)
     component_list = inte_change.get_all_components()
@@ -285,6 +288,7 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
         build_streams=build_streams,
         integration_mode=integration_mode,
         closed_changes=closed_dict,
+        comp_config=comp_config,
         compare=compare
     )
 
