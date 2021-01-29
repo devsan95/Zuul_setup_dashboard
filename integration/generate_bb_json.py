@@ -456,7 +456,6 @@ def parse_update_comp(line, result, comp_f_prop=None, component_list=None):
         values = line_[1]
         value_list = values.split(',')
         value_list = [x.strip().strip('"') for x in value_list]
-        print(line)
         value_len = len(value_list)
         if value_len < 3:
             print('parameters of update_component is not enough.')
