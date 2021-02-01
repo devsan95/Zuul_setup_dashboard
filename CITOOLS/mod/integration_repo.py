@@ -200,7 +200,8 @@ class INTEGRATION_REPO(object):
         modules = self.get_config_value('MODULES').split()
         self.dep_file_list = []
         logging.info(modules)
-        plat_targets = {}
+        bitbake_plat_targets = {}
+        yocto_plat_targets = {}
         for module in modules:
             int_bb_target = 'integration-{}'.format(module)
             try:
@@ -208,12 +209,15 @@ class INTEGRATION_REPO(object):
                     'TARGET_{}'.format(module.replace('-', '_')))
             except Exception:
                 plat_value = 'NATIVE'
+            plat_targets = bitbake_plat_targets
+            if module.startswith("Yocto"):
+                plat_targets = yocto_plat_targets
             if plat_value not in plat_targets:
                 plat_targets[plat_value] = [int_bb_target]
             else:
                 plat_targets[plat_value].append(int_bb_target)
                 logging.info('plat targets: %s', plat_targets)
-        for plat, targets in plat_targets.items():
+        for plat, targets in bitbake_plat_targets.items() + yocto_plat_targets.items():
             int_bb_targets = ' '.join(targets)
             self.run_dep_cmd(plat, int_bb_targets)
         logging.info('dep file list:%s', self.dep_file_list)
