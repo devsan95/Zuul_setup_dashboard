@@ -30,6 +30,7 @@ from api import job_tool
 from api import config
 from api import env_repo as get_env_repo
 from mod import env_changes
+from mod import ecl_changes
 from mod import get_component_info
 from mod import wft_tools
 from mod import config_yaml
@@ -339,6 +340,21 @@ class IntegrationChangesCreation(object):
                             env_file_changes, env_content, env_path))
                     except Exception as e:
                         print('No env content from CR: {}, env file: {}'.format(rest_id, env_path))
+
+            # update ecl file in component
+            if node_obj['repo'] in self.comp_config['ecl_file'].keys():
+                if env_change:
+                    ecl_file = self.comp_config['ecl_file'][node_obj['repo']]
+                    ecl_file_content = ''
+                    try:
+                        ecl_file_content = self.gerrit_rest.get_file_content(ecl_file, rest_id)
+                    except Exception:
+                        print('Warn: no ecl file in this repo: {}'.format(node_obj['repo']))
+                    if ecl_file_content:
+                        print('update ecl file {} in: {}'.format(ecl_file, node_obj['repo']))
+                        env_change_dict = self.get_env_change_dict(env_change)
+                        node_obj['add_files'].update(ecl_changes.create_ecl_file_change_by_env_change_dict(
+                            env_change_dict, ecl_file_content, ecl_file))
 
         # restore
         copy_from_id = None

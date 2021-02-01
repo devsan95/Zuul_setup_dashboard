@@ -15,6 +15,7 @@ from api import gerrit_rest, jira_api
 from api import env_repo as get_env_repo
 from api import config
 from mod import env_changes
+from mod import ecl_changes
 from mod import common_regex
 from mod import config_yaml
 from mod.integration_change import RootChange
@@ -209,6 +210,30 @@ def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_d
     return change_file_dict
 
 
+def update_component_ecl(env_file_changes, rest, change_no, ecl_dict):
+    op = RootChange(rest, change_no)
+    comp_change_list, int_change = op.get_components_changes_by_comments()
+    for comp_change in comp_change_list:
+        int_change_obj = IntegrationChange(rest, comp_change)
+        comp_project = int_change_obj.get_project()
+        if comp_project in ecl_dict:
+            print('add new ecl for change {}'.format(comp_change))
+            try:
+                ecl_path = ecl_dict[comp_project].strip()
+                old_ecl = rest.get_file_content(ecl_path, comp_change)
+                # update ecl content
+                ecl_change_map = ecl_changes.create_ecl_file_change_by_env_change_dict(
+                    env_file_changes,
+                    old_ecl,
+                    ecl_path
+                )
+                rest.add_file_to_change(comp_change, ecl_path, ecl_change_map[ecl_path])
+                rest.publish_edit(comp_change)
+            except Exception as e:
+                print('Cannot find ecl for %s, will not update ecl', comp_change)
+                print(str(e))
+
+
 def get_combined_env_changes(origin_env_change, new_env_change_dict, new_env_change_list):
     # get origin env diff
     origin_env_change_list = []
@@ -241,12 +266,15 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
                 key, value = line.strip().split('=', 1)
                 env_change_dict[key] = value
     config_yaml_dict = {}
+    ecl_dict = {}
     if comp_config:
         comp_config_dict = {}
         with open(comp_config, 'r') as fr:
             comp_config_dict = yaml.load(fr.read(), Loader=yaml.Loader)
         if 'config_yaml' in comp_config_dict:
             config_yaml_dict = comp_config_dict['config_yaml']
+        if 'ecl_file' in comp_config_dict:
+            ecl_dict = comp_config_dict['ecl_file']
     # use rest gerrit user info to do the operation, and the ssh gerrit
     # user to do the labeling (to sync with zuul)
     # if no ssh gerrit info is provided then use rest user to do labeling
@@ -345,6 +373,10 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
 
         # add new env
         print('add new env for change {}'.format(change_no))
+        print "env_file_changes:"
+        print env_file_changes
+        print "combine_env_list:"
+        print combine_env_list
         try:
             old_env = rest.get_file_content(env_path, change_no)
             # update env/env-config.d/ENV content
@@ -358,6 +390,9 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             print('Cannot find env for %s, will not update env', change_no)
             print(str(e))
         print('Change map: {}'.format(change_map))
+
+        # update component ecl file
+        update_component_ecl(env_file_changes, rest, change_no, ecl_dict)
 
         # get root ticket
         root_change = skytrack_database_handler.get_specified_ticket(
