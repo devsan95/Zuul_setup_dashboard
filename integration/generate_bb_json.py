@@ -296,21 +296,22 @@ def parse_isar_subbuild(isar_version, change_id, rest, comp_config):
 
 
 def add_isar_subbuild(ex_comment_dict, change_id, rest, comp_config):
-    if "Common:ISAR_XML" in ex_comment_dict['all'] and \
-            "version" in ex_comment_dict['all']['Common:ISAR_XML'] and \
-            ex_comment_dict['all']['Common:ISAR_XML']["version"]:
-        print("Find ISAR_XML in ex_comment_dict: {}".format(
-            ex_comment_dict['all']['Common:ISAR_XML']["version"]
-        ))
-        isar_subbuilds = parse_isar_subbuild(
-            ex_comment_dict['all']['Common:ISAR_XML']["version"],
-            change_id,
-            rest,
-            comp_config
-        )
-        if isar_subbuilds:
-            ex_comment_dict['all'].update(isar_subbuilds)
-            print("Add isar subbuild finish")
+    for stream in ex_comment_dict:
+        try:
+            isar_version = ex_comment_dict[stream]['Common:ISAR_XML']["version"]
+        except KeyError:
+            print("Not find ISAR_XML in ex_comment_dict['{}'].".format(stream))
+        else:
+            print("Find ISAR_XML in ex_comment_dict['{}']: {}".format(isar_version, stream))
+            isar_subbuilds = parse_isar_subbuild(
+                isar_version,
+                change_id,
+                rest,
+                comp_config
+            )
+            if isar_subbuilds:
+                ex_comment_dict[stream].update(isar_subbuilds)
+                print("Add isar subbuild to ex_comment_dict['{}'] finish".format(stream))
 
 
 def parse_ex_comments(ex_dict, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
