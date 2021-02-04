@@ -248,6 +248,42 @@ class IntegrationChangesCreation(object):
         print('get env_change_dict: {}'.format(env_change_dict))
         return env_change_dict
 
+    def add_meta_email_to_ticket(self, rest_id):
+        mail_list = list()
+        if 'to' in self.info_index['meta']['email']:
+            mail_list.extend(self.info_index['meta']['email']['to'])
+        if 'cc' in self.info_index['meta']['email']:
+            mail_list.extend(self.info_index['meta']['email']['cc'])
+        if 'bcc' in self.info_index['meta']['email']:
+            mail_list.extend(self.info_index['meta']['email']['bcc'])
+        self.add_email_to_ticket_reviwer(rest_id, mail_list)
+
+    def add_email_to_ticket_reviwer(self, rest_id, mail_list, add_group_to_comment=True):
+        mail_group_regex = r'^[^@]+@(internal\.nsn|groups\.nokia)\.com$'
+        mail_groups = list()
+        for mail in mail_list:
+            if re.match(mail_group_regex, mail):
+                mail_groups.append(mail)
+            else:
+                print('Add {} to ticket {} reviewer'.format(mail, rest_id))
+                try:
+                    self.gerrit_rest.add_reviewer(rest_id, mail)
+                except Exception as ex:
+                    print('Adding reviewer failed, {}'.format(str(ex)))
+        if mail_groups and add_group_to_comment:
+            self.add_email_to_ticket_comment(rest_id, mail_groups)
+
+    def add_email_to_ticket_comment(self, rest_id, mail_list):
+        if mail_list:
+            print("Add {} to {}'s comment".format(mail_list, rest_id))
+            try:
+                self.gerrit_rest.review_ticket(
+                    rest_id,
+                    "knife recipients:\n{}".format("\n".join(mail_list))
+                )
+            except Exception as ex:
+                print('Comment ticket failed, {}'.format(str(ex)))
+
     def create_ticket_by_node(self, node_obj, integration_mode, ext_commit_msg=None):
         nodes = self.info_index['nodes']
         graph = self.info_index['graph']
@@ -363,6 +399,7 @@ class IntegrationChangesCreation(object):
                         datetime.utcnow().strftime('%Y%m%d%H%M%S')
                     )
                 need_publish = True
+            self.add_meta_email_to_ticket(node_obj['rest_id'])
 
         # add files for env
         changes = {}
