@@ -392,7 +392,8 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         print('Change map: {}'.format(change_map))
 
         # update component ecl file
-        update_component_ecl(env_file_changes, rest, change_no, ecl_dict)
+        if ecl_dict:
+            update_component_ecl(env_file_changes, rest, change_no, ecl_dict)
 
         # get root ticket
         root_change = skytrack_database_handler.get_specified_ticket(

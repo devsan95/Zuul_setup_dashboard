@@ -342,7 +342,7 @@ class IntegrationChangesCreation(object):
                         print('No env content from CR: {}, env file: {}'.format(rest_id, env_path))
 
             # update ecl file in component
-            if node_obj['repo'] in self.comp_config['ecl_file'].keys():
+            if 'ecl_file' in self.comp_config and node_obj['repo'] in self.comp_config['ecl_file'].keys():
                 if env_change:
                     ecl_file = self.comp_config['ecl_file'][node_obj['repo']]
                     ecl_file_content = ''
