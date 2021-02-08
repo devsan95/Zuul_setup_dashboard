@@ -258,13 +258,24 @@ def check_layout_d_duplication(snippet_list, section='projects'):
 
 def list_job_in_projects(projects_section, pipelines):
     ret_list = []
+    dep_job = dict()
 
-    def _scan_jobs_recursive_p(joblist, retlist):
+    def _scan_jobs_recursive_p(joblist, retlist, recjob):
         for item in joblist:
             if isinstance(item, yaml.comments.CommentedMap):
                 for k, v in list(item.items()):
+                    djob = []
+                    if k in recjob:
+                        djob = recjob[k]
+                    for elt in v:
+                        if isinstance(elt, str):
+                            djob.append(elt)
+                        else:
+                            for eltk in elt.keys():
+                                djob.append(eltk)
+                    recjob[k] = list(set(djob))
                     retlist.append(k)
-                    _scan_jobs_recursive_p(v, retlist)
+                    _scan_jobs_recursive_p(v, retlist, recjob)
             else:
                 retlist.append(item)
 
@@ -272,9 +283,9 @@ def list_job_in_projects(projects_section, pipelines):
         if isinstance(item, yaml.comments.CommentedMap):
             for k, v in list(item.items()):
                 if isinstance(v, yaml.comments.CommentedSeq) and k in pipelines:
-                    _scan_jobs_recursive_p(v, ret_list)
+                    _scan_jobs_recursive_p(v, ret_list, dep_job)
 
-    return list(set(ret_list))
+    return (list(set(ret_list)), dep_job)
 
 
 def list_job_in_one_repo_by_pipeline(projects_section, pipelines):
@@ -637,6 +648,8 @@ class LayoutGroup(object):
         jobs = []
         job_filters = {}
         job_filter_duplicate = {}
+        jobdep_all = []
+        jobvoting = []
         error_list = []
         warning_list = []
         for snippet in check_list:
@@ -644,6 +657,7 @@ class LayoutGroup(object):
             folder = snippet.get_folder()
             yaml_ = snippet.obj
             job_list = []
+            job_dependent = []
 
             project_list = yaml_.get('projects')
             if project_list:
@@ -657,11 +671,16 @@ class LayoutGroup(object):
                         continue
 
             if 'projects' in yaml_ and yaml_['projects']:
-                job_list = list_job_in_projects(yaml_['projects'], pipelines)
+                job_list, job_dependent = list_job_in_projects(yaml_['projects'], pipelines)
 
             jobs.append({'path': path,
                          'folder': folder,
                          'jobs': job_list})
+            if job_dependent:
+                jobdep_all.append({'path': path,
+                                   'folder': folder,
+                                   'jobs': job_dependent})
+
             job_filter_list = yaml_.get('jobs')
             if job_filter_list:
                 for filter_ in job_filter_list:
@@ -688,6 +707,12 @@ class LayoutGroup(object):
                             job_filter_duplicate[filter_['name']].append(path)
                     else:
                         job_filters[filter_['name']] = {'path': path, 'folder': folder, 'name': filter_['name']}
+
+                    if 'voting' in filter_:
+                        if filter_['voting'] is False:
+                            jobvoting.append({'path': path,
+                                              'folder': folder,
+                                              'name': filter_['name']})
 
         # job filter can't be duplicated
         if job_filter_duplicate:
@@ -769,6 +794,33 @@ class LayoutGroup(object):
                 else:
                     using += 1
         print('Not used : Regex used : Used = {}:{}:{}'.format(not_using, reg_using, using))
+
+        # a voting job can't be dependent of a non voting job
+        def check_folder(folder1, folder2):
+            return folder1 in folder2
+
+        def is_voting_false(job, folder):
+            for voting_false in jobvoting:
+                if check_folder(voting_false["folder"], folder):
+                    if voting_false["name"].startswith('^'):
+                        voting_false_regex = re.compile(voting_false["name"])
+                        if voting_false_regex.match(job):
+                            return True
+                    else:
+                        if voting_false["name"] == job:
+                            return True
+            return False
+
+        for jobdep in jobdep_all:
+            job_folder = jobdep["folder"]
+            for job in jobdep["jobs"].keys():
+                if is_voting_false(job, job_folder):
+                    for child in jobdep["jobs"][job]:
+                        if not is_voting_false(child, job_folder):
+                            warning_list.append(
+                                'It is not allow to have a voting job [{}] dependent of a non voting job [{}] \n  folder path is [{}]'.format(child, job, job_folder)
+                            )
+                            continue
 
         if warning_list:
             print('!!!!!!Warning!!!!!!')
@@ -899,7 +951,7 @@ def _main():
     else:
         raise Exception('Unsupport operation: [{}]'.format(op))
 
-    print('All done. No Excepitons.')
+    print('All done. No Exception.')
 
 
 if __name__ == '__main__':
