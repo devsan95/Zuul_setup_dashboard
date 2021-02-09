@@ -118,7 +118,10 @@ class GET_COMPONENT_INFO(object):
         raise Exception('Cannot get integration target for {}'.format(comp_name))
 
     def get_comp_hash_from_mapping_file(self, comp_name):
-        return self.get_value_from_mapping_and_env(comp_name, 'revision', 'repo_ver')
+        revision = self.get_value_from_mapping_and_env(comp_name, 'revision', 'repo_ver')
+        if not revision:
+            return self.get_value_from_mapping_and_env(comp_name, 'PV', 'repo_ver')
+        return revision
 
     def get_recipe_from_mapping(self, comp_name):
         for src in self.src_list:
