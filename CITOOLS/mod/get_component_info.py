@@ -118,7 +118,7 @@ class GET_COMPONENT_INFO(object):
         raise Exception('Cannot get integration target for {}'.format(comp_name))
 
     def get_comp_hash_from_mapping_file(self, comp_name):
-        return self.get_value_from_mapping_and_env(comp_name, 'revision', 'repo_ver')
+        return self.get_value_from_mapping_and_env(comp_name, ['revision', 'PV'], 'repo_ver')
 
     def get_recipe_from_mapping(self, comp_name):
         for src in self.src_list:
@@ -130,16 +130,20 @@ class GET_COMPONENT_INFO(object):
                             return key_name
         return ''
 
-    def get_value_from_mapping_and_env(self, comp_name, mapping_key, env_key):
+    def get_value_from_mapping_and_env(self, comp_name, mapping_keys, env_key):
         value = ''
         for src in self.src_list:
             recipe_list = src['recipes']
             for recipe in recipe_list:
                 if comp_name == recipe['component']:
                     print("[Info] Get info for {}: {}".format(comp_name, recipe))
-                    if mapping_key in src:
-                        value = src[mapping_key]
-                    elif not self.only_mapping_file:
+                    for mapping_key in mapping_keys:
+                        if mapping_key in src:
+                            value = src[mapping_key]
+                            break
+                    else:
+                        if not self.only_mapping_file:
+                            continue
                         integration_target = self.get_integration_target(comp_name)
                         for key_name in recipe.keys():
                             if key_name.endswith('.bb'):
@@ -150,7 +154,7 @@ class GET_COMPONENT_INFO(object):
                                     integration_target, comp_name, recipe_path)
                                 if env_key in comp_dict:
                                     value = comp_dict[env_key]
-        print("[Info] Get value {} from bb mapping and env for {} result is: {}".format(mapping_key, comp_name, value))
+        print("[Info] Get value {} from bb mapping and env for {} result is: {}".format(mapping_keys, comp_name, value))
         return value
 
     def get_comp_bbver_from_mapping_file(self, comp_name):
