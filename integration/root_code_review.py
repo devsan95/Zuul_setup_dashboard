@@ -45,6 +45,7 @@ def get_config_yaml_change(rest, change_no):
     except Exception:
         print('Cannot find config.yaml for %s', change_no)
 
+    updated_dict = None
     if 'new_diff' in config_yaml_change and config_yaml_change['new_diff']:
         config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
         updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
