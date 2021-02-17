@@ -5,11 +5,37 @@ import logging
 import traceback
 import urllib
 import json
+import requests
 
+from six.moves import configparser
 from mod import integration_repo
 from api import http_api
+from api import config
 
 logging.basicConfig(level=logging.INFO)
+WFT_CONFIG_FILE = os.path.join(config.get_config_path(), 'properties/wft.properties')
+WFT_CONFIG = configparser.ConfigParser()
+WFT_CONFIG.read(WFT_CONFIG_FILE)
+WFT_URL = WFT_CONFIG.get('wft', 'url')
+WFT_KEY = WFT_CONFIG.get('wft', 'key')
+WFT_ATTACHMENT_URL = "{}:8091/api/v1/5G:WMP/5G_Central/builds".format(WFT_URL)
+WFT_SEARCH_BUILD = "{}:8091/5G:WMP/api/v1/build.json?" \
+    "access_key={}&view[items]=50&view[sorting_field]=created_at" \
+    "&view[sorting_direction]=DESC&view[columns[][id]]=deliverer.project.full_path" \
+    "&view[columns[][id]]=deliverer.title&view[columns[][id]]=version" \
+    "&view[columns[][id]]=branch.title&view[columns[][id]]=state" \
+    "&view[columns[][id]]=planned_delivery_date&view[columns[][id]]=common_links" \
+    "&view[columns[][id]]=compare_link" \
+    "&view[view_filters_attributes[128671826645388]][column]=deliverer.project.full_path" \
+    "&view[view_filters_attributes[128671826645388]][operation]=eq" \
+    "&view[view_filters_attributes[128671826645388]][value][]=5G%3AWMP" \
+    "&view[view_filters_attributes[122019703348590]][column]=deliverer.title" \
+    "&view[view_filters_attributes[122019703348590]][operation]=eq" \
+    "&view[view_filters_attributes[122019703348590]][value][]=5G_Central" \
+    "&view[view_filters_attributes[24216713295283]][column]=version" \
+    "&view[view_filters_attributes[24216713295283]][operation]=matches_regexp" \
+    "&view[view_filters_attributes[24216713295283]][value][]=%5CA5G%5B0-9a-zA-Z%5D*_{}%5Cz&"
+HTTP_HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 INTEGRATION_URL = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 
 
@@ -82,6 +108,72 @@ class GET_COMPONENT_INFO(object):
         return version_dict['repo_ver']
 
     def check_bb_mapping_file(self):
+        src_list = []
+        file_exists = self.download_bbmapping_from_wft()
+        if not file_exists:
+            logging.info("Get %s bb_mapping form WFT failed, try Artifactory", self.base_pkg)
+            file_exists = self.download_bbmapping_from_artifactory()
+        if file_exists:
+            with open("bb_mapping.json", 'r') as f:
+                json_str = f.read()
+            bb_mapping_dict = json.loads(json_str)
+            src_list = bb_mapping_dict['sources']
+        return file_exists, src_list
+
+    def search_build_on_wft(self):
+        response = requests.get(
+            WFT_SEARCH_BUILD.format(WFT_URL, WFT_KEY, self.base_pkg),
+            headers=HTTP_HEADERS
+        )
+        if response.ok:
+            try:
+                build_list = json.loads(response.text)['items']
+            except Exception:
+                logging.warn("Can not find build %s on WFT", self.base_pkg)
+                return False
+            if len(build_list) == 1:
+                return build_list[0]["version"]
+            else:
+                logging.warn("Multiple builds are found on WFT for %s", self.base_pkg)
+                return False
+        else:
+            logging.warn("WFT return %s when search %s", response.status_code, self.base_pkg)
+            return False
+
+    def get_build_bbmapping_id(self, wft_version):
+        response = requests.get(
+            "{}/{}/attachments.json".format(WFT_ATTACHMENT_URL, wft_version),
+            params={'access_key': WFT_KEY}
+        )
+        if response.ok:
+            for attachment in json.loads(response.text):
+                if attachment['attachment_file_name'] == 'bb_mapping.json':
+                    return attachment['id']
+        else:
+            logging.warn("WFT return %s when get %s attachments", response.status_code, self.base_pkg)
+        return False
+
+    def download_bbmapping_from_wft(self):
+        wft_version = self.search_build_on_wft()
+        if not wft_version:
+            return False
+        bbmapping_id = self.get_build_bbmapping_id(wft_version)
+        if not bbmapping_id:
+            return False
+        response = requests.get(
+            '{}/{}/attachments/{}.json'.format(WFT_ATTACHMENT_URL, wft_version, bbmapping_id),
+            params={'access_key': WFT_KEY}
+        )
+        if response.ok:
+            with open("bb_mapping.json", 'w') as bb_mapping_fd:
+                bb_mapping_fd.write(response.text)
+            logging.info("Write WFT yocto_mapping to bb_mapping.json")
+            return True
+        else:
+            logging.warn("WFT return %s when download %s bbmapping", response.status_code, self.base_pkg)
+        return False
+
+    def download_bbmapping_from_artifactory(self):
         artifactory_url = "http://artifactory-espoo1.int.net.nokia.com/artifactory/mnp5g-central-public-local/System_Release/{}/bb_mapping.json".format(self.base_pkg)
         file_exists = False
         f = urllib.urlopen(artifactory_url)
@@ -90,15 +182,9 @@ class GET_COMPONENT_INFO(object):
             file_exists = True
         print("[Info] find bb mapping file from: {}".format(artifactory_url))
         print("[Info] result of finding bb mapping file: {}".format(file_exists))
-        src_list = []
-        if file_exists:
-            file_name = os.path.join(os.getcwd(), artifactory_url.split('/')[-1])
-            http_api.download(artifactory_url, file_name)
-            with open(file_name, 'r') as f:
-                json_str = f.read()
-            bb_mapping_dict = json.loads(json_str)
-            src_list = bb_mapping_dict['sources']
-        return file_exists, src_list
+        file_name = os.path.join(os.getcwd(), artifactory_url.split('/')[-1])
+        http_api.download(artifactory_url, file_name)
+        return file_exists
 
     def get_integration_target(self, comp_name):
         for src in self.src_list:
