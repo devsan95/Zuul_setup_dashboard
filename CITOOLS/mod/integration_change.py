@@ -330,7 +330,7 @@ class IntegrationCommitMessage(object):
         self.msg_lines = [v for i, v in enumerate(self.msg_lines) if i not in old_interfaces_list]
         if begin_line == 0:
             self.msg_lines.append('interface info:')
-            begin_line = len(self.msg_lines)
+            begin_line = len(self.msg_lines) - 2
         self.msg_lines.insert(begin_line + 1, comp_line_value)
         self.msg_lines.insert(begin_line + 2, bb_line_value)
         self.msg_lines.insert(begin_line + 3, commit_line_value)
