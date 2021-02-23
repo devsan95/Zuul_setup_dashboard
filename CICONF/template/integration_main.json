@@ -12,7 +12,7 @@
 },
 {
      "comments":[
-        "\nknife recipients:\nI_HZ_5G_CB_SCM@internal.nsn.com\nyang-mark.zhang@nokia-sbell.com\n"
+        "\\nknife recipients:\\nI_HZ_5G_CB_SCM@internal.nsn.com\\nyang-mark.zhang@nokia-sbell.com\\n"
      ],
      "repo":"MN/SCMTA/zuul/inte_mn",
      "name":"integration",
