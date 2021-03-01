@@ -1,8 +1,10 @@
 import os
-import re
 import json
+import git
+import shutil
 
 import requests
+import ruamel.yaml as yaml
 import xml.etree.ElementTree as ET
 from scm_tools.wft.api import WftAPI
 from scm_tools.wft.build_content import BuildContent
@@ -112,19 +114,19 @@ def get_build_list_from_custom_filter(custom_filter):
 
 
 def get_stream_name(version):
-    stream = ''
-    r = requests.get(BUILD_FILTER.format(wft_url=WFT.url, access_key=WFT.key, version=version))
-    if r.status_code != 200:
-        raise Exception('Failed to get build list with filter {0}'.format(version))
-    build_list = json.loads(r.text.encode('utf-8'))
-    for build in build_list['items']:
-        if 'version' in build:
-            if not re.match(PKG_REGEX_FOR_5G, build['version']):
-                continue
-            stream = build['branch.title']
-            break
-    print(stream)
-    return stream
+    to_path = '{}/comp-deps-tmp'.format(os.environ["WORKSPACE"])
+    if os.path.exists(to_path):
+        shutil.rmtree(to_path)
+    git.Repo.clone_from(
+        url='http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/comp-deps',
+        to_path=to_path
+    )
+    yaml_path = '{}/config/integration-config.yaml'.format(to_path)
+    comp_config = yaml.load(open(yaml_path), Loader=yaml.Loader, version='1.1')
+    for stream in comp_config['streams']:
+        if version.startswith(stream["value"]):
+            return stream["name"]
+    raise Exception('Can not get {} stream name from comp-deps repo'.format(version))
 
 
 def get_release_date(package):
