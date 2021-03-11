@@ -263,7 +263,6 @@ def arguments():
 
 
 def get_branch(pkg, ver_pattern):
-    branch_type = ["FEINT", "PSINT", "NIDDINT", "LOMINT", "CPIINT"]
     if not re.match(r"^\d+\.\d+\.\d+(-\w+INT\+\d+)?$", pkg):
         raise Exception("Error, package name format is not right.")
     branch = re.findall(r"-(\w*)\+", pkg)[0]
@@ -273,10 +272,16 @@ def get_branch(pkg, ver_pattern):
         stream_name = stream_file.split('-')[1]
     if branch == "L1INT":
         branch = "{}_lonerint".format(stream_name)
-    elif stream_name and branch in branch_type and "cloud" in stream_name:
-        branch = "{}_cloudbts".format(branch)
     elif branch in ["PSINT", "NIDDINT"] and "sran" in stream_name:
         branch = "{}_5G_IN_SRAN".format(branch)
+    elif branch in ["FEINT", "PSINT", "NIDDINT", "LOMINT", "CPIINT", "RCPINT"]:
+        # master cloud streams have already been split to pDU CU_VNF vDU
+        for stream_type in ['pDU', 'CU_VNF', 'vDU']:
+            if stream_type in stream_name:
+                branch = "{}_{}".format(branch, stream_type)
+        # Maintenance branches still have stream_name such as 20Bb1_cloudbts
+        if "cloud" in stream_name:
+            branch = "{}_cloudbts".format(branch)
     log.info("branch: {}".format(branch))
     return branch
 
