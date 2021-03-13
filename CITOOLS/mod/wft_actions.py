@@ -15,7 +15,7 @@ class WFTUtils(object):
     common method for Workflow tool
     '''
     @staticmethod
-    def get_branch_builds(branch, limit=50):
+    def get_branch_builds(branch, project=None, component=None, limit=50):
         '''
         return build list, each build as a dictionary,
         include keys/fields: deliverer.title, branches_title, branch.title, baseline, version
@@ -24,6 +24,10 @@ class WFTUtils(object):
         wft = wft_api.WftBuildQuery(wftauth)
         wft.set_sorting('created_at')
         wft.add_filter("branch.title", "eq", branch)
+        if project:
+            wft.add_filter("deliverer.project.full_path", "eq", project)
+        if component:
+            wft.add_filter("deliverer.title", "eq", component)
         wft.add_columns("branches_title")
         wft.set_result_number(limit)
         content = wft.query()
@@ -133,7 +137,13 @@ class BuildIncrement(object):
         log.info("New build {} created in WFT".format(new_version))
 
     def run(self):
-        latest_build = WFTUtils.get_branch_builds(self.wft_branch)[0]
+        base_build_project = None
+        base_build_component = None
+        if self.base_build:
+            base_build_detail = WFTUtils.get_build_detail(self.base_build)
+            base_build_project = base_build_detail['project']
+            base_build_component = base_build_detail['component']
+        latest_build = WFTUtils.get_branch_builds(self.wft_branch, project=base_build_project, component=base_build_component)[0]
         if not self.base_build:
             self.base_build = latest_build['baseline']
 
