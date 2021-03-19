@@ -206,7 +206,11 @@ def get_latest_qt_load(stream_list, strip_prefix=True):
 
 def get_planed_delivery_date(baseline):
     build_content = BuildContent.get(baseline)
-    return build_content.get_planned_delivery_date()
+    delivery_date = build_content.get_planned_delivery_date()
+    if isinstance(delivery_date, str):
+        return delivery_date
+    else:
+        return delivery_date.strftime('%Y-%m-%d %H:%M:%S %Z')
 
 
 def get_ps(baseline):
