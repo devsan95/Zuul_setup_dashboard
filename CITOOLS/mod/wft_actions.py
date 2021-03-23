@@ -57,11 +57,15 @@ class WFTUtils(object):
                 'subbuilds': subbuilds}
 
     @staticmethod
-    def get_next_version(version):
-        date_now = datetime.strftime(datetime.now(), '%y%m%d')
+    def get_next_version(version, sub_version=None):
+        # eg, sub_version is "201221" in SBTS00_ECL_SACK_BASE_9000_201221_000008
+        if sub_version:
+            short_version = sub_version
+        else:
+            short_version = datetime.strftime(datetime.now(), '%y%m%d')
         units = version.rsplit('_', 2)
-        release_id = (int(units[2]) + 1) if date_now == units[1] else 1
-        new_version = "{0}_{1}_{2:06d}".format(units[0], date_now, release_id)
+        release_id = (int(units[2]) + 1) if short_version == units[1] else 1
+        new_version = "{0}_{1}_{2:06d}".format(units[0], short_version, release_id)
         log.info("New build increment version: {}".format(new_version))
         return new_version
 
@@ -102,12 +106,13 @@ class BuildIncrement(object):
         log.debug("ENV change list: {}".format(diff_list))
         return diff_list
 
-    def send_inc_request(self, latest_build):
+    def send_inc_request(self, latest_build, psint_cycle=None):
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
         current_version = latest_build['baseline']
+        log.info("Current latest version is: {}".format(current_version))
         base_details = WFTUtils.get_build_detail(self.base_build)
         current_detail = WFTUtils.get_build_detail(current_version)
-        new_version = WFTUtils.get_next_version(current_version)
+        new_version = WFTUtils.get_next_version(current_version, psint_cycle)
         diff_list = self.get_diff(base_details['subbuilds'], self.changed)
         inc_data = {
             "parent_version": base_details['baseline'],
@@ -136,7 +141,7 @@ class BuildIncrement(object):
             raise Exception("Failed to increment new  {}:{} in WFT".format(current_detail['project'], current_detail['component']))
         log.info("New build {} created in WFT".format(new_version))
 
-    def run(self):
+    def run(self, psint_cycle=None):
         base_build_project = None
         base_build_component = None
         if self.base_build:
@@ -147,4 +152,4 @@ class BuildIncrement(object):
         if not self.base_build:
             self.base_build = latest_build['baseline']
 
-        self.send_inc_request(latest_build)
+        self.send_inc_request(latest_build, psint_cycle)

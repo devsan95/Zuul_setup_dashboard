@@ -486,6 +486,8 @@ class IntegrationChangesCreation(object):
                     lines.append('int_branch: {}'.format(
                         self.comp_config['ecl_int_map'][self.meta['ecl_int_branch']]
                     ))
+                if 'PSINT_cycle' in self.meta and self.meta['PSINT_cycle']:
+                    lines.append('PSINT_cycle: {}'.format(self.meta['PSINT_cycle']))
                 if 'integration_type' in self.meta and self.meta['integration_type']:
                     lines.append('integration_type: {}'.format(self.meta['integration_type']))
             elif node_obj['type'] == 'integration' or \
@@ -1024,6 +1026,7 @@ class IntegrationChangesCreation(object):
 
         ecl_int_branch = self.meta['ecl_int_branch']
         base_load = self.meta.get('SBTS_base_load', '')
+        psint_cycle = self.meta.get('PSINT_cycle', '')
         ecl_map_branch = self.comp_config['ecl_int_map'][ecl_int_branch]
         change_dict = dict()
         trigger_file = os.path.join(os.environ['WORKSPACE'], "increment_ecl.prop")
@@ -1031,8 +1034,9 @@ class IntegrationChangesCreation(object):
             change_dict[item['name']] = {'version': item['version']}
         with open(trigger_file, 'w') as trigger_file_fd:
             trigger_file_fd.write(
-                "ecl_branch={}\nbase_branch={}\nbase_load={}\nchanged_content={}\n".format(
+                "ecl_branch={}\nPSINT_cycle={}\nbase_branch={}\nbase_load={}\nchanged_content={}\n".format(
                     ecl_int_branch,
+                    psint_cycle,
                     ecl_map_branch,
                     base_load,
                     json.dumps(change_dict)

@@ -14,6 +14,7 @@ def arguments():
     parse.add_argument('--changed_content', required=True, help="content change in sub builds")
     parse.add_argument('--base_branch', required=False, help="Base build branch in WFT")
     parse.add_argument('--base_load', required=False, help="Base build of increment")
+    parse.add_argument('--PSINT_cycle', required=False, help="cycle for PS integration")
     return parse.parse_args()
 
 
@@ -27,7 +28,7 @@ def main():
         ecl_base_load = WFTUtils.get_build_detail(args.base_load)['ecl_sack_base']
 
     ecl_incrementer = BuildIncrement(args.ecl_branch, changed, ecl_base_load)
-    ecl_incrementer.run()
+    ecl_incrementer.run(args.PSINT_cycle)
 
 
 if __name__ == "__main__":
