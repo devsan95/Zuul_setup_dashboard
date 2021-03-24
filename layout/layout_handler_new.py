@@ -638,6 +638,23 @@ class LayoutGroup(object):
         return ret_snippet
 
     def combine_with_validation(self, output_path=None, connections=None, pipelines=None):
+        def check_regex(elt, error_list):
+            if isinstance(elt, list):
+                for subelt in elt:
+                    check_regex(subelt, error_list)
+                return error_list
+            elif isinstance(elt, dict):
+                for key in elt.keys():
+                    check_regex(elt[key], error_list)
+                return error_list
+            else:
+                if str(elt).startswith('^'):
+                    try:
+                        re.compile(elt)
+                    except re.error as e:
+                        error_list.append(('Regex [{}] in [{}] is invalid, because {}'.format(elt, path, e)))
+                return error_list
+
         #  verify_layout_with_zuul(self._yaml['layout'])
         check_list = self._yaml['layout.d'][:]
         m_layout = self._yaml['layout'].obj
@@ -698,6 +715,12 @@ class LayoutGroup(object):
                         except re.error as e:
                             error_list.append('Regex [{}] in [{}] is invalid, because {}'.format(filter_['name'], path, e))
                             continue
+                    for key in filter_.keys():
+                        err = check_regex(filter_[key], [])
+                        if err:
+                            for e in err:
+                                if e not in error_list:
+                                    error_list.append(e)
 
                     if filter_['name'] in job_filters:
                         # duplicate!
