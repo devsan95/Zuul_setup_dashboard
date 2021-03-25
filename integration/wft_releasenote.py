@@ -671,6 +671,30 @@ def generate_releasenote(args, base_pkg, knife_json, wft_prefix, docker_info):
     generate_json_file(releasenote, releasenote_file)
 
 
+def add_storage_to_build(pkg_name):
+    '''
+    : knife storage id is 267
+    '''
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    post_url = "{}/api/v1/5G:WMP/5G_Central/builds/{}/storages/267.json".format(
+        os.environ['WFT_API_URL'],
+        pkg_name
+    )
+    data = {
+        'access_key': os.environ['WFT_KEY'],
+        'settings': {
+            'path': 'mnp5g-central-public-local/Knife/{}/'.format(pkg_name),
+            'prefix': '',
+            'server': 'espoo1'
+        }
+    }
+    response = requests.post(post_url, json=data, headers=headers)
+    if not response.ok:
+        log.error(response.text)
+        raise Exception("Add artifactory storage to {} failed!".format(pkg_name))
+    log.info("Add artifactory storage to {} successful!".format(pkg_name))
+
+
 def register_on_wft(args):
     if args.upload_to_wft == "true":
         data = {
@@ -685,8 +709,10 @@ def register_on_wft(args):
             verify=verify_ssl
         )
         if not response.ok:
+            log.error(response.text)
             raise Exception("Register build {} on WFT failed!".format(args.pkg_name))
         log.info("Registered build {} on WFT".format(args.pkg_name))
+        add_storage_to_build(args.pkg_name)
 
 
 def cleanup_and_exit(signum=None, frame=None):
