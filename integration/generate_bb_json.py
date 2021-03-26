@@ -309,6 +309,7 @@ def add_isar_subbuild(ex_comment_dict, change_id, rest, comp_config):
                 rest,
                 comp_config
             )
+            isar_subbuilds["isarxml"] = {"PV": isar_version}
             if isar_subbuilds:
                 ex_comment_dict[stream].update(isar_subbuilds)
                 print("Add isar subbuild to ex_comment_dict['{}'] finish".format(stream))
@@ -780,10 +781,16 @@ def get_isar_version(comp, comp_dict):
         ecl_link = 'http://artifactory-espoo1.int.net.nokia.com/artifactory/mnp5g-oam-bin-rel-local/' \
                    + comp_dict[oam_dir] + '/' + comp_dict['BIN_VER'] + '/ecl.txt'
     else:
-        raise Exception("[Error] Missing mandatory fields in OAM comments!")
+        print("[Error] Missing mandatory fields in OAM comments!")
+        return None, None
     if ecl_link:
         ecl_file = os.path.join(os.getcwd(), 'ecl.txt')
-        api.http_api.download(ecl_link, ecl_file)
+        try:
+            api.http_api.download(ecl_link, ecl_file)
+        except Exception as e:
+            print("An exception %s occurred, msg: %s" % (type(e), str(e)))
+            traceback.print_exc()
+            return None, None
         with open(ecl_file, 'r') as f:
             f_content = f.read()
     if f_content:
@@ -795,7 +802,8 @@ def get_isar_version(comp, comp_dict):
         print("[Info] ISAR version get from ecl.txt is {0}@{1}".format(isar_branch, isar_version))
         return isar_branch, isar_version
     else:
-        raise Exception("[Error] Failed to get isar from ecl.txt {}".format(ecl_link))
+        print("[Error] Failed to get isar from ecl.txt {}".format(ecl_link))
+        return None, None
 
 
 def add_isar(comment_dict):
