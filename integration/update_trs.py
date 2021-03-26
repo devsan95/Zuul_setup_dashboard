@@ -126,6 +126,7 @@ def main(gerrit_info_path, zuul_change):
     ps_ver = get_ps_change(rest, flist, root_change)
 
     if ps_ver:
+        zuul_change_obj = inte_change.IntegrationChange(rest, zuul_change)
         new_trs = get_trs_with_ps(ps_ver)
         if not new_trs:
             raise Exception("TRS not ready, need to wait TRS deliver")
@@ -139,8 +140,12 @@ def main(gerrit_info_path, zuul_change):
         env_exists, config_yaml_exists = check_if_env_exists(flist)
         if env_exists:
             update_trs_in_env_file(rest, new_trs, root_change, zuul_change)
-        elif config_yaml_exists:
+        if config_yaml_exists:
             update_trs_in_config_yaml(rest, new_trs, root_change, zuul_change)
+        if [x for x in zuul_change_obj.get_components() if x.startswith('FTM') or x == 'ftm']:
+            update_comment_msg = 'update_component:ftm,bb_ver,{}'.format(new_trs)
+            print(update_comment_msg)
+            rest.review_ticket(zuul_change, update_comment_msg)
     else:
         raise Exception("No PS found in ENV, please check root ticket!")
 
