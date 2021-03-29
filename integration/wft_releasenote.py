@@ -712,7 +712,7 @@ def register_on_wft(args):
             log.error(response.text)
             raise Exception("Register build {} on WFT failed!".format(args.pkg_name))
         log.info("Registered build {} on WFT".format(args.pkg_name))
-        add_storage_to_build(args.pkg_name)
+        # add_storage_to_build(args.pkg_name)
 
 
 def cleanup_and_exit(signum=None, frame=None):
