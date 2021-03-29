@@ -16,17 +16,18 @@ def get_ps_version(rest, root_change, env_file_path):
         for line in rest.get_file_change(env_file_path, root_change)['new_diff'].split('\n'):
             if 'ENV_PS_REL' in line:
                 return line.split('=')[-1]
-    return None
+    return ''
 
 
-def jenkins_remote_trigger(data):
+def service_remote_trigger(data):
     proxies = {"http": "", "https": ""}
     try:
         jenkins_url = data.pop('jenkins_url')
         job_name = data.pop('job_name')
+        url = '{}/job/{}/buildWithParameters'.format(jenkins_url, job_name)
     except Exception:
-        print "jenkins_url or job_name is not provided!"
-    url = '{}/job/{}/buildWithParameters'.format(jenkins_url, job_name)
+        url = data.pop('url')
+
     res = requests.post(url, data, proxies=proxies)
     print(res.content)
     return res.ok
@@ -35,8 +36,7 @@ def jenkins_remote_trigger(data):
 def get_component_list(change_list):
     component_list = []
     for i in change_list:
-        reg = re.compile('ps/(.*?)/')
-        component_name = reg.search(i)
+        component_name = re.search('ps/(.*?)/', i) or re.search('(vl1-hi)/integration_tmp/', i)
         if component_name:
             component_list.append(component_name.group(1))
     return component_list
@@ -45,7 +45,8 @@ def get_component_list(change_list):
 def get_component_extend_data(component):
     component_info = {
         'sma-lite': {'jenkins_url': 'http://10.66.13.21:8080/jenkins/', 'job_name': 'ASI_SMA_5G_PS_REL_Trigger', 'token': '123456'},
-        'scoam-asi-controller': {'jenkins_url': 'http://krak150.emea.nsn-net.net:8080/', 'job_name': 'ASIR_CPI_Trigger', 'token': 'BNM732V5K6J3J4OP43'}
+        'scoam-asi-controller': {'jenkins_url': 'http://krak150.emea.nsn-net.net:8080/', 'job_name': 'ASIR_CPI_Trigger', 'token': 'BNM732V5K6J3J4OP43'},
+        'vl1-hi': {'url': 'https://gitlab.l1.nsn-net.net/api/v4/projects/2491/trigger/pipeline', 'token': '88d273550c37d903429af98e10ebbc'}
     }
     try:
         return component_info[component]
@@ -68,20 +69,25 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     env_repo_info = env_info[0]
     print env_repo_info
     ps_version = get_ps_version(root_change=root_change_no, rest=rest, env_file_path=env_info[1])
-    if not ps_version:
-        print "[INFO] No PS changes, skip component trigger"
-        sys.exit(0)
+    component_list = get_component_list(change_list)
     env_repo = '{}/{}'.format(repo_url, env_repo_info)
     print "[INFO] env repo: {0}".format(env_repo)
     env_version = repo_ver
-    component_list = get_component_list(change_list)
-    data = {'PS_VERSION': ps_version, 'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_HASH_REVIEW': git_hash_review}
+
+    data = {'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_HASH_REVIEW': git_hash_review}
     for component in component_list:
-        print "[INFO] Triggering component {} with {} integration ...".format(component, ps_version)
+        if component in ['vl1-hi']:
+            data = dict([('variables[{}]'.format(key), value) for key, value in data.items()])
+            data.update({'ref': branch})
+        else:
+            if not ps_version:
+                print "[INFO] No PS changes for {}, skip component trigger".format(component)
+                continue
+            data.update({'PS_VERSION': ps_version})
         component_extend_data = get_component_extend_data(component)
         data = dict(data.items() + component_extend_data.items())
-        jenkins_remote_trigger(data)
-        print "[INFO] Triggered component {} with {} integration successfully".format(component, ps_version)
+        service_remote_trigger(data)
+        print "[INFO] Triggered component {} with PS version {} integration successfully".format(component, ps_version)
 
 
 if __name__ == '__main__':
