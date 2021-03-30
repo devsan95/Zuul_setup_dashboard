@@ -4,7 +4,6 @@
 
 import fire
 import re
-import yaml
 import xml.etree.ElementTree as ET
 from api import gerrit_rest
 from api import retry
@@ -58,55 +57,6 @@ def get_trs_with_ps(ps_ver):
     return None
 
 
-def update_trs_in_env_file(rest, trs_ver, root_change, zuul_change):
-    print("Trying to update TRS in env/env-config.d/ENV")
-    env_path = 'env/env-config.d/ENV'
-    env_content = rest.get_file_content(env_path, root_change)
-
-    reg = re.compile(r'ENV_TRS=(.*)')
-    base_trs = reg.search(env_content).groups()[0]
-
-    if base_trs == trs_ver:
-        print('{} already in ENV'.format(trs_ver))
-    else:
-        print("Updating TRS from {0} to {1}".format(base_trs, trs_ver))
-        new_env_content = env_content.replace(base_trs, trs_ver)
-        rest.add_file_to_change(root_change, env_path, new_env_content)
-        rest.publish_edit(root_change)
-    review_trs_ticket(rest, zuul_change,
-                      'update TRS in ENV successfully', {'Code-Review': 2})
-
-
-def update_trs_in_config_yaml(rest, trs_ver, root_change, zuul_change):
-    print("Trying to update TRS in config.yaml")
-    config_yaml_file = 'config.yaml'
-    yaml_content = rest.get_file_content(config_yaml_file, root_change)
-    config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=yaml_content)
-
-    base_trs = config_yaml_obj.get_section_value('Common:FTM', 'version')
-
-    if base_trs == trs_ver:
-        print('{} already in config.yaml'.format(trs_ver))
-    else:
-        print("Updating TRS from {0} to {1}".format(base_trs, trs_ver))
-        config_yaml_obj.update_by_env_change({'Common:FTM': trs_ver})
-        config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
-        rest.add_file_to_change(root_change, config_yaml_file, config_yaml_content)
-        rest.publish_edit(root_change)
-    review_trs_ticket(rest, zuul_change,
-                      'update TRS in config.yaml successfully', {'Code-Review': 2})
-
-
-def check_if_env_exists(change_file_list):
-    env_exists, config_yaml_exists = False, False
-    for f in change_file_list:
-        if "env-config.d/ENV" in f:
-            env_exists = True
-        elif "config.yaml" in f:
-            config_yaml_exists = True
-    return env_exists, config_yaml_exists
-
-
 def review_trs_ticket(rest, zuul_change, message, code_review):
     retry.retry_func(
         retry.cfn(rest.review_ticket, zuul_change, message, code_review),
@@ -137,11 +87,6 @@ def main(gerrit_info_path, zuul_change):
             print('delete edit failed, reason:')
             print(str(e))
 
-        env_exists, config_yaml_exists = check_if_env_exists(flist)
-        if env_exists:
-            update_trs_in_env_file(rest, new_trs, root_change, zuul_change)
-        if config_yaml_exists:
-            update_trs_in_config_yaml(rest, new_trs, root_change, zuul_change)
         if [x for x in zuul_change_obj.get_components() if x.startswith('FTM') or x == 'ftm']:
             update_comment_msg = 'update_component:ftm,bb_ver,{}'.format(new_trs)
             print(update_comment_msg)
