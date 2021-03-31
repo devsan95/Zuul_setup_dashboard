@@ -304,11 +304,15 @@ class IntegrationCommitMessage(object):
     def update_interface_info(self, bb_version, commit_ID, comp_name):
         # find bb_version line and commit-ID line to remove
         begin_line = 0
+        changeid_line = 0
         comp_line_value = '        comp_name: {}'.format(comp_name)
         bb_line_value = '        bb_version: {}'.format(bb_version)
         commit_line_value = '        commit-ID: {}'.format(commit_ID)
         old_interfaces_list = []
         for i, v in enumerate(self.msg_lines):
+            if v.startswith('Change-Id:'):
+                changeid_line = i
+                continue
             if v.startswith('interface info:'):
                 begin_line = i
                 continue
@@ -329,8 +333,9 @@ class IntegrationCommitMessage(object):
         print('Remove old interfaces list: {}'.format(old_interfaces_list))
         self.msg_lines = [v for i, v in enumerate(self.msg_lines) if i not in old_interfaces_list]
         if begin_line == 0:
-            self.msg_lines.append('interface info:')
-            begin_line = len(self.msg_lines) - 2
+            print('Set begin line to {} by changeid position'.format(changeid_line))
+            begin_line = changeid_line
+            self.msg_lines.insert(begin_line, 'interface info:')
         self.msg_lines.insert(begin_line + 1, comp_line_value)
         self.msg_lines.insert(begin_line + 2, bb_line_value)
         self.msg_lines.insert(begin_line + 3, commit_line_value)
