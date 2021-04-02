@@ -1147,6 +1147,7 @@ class IntegrationChangesCreation(object):
                     base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
             else:
                 base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
+            print('Base load list: {}'.format(self.base_load_list))
             if '_' in base_load:
                 base_load = base_load.split('_')[-1]
             base_commits = self.parse_base_load(base_load)
