@@ -294,18 +294,18 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
 
     env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
 
-    # get origin env diff
-    try:
-        origin_env_change = rest.get_file_change(env_path, change_no)
-        if 'new_diff' in origin_env_change:
-            origin_env_diff = origin_env_change['new_diff']
-        print('Origin Env change {}'.format(origin_env_change))
-    except Exception as e:
-        print('Cannot find env for %s', change_no)
-        print(str(e))
+    origin_env_change = {}
+    if env_path:
+        # get origin env diff
+        try:
+            origin_env_change = rest.get_file_change(env_path, change_no)
+            print('Origin Env change {}'.format(origin_env_change))
+        except Exception as e:
+            print('Cannot find env for %s', change_no)
+            print(str(e))
     combine_env_list = []
     updated_dict, removed_dict = None, None
-    if not origin_env_diff:
+    if 'new_diff' in origin_env_change and origin_env_change['new_diff']:
         combine_env_list = env_change_list
         # get origin config.yaml change
         try:

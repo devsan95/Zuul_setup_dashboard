@@ -7,15 +7,23 @@ import sys
 import requests
 from api import gerrit_rest
 from api import env_repo as get_env_repo
+from mod import config_yaml
 from mod import integration_change
 
 
 def get_ps_version(rest, root_change, env_file_path):
     change_files = rest.get_file_list(root_change)
     if env_file_path in change_files:
-        for line in rest.get_file_change(env_file_path, root_change)['new_diff'].split('\n'):
-            if 'ENV_PS_REL' in line:
-                return line.split('=')[-1]
+        if not env_file_path:
+            config_yaml_change = rest.get_file_change('config.yaml', root_change)
+            old_config_yaml = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['old'])
+            updated_changes = old_config_yaml.get_changes(config_yaml_change['new'])[0]
+            if 'PS:PS' in updated_changes:
+                return updated_changes['PS:PS']['version']
+        else:
+            for line in rest.get_file_change(env_file_path, root_change)['new_diff'].split('\n'):
+                if 'ENV_PS_REL' in line:
+                    return line.split('=')[-1]
     return ''
 
 

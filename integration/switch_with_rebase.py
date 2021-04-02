@@ -184,13 +184,14 @@ def rebase_by_load(rest, change_no, base_package,
                 # if is env:
                 if comp_name == 'env' or project == 'MN/5G/COMMON/integration':
                     env_path = get_env_repo.get_env_repo_info(rest, comp_change)[1]
-                    try:
-                        clear_and_rebase_file(rest, comp_change,
-                                              env_path, comp_hash)
-                        rebase_succeed['env {}'.format(comp_change)] = comp_hash
-                    except Exception:
-                        traceback.print_exc()
-                        rebase_failed[comp_name_with_change] = comp_hash
+                    if env_path:
+                        try:
+                            clear_and_rebase_file(rest, comp_change,
+                                                  env_path, comp_hash)
+                            rebase_succeed['env {}'.format(comp_change)] = comp_hash
+                        except Exception:
+                            traceback.print_exc()
+                            rebase_failed[comp_name_with_change] = comp_hash
                 else:
                     rebase_failed[comp_name_with_change] = comp_hash
         else:
@@ -297,11 +298,12 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
         change_map = {}
         if env_change_list:
             env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
-            base_env = rest.get_file_content(env_path, change_no)
-            change_map = env_changes.create_file_change_by_env_change(
-                env_change_list,
-                base_env,
-                file_path)
+            if env_path:
+                base_env = rest.get_file_content(env_path, change_no)
+                change_map = env_changes.create_file_change_by_env_change(
+                    env_change_list,
+                    base_env,
+                    file_path)
             # update config.yaml content
             change_map.update(env_changes.create_config_yaml_by_env_change(
                 env_change_list,
