@@ -1,3 +1,4 @@
+import sys
 import re
 import fire
 import time
@@ -44,7 +45,8 @@ def check_verified_status(rest, change_no, timeout):
             time.sleep(60)
             time_used += 1
             info_with_labels = rest.get_ticket(change_no, fields='LABELS')
-    raise Exception("ERROR: {} mins exceed to wait verfied +1 for {}".format(timeout, change_no))
+    print("ERROR: {} mins exceed to wait verfied +1 for {}".format(timeout, change_no))
+    sys.exit(213)
 
 
 def run(gerrit_info_path, change_no, timeout=30):

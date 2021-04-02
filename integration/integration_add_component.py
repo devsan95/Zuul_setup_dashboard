@@ -1,6 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
 
+import sys
 import fire
 import ruamel.yaml as yaml
 import urllib3
@@ -254,7 +255,8 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
                         if 'files' in c and c['files']:
                             comp['files'].append(c['files'])
         else:
-            raise Exception('[Error] component name is invalid, please refer to the name in skytrack create page')
+            print('[Error] component name is invalid, please refer to the name in skytrack create page')
+            sys.exit(213)
 
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root = parse_root_change(rest, root_change)

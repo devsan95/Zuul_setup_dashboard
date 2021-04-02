@@ -342,7 +342,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
             print(log)
         print('integration framework web output end')
     if not check_result:
-        sys.exit(1)
+        sys.exit(213)
 
 
 if __name__ == '__main__':

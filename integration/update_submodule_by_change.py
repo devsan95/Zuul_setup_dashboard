@@ -44,7 +44,7 @@ def clear_change(rest, change_id, submodule_path):
         rest.rebase(change_id)
     except Exception as e:
         print('Rebase failed, {}'.format(e))
-        raise e
+        sys.exit(213)
 
 
 def check_submodule(rest, change_id, submodule_path, commit_id, repo_path):

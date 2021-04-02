@@ -261,7 +261,7 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     print(component_list)
     if not integration_verification_check(rest, component_list):
         skytrack_log.skytrack_output("ERROR: Verified+1 missing for repository MN/5G/COMMON/integration")
-        sys.exit(1)
+        sys.exit(213)
     closed_dict = dict()
     if inte_change.get_with_without() == '<without-zuul-rebase>':
         integration_mode = 'FIXED_BASE'
@@ -277,7 +277,7 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
         messages.append('You can add streams via: http://wrlinb147.emea.nsn-net.net:9090/view/008_Integration/job/integration_framework.UPDATE_KNIFE_STREAM/')
     if len(messages) > 1:
         skytrack_log.skytrack_output(messages)
-        sys.exit(1)
+        sys.exit(213)
     print('Build Pre-check Succeed')
     build_info_post(
         change_id=change_no,

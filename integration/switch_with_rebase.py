@@ -446,7 +446,7 @@ def run(root_change, gerrit_info_path,
             highlight=True
         )
     if not rebase_result:
-        sys.exit(2)
+        sys.exit(213)
 
 
 if __name__ == '__main__':

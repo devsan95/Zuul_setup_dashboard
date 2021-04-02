@@ -104,7 +104,7 @@ def get_branch_and_srv(comp, ref):
         return brch_dict[int_brch], brch_dict[
             'repo_server'], brch_dict['repo_project']
     print('Error: No {} info in repo config'.format(comp))
-    sys.exit(2)
+    sys.exit(213)
 
 
 def _main(ticket, conf_path, action, branch):
@@ -150,7 +150,7 @@ def _main(ticket, conf_path, action, branch):
                     mr_iid))
     else:
         print('Error action:{} is not supported yet'.format(action))
-        sys.exit(2)
+        sys.exit(213)
 
 
 def _parse_args():

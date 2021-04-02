@@ -1,7 +1,7 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
 
-
+import sys
 import fire
 import re
 import xml.etree.ElementTree as ET
@@ -79,7 +79,8 @@ def main(gerrit_info_path, zuul_change):
         zuul_change_obj = inte_change.IntegrationChange(rest, zuul_change)
         new_trs = get_trs_with_ps(ps_ver)
         if not new_trs:
-            raise Exception("TRS not ready, need to wait TRS deliver")
+            print("TRS not ready, need to wait TRS deliver")
+            sys.exit(213)
         # delete edit
         try:
             rest.delete_edit(root_change)

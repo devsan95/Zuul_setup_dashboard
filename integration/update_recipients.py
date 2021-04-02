@@ -1,5 +1,6 @@
 #! /usr/bin/env python2.7
 # -*- coding:utf-8 -*-
+import sys
 import fire
 import re
 from api import gerrit_rest
@@ -20,7 +21,11 @@ def delete_reviewers(rest, rest_id, reviewers):
     reviewers_mail_list = [x['email'] for x in old_reviewers_json if 'email' in x]
     for reviewer in reviewers:
         if reviewer in reviewers_mail_list:
-            rest.delete_reviewer(rest_id, reviewer)
+            try:
+                rest.delete_reviewer(rest_id, reviewer)
+            except Exception as e:
+                print('Delete reviwer {} failed, {}'.format(reviewer, str(e)))
+                sys.exit(213)
             print('[Info] successfully deleted reviewer {}'.format(reviewer))
 
 

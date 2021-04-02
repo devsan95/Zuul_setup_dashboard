@@ -19,7 +19,7 @@ def run(change_id, gerrit_info_path):
             sys.exit(0)
 
     print('there is no update_component in {} change'.format(change_id))
-    sys.exit(2)
+    sys.exit(213)
 
 
 if __name__ == '__main__':
