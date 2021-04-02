@@ -841,7 +841,7 @@ class IntegrationChangesCreation(object):
             module_ver = build
             if module_ver == base_load:
                 continue
-            get_comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+            get_comp_info = get_component_info.GET_COMPONENT_INFO(module_ver)
             try:
                 comp_ver = get_comp_info.get_comp_hash(ric_com)
             except Exception as e:
