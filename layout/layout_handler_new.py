@@ -833,16 +833,21 @@ class LayoutGroup(object):
                         if voting_false["name"] == job:
                             return True
             return False
-
         for jobdep in jobdep_all:
             job_folder = jobdep["folder"]
             for job in jobdep["jobs"].keys():
                 if is_voting_false(job, job_folder):
                     for child in jobdep["jobs"][job]:
                         if not is_voting_false(child, job_folder):
-                            warning_list.append(
-                                'It is not allow to have a voting job [{}] dependent of a non voting job [{}] \n  folder path is [{}]'.format(child, job, job_folder)
-                            )
+                            voting_is_error = self.get_rule(job_folder, 'treat_as_error', 'disallow_voting_job_as_error')
+                            if voting_is_error is True:
+                                error_list.append(
+                                    'It is not allow to have a voting job [{}] dependent of a non voting job [{}] \n  folder path is [{}]'.format(child, job, job_folder)
+                                )
+                            else:
+                                warning_list.append(
+                                    'It is not allow to have a voting job [{}] dependent of a non voting job [{}] \n  folder path is [{}]'.format(child, job, job_folder)
+                                )
                             continue
 
         if warning_list:
