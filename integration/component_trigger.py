@@ -69,10 +69,13 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     change_list = rest.get_file_list(change_id).keys()
     int_change_obj = integration_change.IntegrationChange(rest, change_id)
     depends_comps = int_change_obj.get_depends()
+    root_change_no = None
     for depends_comp in depends_comps:
         print('depends_comp: {}'.format(depends_comp))
         if depends_comp[2] == 'root':
             root_change_no = depends_comp[1]
+    if not root_change_no:
+        raise Exception("Can not get root ticket")
     env_info = get_env_repo.get_env_repo_info(rest, root_change_no)
     env_repo_info = env_info[0]
     print env_repo_info
