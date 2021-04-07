@@ -276,7 +276,7 @@ def get_branch(pkg, ver_pattern):
         branch = "{}_5G_IN_SRAN".format(branch)
     elif branch in ["FEINT", "PSINT", "NIDDINT", "LOMINT", "CPIINT", "RCPINT"]:
         # master cloud streams have already been split to pDU CU_VNF vDU
-        for stream_type in ['pDU', 'CU_VNF', 'vDU']:
+        for stream_type in ['pDU', 'CU_VNF', 'vDU', 'CU_CNF']:
             if stream_type in stream_name:
                 branch = "{}_{}".format(branch, stream_type)
         # Maintenance branches still have stream_name such as 20Bb1_cloudbts
