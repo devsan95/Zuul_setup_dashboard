@@ -206,6 +206,8 @@ class GET_COMPONENT_INFO(object):
     def get_comp_hash_from_mapping_file(self, comp_name):
         revision = self.get_value_from_mapping_and_env(comp_name, 'revision', 'repo_ver')
         if not revision:
+            revision = self.get_value_from_mapping_and_env(comp_name, 'rev', 'repo_ver')
+        if not revision:
             return self.get_value_from_mapping_and_env(comp_name, 'PV', 'repo_ver')
         return revision
 
