@@ -184,14 +184,13 @@ def rebase_by_load(rest, change_no, base_package,
                 # if is env:
                 if comp_name == 'env' or project == 'MN/5G/COMMON/integration':
                     env_path = get_env_repo.get_env_repo_info(rest, comp_change)[1]
-                    if env_path:
-                        try:
-                            clear_and_rebase_file(rest, comp_change,
-                                                  env_path, comp_hash)
-                            rebase_succeed['env {}'.format(comp_change)] = comp_hash
-                        except Exception:
-                            traceback.print_exc()
-                            rebase_failed[comp_name_with_change] = comp_hash
+                    try:
+                        clear_and_rebase_file(rest, comp_change,
+                                              env_path, comp_hash)
+                        rebase_succeed['env {}'.format(comp_change)] = comp_hash
+                    except Exception:
+                        traceback.print_exc()
+                        rebase_failed[comp_name_with_change] = comp_hash
                 else:
                     rebase_failed[comp_name_with_change] = comp_hash
         else:
@@ -246,10 +245,11 @@ def rebase_by_load(rest, change_no, base_package,
 
 def clear_and_rebase_file(rest, change_no, file_path, env_hash):
     env_change = {}
-    try:
-        env_change = rest.get_file_change(file_path, change_no)
-    except Exception:
-        print('Cannot find {0} for {1}'.format(file_path, change_no))
+    if file_path:
+        try:
+            env_change = rest.get_file_change(file_path, change_no)
+        except Exception:
+            print('Cannot find {0} for {1}'.format(file_path, change_no))
 
     config_yaml_change = {}
     try:
