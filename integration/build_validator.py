@@ -44,25 +44,34 @@ def fixed_base_validator(rest, components, base_dict):
     repo_dict = dict()
     parent_hash_mismatch = list()
     error_info = "Parent commit in change {} of {} is {}, the version in base build is {}"
+    mismatch_dict = {}
     for component in components:
         parent = rest.get_parent(component[2])
         if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
             base_parent_list = get_base_parent(rest, base_obj_list, component[0])
             if parent not in base_parent_list:
-                parent_hash_mismatch.append(
-                    error_info.format(
-                        component[2],
-                        component[0],
-                        parent,
-                        ", ".join(base_parent_list)
-                    )
-                )
+                mismatch_dict[component[2]] = (component, parent, base_parent_list)
+            else:
+                print("remove change {} from parent_hash_mismatch".format(component[2]))
+                if component[2] in mismatch_dict:
+                    del mismatch_dict[component[2]]
+
         if component[1] not in repo_dict:
             repo_dict[component[1]] = dict()
         if parent not in repo_dict[component[1]]:
             repo_dict[component[1]][parent] = [component]
         else:
             repo_dict[component[1]][parent].append(component)
+    for mismatch_component in mismatch_dict.values():
+        parent_hash_mismatch.append(
+            error_info.format(
+                mismatch_component[0][2],
+                mismatch_component[0][0],
+                mismatch_component[1],
+                ", ".join(mismatch_component[2])
+            )
+        )
+
     parent_mismatch = dict()
     for repo, parents in repo_dict.items():
         if len(parents) > 1:
