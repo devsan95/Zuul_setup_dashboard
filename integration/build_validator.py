@@ -48,7 +48,9 @@ def fixed_base_validator(rest, components, base_dict):
     match_change_list = []
     for component in components:
         parent = rest.get_parent(component[2])
-        if component[0] in match_change_list:
+        print('mismatch_dict: {}'.format(mismatch_dict))
+        print('match_change_list: {}'.format(match_change_list))
+        if component[2] in match_change_list:
             continue
         if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
             base_parent_list = get_base_parent(rest, base_obj_list, component[0])
