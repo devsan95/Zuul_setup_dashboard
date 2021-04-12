@@ -284,7 +284,7 @@ class ManageChange(IntegrationChange):
 
     def get_build_streams(self):
         streams = list()
-        streams_regex = re.compile(r'.+\/(.*)\/.*')
+        streams_regex = re.compile(r'.+\/([.0-9]*)\/.*')
         changed_files = self.rest.get_file_list(self.change_no)
         for change in changed_files:
             stream = streams_regex.match(change)
