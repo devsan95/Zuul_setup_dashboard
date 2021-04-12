@@ -322,6 +322,8 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
         rest.publish_edit(change_no)
         if not rebase_result:
             raise Exception('Change {} rebase failed, add back ENV file content'.format(change_no))
+    else:
+        raise Exception('Change {} no modification in config.yaml or ENV file'.format(change_no))
 
 
 def init_gerrit_rest(gerrit_info_path):
