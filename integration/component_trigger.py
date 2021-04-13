@@ -86,6 +86,7 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     env_version = repo_ver
 
     data = {'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_HASH_REVIEW': git_hash_review}
+    ps_prompt = ''
     for component in component_list:
         if component in ['vl1-hi']:
             data = dict([('variables[{}]'.format(key), value) for key, value in data.items()])
@@ -94,11 +95,12 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
             if not ps_version:
                 print "[INFO] No PS changes for {}, skip component trigger".format(component)
                 continue
+            ps_prompt = 'with PS version {} '.format(ps_version)
             data.update({'PS_VERSION': ps_version})
         component_extend_data = get_component_extend_data(component)
         data = dict(data.items() + component_extend_data.items())
         service_remote_trigger(data)
-        print "[INFO] Triggered component {} with PS version {} integration successfully".format(component, ps_version)
+        print "[INFO] Triggered component {} {}integration successfully".format(component, ps_prompt)
 
 
 if __name__ == '__main__':
