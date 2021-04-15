@@ -24,11 +24,11 @@ def main():
     ecl_base_load = ''
     if args.base_load and args.base_branch and args.ecl_branch:
         cb_incrementer = BuildIncrement(args.base_branch, base_build=args.base_load)
-        cb_incrementer.run()
+        cb_incrementer.run(args.PSINT_cycle)
         ecl_base_load = WFTUtils.get_build_detail(args.base_load)['ecl_sack_base']
 
     ecl_incrementer = BuildIncrement(args.ecl_branch, changed, ecl_base_load)
-    ecl_incrementer.run(args.PSINT_cycle)
+    ecl_incrementer.run(int(args.PSINT_cycle) + 1)
 
 
 if __name__ == "__main__":
