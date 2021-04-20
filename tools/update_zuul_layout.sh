@@ -17,7 +17,7 @@ cd ${work_path}
 git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/layout
 git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/conf
 
-. ${SCRIPT_DIR}/pyenv.sh
+. ${SCRIPT_DIR}/pyenv_lite.sh
 python ${SCRIPT_DIR}/layout/layout_handler.py -i "${work_path}/layout/layout.yaml" \
  -z "${work_path}/conf/zuul_conf/zuul.conf" merge -o "/etc/zuul/layout.yaml"
 kill -SIGHUP `supervisorctl pid zuul-server`
