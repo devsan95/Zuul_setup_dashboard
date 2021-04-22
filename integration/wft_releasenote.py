@@ -297,7 +297,7 @@ def set_branch_for(args, knife_json):
         gerritclient = gerrit_rest.init_from_yaml(args.gerrit_info_path)
         rootchange = gerritclient.get_detailed_ticket(commitid)
         subject = rootchange['subject']
-        branch = re.search(r'int_branch:\s*(\w+)', subject)
+        branch = re.search(r'[^\w]int_branch:\s*(\w+)', subject)
         if branch:
             args.branch_for = branch.group(1)
 
@@ -658,9 +658,9 @@ def generate_releasenote(args, base_pkg, knife_json, wft_prefix, docker_info):
     latest_build = get_latest_build(args.branch)
     releasenote = get_releasenote(base_pkg, wft_prefix)
     docker_info['pkg'] = args.pkg_name
+    set_branch_for(args, knife_json)
     update_element_list(releasenote, knife_json, docker_info)
     update_downloads_url(args.pkg_name, releasenote)
-    set_branch_for(args, knife_json)
     releasenote['releasenote']['baseline']['branchFor'] = [args.branch_for]
     releasenote['releasenote']['baseline']['importantNotes'] = [important_notes]
     releasenote['releasenote']['baseline']['basedOn']['version'] = latest_build
