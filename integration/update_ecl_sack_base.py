@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 import json
+import re
 import argparse
 from api import log_api
 from mod.wft_actions import BuildIncrement, WFTUtils
@@ -28,7 +29,10 @@ def main():
         ecl_base_load = WFTUtils.get_build_detail(args.base_load)['ecl_sack_base']
 
     ecl_incrementer = BuildIncrement(args.ecl_branch, changed, ecl_base_load)
-    ecl_incrementer.run(int(args.PSINT_cycle) + 1)
+    if not re.match(r'\d{6}$', args.PSINT_cycle.strip()):
+        ecl_incrementer.run()
+    else:
+        ecl_incrementer.run(int(args.PSINT_cycle) + 1)
 
 
 if __name__ == "__main__":
