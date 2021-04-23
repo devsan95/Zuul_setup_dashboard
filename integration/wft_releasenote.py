@@ -259,6 +259,10 @@ def arguments():
     parse.add_argument('--branch_for', '-d', required=False, help="BRANCHFOR")
     parse.add_argument('--gerrit_info_path', '-f', required=False, help="gerrit_info_path")
     parse.add_argument('--upload_to_wft', '-u', required=True, help="UPLOAD_TO_WFT")
+    parse.add_argument('--knife_json', '-k', required=False, help="use parameter instead of fetching from jenkins")
+    parse.add_argument('--upstream_job', '-j', required=False, help="use 'project/number' as upstream job (eg. Knives.START/27769)")
+    parse.add_argument('--release_name', '-r', required=False, help="use parameter as build name in releasenote")
+    parse.add_argument('--release_state', '-s', required=False, help="use parameter as build state in registration")
     return parse.parse_args()
 
 
@@ -322,7 +326,13 @@ def get_stream_config_file(ver_pattern, file_pattern='.config-master*'):
     return config_file, wft_prefix
 
 
-def get_upstream_job():
+def get_upstream_job(args):
+    if args.upstream_job:
+        job = args.upstream_job.split('/')
+        if len(job) != 2:
+            raise Exception("Invalid upstream job format. Expected 'project/number'")
+        return job
+
     upstream_project = None
     upstream_build = None
     server = jenkins.Jenkins(jenkins_server)
@@ -425,24 +435,28 @@ def optimize_json_dict(knife_json):
                 knife_json[component] = version
 
 
-def get_knife_json_dict(pkg, base_pkg, integration):
-    knife_json = None
-    job, build = get_upstream_job()
-    response = requests.get(job_url.format(job, build) + 'parameters/')
-    if not response.ok:
-        raise Exception("Get upstream job parameters html failed!")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    for tbody in soup.find_all('tbody'):
-        td = tbody.find('td', class_="setting-name")
-        if td and td.get_text() == "KNIFE_JSON":
-            try:
-                knife_json = tbody.find('textarea').get_text()
-            except AttributeError:
-                log.info("Get textarea failed, try get input value.")
-                knife_json = tbody.find('input').get('value')
-            break
+def get_knife_json_dict(args, base_pkg, integration):
+    pkg = args.pkg_name
+    if args.knife_json:
+        knife_json = args.knife_json
     else:
-        raise Exception("Get upstream job knofe json text failed!")
+        knife_json = None
+        job, build = get_upstream_job(args)
+        response = requests.get(job_url.format(job, build) + 'parameters/')
+        if not response.ok:
+            raise Exception("Get upstream job parameters html failed!")
+        soup = BeautifulSoup(response.text, 'html.parser')
+        for tbody in soup.find_all('tbody'):
+            td = tbody.find('td', class_="setting-name")
+            if td and td.get_text() == "KNIFE_JSON":
+                try:
+                    knife_json = tbody.find('textarea').get_text()
+                except AttributeError:
+                    log.info("Get textarea failed, try get input value.")
+                    knife_json = tbody.find('input').get('value')
+                break
+        else:
+            raise Exception("Get upstream job knofe json text failed!")
     knife_json = json.loads(knife_json)
     optimize_json_dict(knife_json)
     check_integration_change(pkg, base_pkg, integration, knife_json)
@@ -565,9 +579,10 @@ def update_element_list(releasenote, knife_json, docker_info):
         log.warning("The remaining components can not matched:\n {}".format(knife_json))
 
 
-def update_downloads_url(pkg, releasenote):
+def update_downloads_url(args, releasenote):
+    pkg = args.pkg_name
     downloads = list()
-    job, build = get_upstream_job()
+    job, build = get_upstream_job(args)
     log.info("Download {} #{} artifact file package-bb.prop".format(job, build))
     response = requests.get(
         job_url.format(job, build) + 'artifact/artifacts/package-bb.prop'
@@ -591,8 +606,8 @@ def update_downloads_url(pkg, releasenote):
         releasenote['releasenote']['baseline']['download'] = downloads
 
 
-def update_release_date(releasenote):
-    job, build = get_upstream_job()
+def update_release_date(args, releasenote):
+    job, build = get_upstream_job(args)
     home_page = '{}job/{}/{}/'.format(jenkins_server, job, build)
     releasenote['releasenote']['baseline']['homepage'] = home_page
     response = requests.get(home_page)
@@ -660,14 +675,14 @@ def generate_releasenote(args, base_pkg, knife_json, wft_prefix, docker_info):
     docker_info['pkg'] = args.pkg_name
     set_branch_for(args, knife_json)
     update_element_list(releasenote, knife_json, docker_info)
-    update_downloads_url(args.pkg_name, releasenote)
+    update_downloads_url(args, releasenote)
     releasenote['releasenote']['baseline']['branchFor'] = [args.branch_for]
     releasenote['releasenote']['baseline']['importantNotes'] = [important_notes]
     releasenote['releasenote']['baseline']['basedOn']['version'] = latest_build
     releasenote['releasenote']['baseline']['notes'] = args.topic
-    releasenote['releasenote']['baseline']['version'] = args.pkg_name
+    releasenote['releasenote']['baseline']['version'] = args.release_name or args.pkg_name
     releasenote['releasenote']['baseline']['branch'] = args.branch
-    update_release_date(releasenote)
+    update_release_date(args, releasenote)
     generate_json_file(releasenote, releasenote_file)
 
 
@@ -699,7 +714,7 @@ def register_on_wft(args):
     if args.upload_to_wft == "true":
         data = {
             'access_key': os.environ['WFT_KEY'],
-            'state': 'released_for_quicktest',
+            'state': args.release_state or 'released_for_quicktest',
             'state_machine': 'imported_central'
         }
         response = requests.post(
@@ -754,7 +769,7 @@ def main():
     if not stream_config or not wft_prefix:
         raise Exception("Can not get stream config file or wft name prefix!")
     docker_info = {'image': image, 'stream_config': stream_config}
-    knife_json = get_knife_json_dict(args.pkg_name, base_pkg, integration)
+    knife_json = get_knife_json_dict(args, base_pkg, integration)
     generate_releasenote(args, base_pkg, knife_json, wft_prefix, docker_info)
     register_on_wft(args)
 
