@@ -141,6 +141,8 @@ class BuildIncrement(object):
             raise Exception("Failed to increment new  {}:{} in WFT".format(current_detail['project'], current_detail['component']))
         log.info("New build {} created in WFT".format(new_version))
 
+        return new_version
+
     def run(self, psint_cycle=None):
         base_build_project = None
         base_build_component = None
@@ -152,4 +154,4 @@ class BuildIncrement(object):
         if not self.base_build:
             self.base_build = latest_build['baseline']
 
-        self.send_inc_request(latest_build, psint_cycle)
+        return self.send_inc_request(latest_build, psint_cycle)

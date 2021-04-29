@@ -75,7 +75,8 @@ def prepare_trigger_file(rest, root_change, skytrack_log_collector):
     trigger_file = os.path.join(os.environ['WORKSPACE'], "increment_ecl.prop")
     with open(trigger_file, 'w') as trigger_file_fd:
         trigger_file_fd.write(
-            "ecl_branch={}\nchanged_content={}\n".format(
+            "root_change={}\necl_branch={}\nchanged_content={}\n".format(
+                root_change,
                 root_obj.get_ecl_branch(),
                 param_str
             )

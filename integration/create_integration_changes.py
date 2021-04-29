@@ -1035,7 +1035,8 @@ class IntegrationChangesCreation(object):
             change_dict[item['name']] = {'version': item['version']}
         with open(trigger_file, 'w') as trigger_file_fd:
             trigger_file_fd.write(
-                "ecl_branch={}\nPSINT_cycle={}\nbase_branch={}\nbase_load={}\nchanged_content={}\n".format(
+                "root_change={}\necl_branch={}\nPSINT_cycle={}\nbase_branch={}\nbase_load={}\nchanged_content={}\n".format(
+                    self.info_index['root']['ticket_id'],
                     ecl_int_branch,
                     psint_cycle,
                     ecl_map_branch,
