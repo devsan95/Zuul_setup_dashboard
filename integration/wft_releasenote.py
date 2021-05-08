@@ -108,6 +108,29 @@ releasenote_template = '''{
     }
 }
 '''
+create_branch_template = {
+    "branch": {
+        "title": "",
+        "template": "5Gxx_x.x.x",
+        "project_full_path": "5G:WMP",
+        "branch_type_title": "",
+        "release_name": "5G00",
+        "branch_system_releases_attributes": [],
+        "feature_policy": "",
+        "featurebuild_title": "",
+        "visible": 1,
+        "writable": 1,
+        "build_deletion": "",
+        "autobuild_state_machine_title": "inactive",
+        "load_request_tag_check": 1,
+        "upstream_branch_title": "",
+        "parent_branch_title": "",
+        "branchpoint_baseline": "",
+        "important_notes": "",
+        "supported_hardware": []
+    },
+    'access_key': os.environ['WFT_KEY'],
+}
 
 
 class bitbake_terminal(object):
@@ -724,10 +747,25 @@ def register_on_wft(args):
             verify=verify_ssl
         )
         if not response.ok:
-            log.error(response.text)
-            raise Exception("Register build {} on WFT failed!".format(args.pkg_name))
+            raise Exception(response.text)
         log.info("Registered build {} on WFT".format(args.pkg_name))
         # add_storage_to_build(args.pkg_name)
+
+
+def create_wft_branch(branch):
+    if not branch:
+        sys.exit("branch is empty, exit create branch")
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    create_url = 'https://wft.int.net.nokia.com:8091/api/v1/branches/{}/create.json'.format(branch)
+    create_branch_template['branch']['title'] = branch
+    response = requests.post(
+        create_url,
+        json=create_branch_template,
+        headers=headers,
+        verify=verify_ssl
+    )
+    if not response.ok:
+        raise Exception(response.text)
 
 
 def cleanup_and_exit(signum=None, frame=None):
@@ -771,7 +809,13 @@ def main():
     docker_info = {'image': image, 'stream_config': stream_config}
     knife_json = get_knife_json_dict(args, base_pkg, integration)
     generate_releasenote(args, base_pkg, knife_json, wft_prefix, docker_info)
-    register_on_wft(args)
+    try:
+        register_on_wft(args)
+    except Exception as e:
+        if "does not exist in WFT" in str(e):
+            log.info(e)
+            create_wft_branch(args.branch)
+        register_on_wft(args)
 
 
 if __name__ == "__main__":
