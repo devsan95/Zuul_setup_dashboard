@@ -758,6 +758,7 @@ def create_wft_branch(branch):
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     create_url = 'https://wft.int.net.nokia.com:8091/api/v1/branches/{}/create.json'.format(branch)
     create_branch_template['branch']['title'] = branch
+    log.info("start to create new branch {} on WFT".format(branch))
     response = requests.post(
         create_url,
         json=create_branch_template,
@@ -766,6 +767,7 @@ def create_wft_branch(branch):
     )
     if not response.ok:
         raise Exception(response.text)
+    log.info("New branch {} is created on WFT".format(branch))
 
 
 def cleanup_and_exit(signum=None, frame=None):
