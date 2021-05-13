@@ -1073,16 +1073,14 @@ class IntegrationChangesCreation(object):
                 yaml_change_list.extend(
                     self.get_inherit_change(entry['name'], entry['value'], inherit_list)
                 )
-            if not yaml_change_list:
-                return None
-            self.generate_trigger_file(yaml_change_list)
-            return self.generate_env_change(yaml_change_list)
+            if yaml_change_list:
+                return self.generate_env_change(yaml_change_list), yaml_change_list
         elif env_change:
-            return env_change
+            return env_change, None
         elif 'project' in self.meta and self.meta['project'] == 'SBTS':
             print('Project is SBTS, but no yaml_entry provide, exit!')
             sys.exit(0)
-        return None
+        return None, None
 
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
@@ -1099,7 +1097,7 @@ class IntegrationChangesCreation(object):
             integration_mode = self.meta['integration_mode']
         if 'base_load' in self.meta and self.meta['base_load']:
             base_load = self.meta['base_load']
-        env_change = self.process_yaml_entry(env_change)
+        env_change, yaml_change_list = self.process_yaml_entry(env_change)
         # handle integration topic
         utc_dt = datetime.utcnow()
         timestr = utc_dt.replace(microsecond=0).isoformat().replace(':', '_')
@@ -1226,6 +1224,10 @@ class IntegrationChangesCreation(object):
                                    comp_name=re.search(r'comp_name:\W+(.*)', ext_commit_msg).group(1),
                                    commit_id=re.search(r'commit-ID:\W+(.*)', ext_commit_msg).group(1)
                                    )
+
+        # generate parameter file for increment_ecl job
+        if yaml_change_list:
+            self.generate_trigger_file(yaml_change_list)
         # handle node need to be depends on
         base_comp = self.get_base_comp()
         if base_comp:
