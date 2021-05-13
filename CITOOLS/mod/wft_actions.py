@@ -60,7 +60,7 @@ class WFTUtils(object):
     def get_next_version(version, sub_version=None):
         # eg, sub_version is "201221" in SBTS00_ECL_SACK_BASE_9000_201221_000008
         if sub_version:
-            short_version = sub_version
+            short_version = str(sub_version)
         else:
             short_version = datetime.strftime(datetime.now(), '%y%m%d')
         units = version.rsplit('_', 2)
