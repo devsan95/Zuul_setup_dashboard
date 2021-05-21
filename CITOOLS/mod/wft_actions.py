@@ -137,8 +137,8 @@ class BuildIncrement(object):
             verify=True
         )
         if not response.ok:
-            log.error(response.text)
-            raise Exception("Failed to increment new  {}:{} in WFT".format(current_detail['project'], current_detail['component']))
+            raise Exception("Failed to increment new %s:%s in WFT; error message was: %s" %
+                            current_detail['project'], current_detail['component'], response.text)
         log.info("New build {} created in WFT".format(new_version))
 
         return new_version
