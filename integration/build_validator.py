@@ -3,6 +3,7 @@ import sys
 import json
 import traceback
 import fire
+import yaml
 
 import update_oam_commit
 import generate_bb_json
@@ -11,6 +12,7 @@ from api import gerrit_rest
 from api import skytrack_log
 from mod import wft_tools
 from mod import integration_change
+from mod import env_changes
 
 
 def get_base_parent(rest, base_obj_list, comp):
@@ -109,7 +111,7 @@ def fixed_base_validator(rest, components, base_dict):
     return messages
 
 
-def head_mode_validator(rest, components):
+def head_mode_validator(rest, components, config_yaml_dict):
     messages = ['Integration working on head mode']
     print(messages[0])
     print('Start to check components mergeable status')
@@ -123,7 +125,16 @@ def head_mode_validator(rest, components):
             closed[component[2]] = change_info['status']
             continue
         if not rest.get_change(component[2])['mergeable']:
-            merge_conficts.append(component[2])
+            if component[1] == 'MN/5G/COMMON/integration':
+                env_changes.rebase_integration_change(rest, component[2])
+            if not rest.get_change(component[2])['mergeable']:
+                merge_conficts.append(component[2])
+        if component[1] == 'MN/5G/COMMON/integration':
+            env_changes.rebase_component_config_yaml(rest, component[2], config_yaml_dict)
+
+    for component_un_mergeable in merge_conficts:
+        if rest.get_change(component_un_mergeable)['mergeable']:
+            merge_conficts.remove(component_un_mergeable)
     gerrit_url = 'https://gerrit.ext.net.nokia.com/gerrit/#/c/{change}/'
     if merge_conficts:
         messages.append('Build Pre-check Failed')
@@ -275,6 +286,13 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     inte_change = integration_change.ManageChange(rest, change_no)
     component_list = inte_change.get_all_components()
     print(component_list)
+    config_yaml_dict = {}
+    if comp_config:
+        comp_config_dict = {}
+        with open(comp_config, 'r') as fr:
+            comp_config_dict = yaml.load(fr.read(), Loader=yaml.Loader)
+        if 'config_yaml' in comp_config_dict:
+            config_yaml_dict = comp_config_dict['config_yaml']
     if not integration_verification_check(rest, component_list):
         skytrack_log.skytrack_output("ERROR: Verified+1 missing for repository MN/5G/COMMON/integration")
         sys.exit(213)
@@ -285,7 +303,7 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
         messages = fixed_base_validator(rest, component_list, base_dict)
     else:
         integration_mode = 'HEAD'
-        messages, closed_dict = head_mode_validator(rest, component_list)
+        messages, closed_dict = head_mode_validator(rest, component_list, config_yaml_dict)
     build_streams = inte_change.get_build_streams()
     if not build_streams:
         messages.append('Build Pre-check Failed')

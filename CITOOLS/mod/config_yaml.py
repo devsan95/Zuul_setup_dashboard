@@ -1,3 +1,4 @@
+import os
 import copy
 import yaml
 
@@ -46,6 +47,12 @@ class ConfigYaml(object):
     def get_section_by_internal_key(self, internal_key, internal_key_name):
         for section_key, section in self.components.items():
             if internal_key in section and section[internal_key] == internal_key_name:
+                return section_key, section
+        return None, None
+
+    def find_section_by_matched_location(self, internal_value):
+        for section_key, section in self.components.items():
+            if 'location' in section and is_parent_directory(section['location'], internal_value):
                 return section_key, section
         return None, None
 
@@ -189,3 +196,12 @@ def equal_string_dicts(dict1, dict2):
         if key2 not in dict1:
             return False
     return True
+
+
+def is_parent_directory(parent_dir, search_dir):
+    if parent_dir == search_dir:
+        return True
+    if len(parent_dir) < len(search_dir):
+        search_parent = os.path.dirname(search_dir)
+        return is_parent_directory(parent_dir, search_parent)
+    return False
