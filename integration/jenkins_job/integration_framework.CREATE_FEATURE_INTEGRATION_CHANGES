@@ -34,7 +34,7 @@ fi
 
 cd ${WORKSPACE}/script
 chmod 600 ${WORKSPACE}/gerritt_info/keys/scmtaci.rsa
-source ./pyenv.sh
+source ./pyenv_docker.sh
 cd ../yaml
 
 if [[ -z "${yaml}" ]] && [[ -z "${jira_key}" ]]; then

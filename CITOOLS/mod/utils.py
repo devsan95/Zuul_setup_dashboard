@@ -1,7 +1,13 @@
 import os
 import re
+import git
 import fire
+import shutil
 import fnmatch
+import traceback
+
+
+INTEGRATION_URL = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 
 
 def classiy_objs(obj_list, typ_key):
@@ -84,6 +90,41 @@ def find_files_by_regex(file_path, regex_str='*', path_regex=''):
 def get_file_content(file_path):
     with open(file_path, 'r') as fr:
         return fr.read()
+
+
+def push_base_tag(base_pkg):
+    integration_dir = os.path.join(os.getcwd(), 'Integration_for_tags')
+    if os.path.exists(integration_dir):
+        g = git.Git(integration_dir)
+        if g.remote('get-url', 'origin') == INTEGRATION_URL:
+            g.fetch('--tags')
+        else:
+            shutil.rmtree(integration_dir)
+    else:
+        git.Repo.clone_from(INTEGRATION_URL, integration_dir)
+    g = git.Git(integration_dir)
+    g.checkout(base_pkg)
+    branch = get_integration_branch(integration_dir)
+    try:
+        print('Base tag: {} add to gerrit'.format(base_pkg))
+        g = git.Git(integration_dir)
+        g.push('origin', '{}:refs/for/{}%merged'.format(base_pkg, branch))
+    except Exception:
+        traceback.print_exc()
+        print('Tag {} may already exists'.format(base_pkg))
+        print('Please ignore above error, \
+               it will not cause the job build failed! \
+               The build is moving on....')
+
+
+def get_integration_branch(work_dir):
+    g_repo = git.Git(work_dir)
+    branch_data = g_repo.branch('--contains', 'HEAD', '-a')
+    for line in branch_data.splitlines():
+        line_str = line.strip()
+        if line_str == 'master' or 'rel/' in line_str:
+            return re.sub('.*/rel', 'rel', line_str)
+    return ''
 
 
 if __name__ == '__main__':

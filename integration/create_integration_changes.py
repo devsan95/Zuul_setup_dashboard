@@ -29,6 +29,7 @@ from api import gerrit_rest
 from api import job_tool
 from api import config
 from api import env_repo as get_env_repo
+from mod import utils
 from mod import env_changes
 from mod import ecl_changes
 from mod import get_component_info
@@ -175,6 +176,7 @@ class IntegrationChangesCreation(object):
         self.load_gerrit(gerrit_path, zuul_user, zuul_key)
         self.auto_branch_status = {}
         self.base_commits_info = {}
+        self.comp_info_dict = {}
 
     def load_yaml(self, yaml_path):
         self.change_info = load_structure(yaml_path)
@@ -841,7 +843,7 @@ class IntegrationChangesCreation(object):
             module_ver = build
             if module_ver == base_load:
                 continue
-            get_comp_info = get_component_info.GET_COMPONENT_INFO(module_ver)
+            get_comp_info = self.get_comp_info_obj(module_ver)
             try:
                 comp_ver = get_comp_info.get_comp_hash(ric_com)
             except Exception as e:
@@ -853,7 +855,7 @@ class IntegrationChangesCreation(object):
 
     def parse_base_load(self, base_load):
         base_commits = {}
-        get_comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+        get_comp_info = self.get_comp_info_obj(base_load)
         node_list = self.info_index['nodes'].values()
         print("[Info] Start to parse base load for node_list: {}".format(node_list))
         for node in node_list:
@@ -1082,6 +1084,14 @@ class IntegrationChangesCreation(object):
             sys.exit(0)
         return None, None
 
+    def get_comp_info_obj(self, base_load):
+        if base_load in self.comp_info_dict:
+            return self.comp_info_dict[base_load]
+        else:
+            comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+            self.comp_info_dict[base_load] = comp_info
+            return comp_info
+
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
             if_restore=False, integration_mode=None, base_load=None,
@@ -1146,6 +1156,7 @@ class IntegrationChangesCreation(object):
                     base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
             else:
                 base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
+            utils.push_base_tag(base_load)
             print('Base load list: {}'.format(self.base_load_list))
             if '_' in base_load:
                 base_load = base_load.split('_')[-1]

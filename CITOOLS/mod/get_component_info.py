@@ -1,14 +1,13 @@
 import os
 import re
-import git
 import logging
-import traceback
 import urllib
 import json
 import requests
 
 from six.moves import configparser
 from mod import integration_repo
+from mod import utils
 from api import http_api
 from api import config
 
@@ -36,7 +35,6 @@ WFT_SEARCH_BUILD = "{}:8091/5G:WMP/api/v1/build.json?" \
     "&view[view_filters_attributes[24216713295283]][operation]=matches_regexp" \
     "&view[view_filters_attributes[24216713295283]][value][]=%5CA5G%5B0-9a-zA-Z%5D*_{}%5Cz&"
 HTTP_HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-INTEGRATION_URL = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
 
 
 class GET_COMPONENT_INFO(object):
@@ -45,26 +43,21 @@ class GET_COMPONENT_INFO(object):
         self.base_pkg = base_pkg
         self.if_bb_mapping, self.src_list = self.check_bb_mapping_file()
         self.only_mapping_file = only_mapping_file
-        if not only_mapping_file:
+        self.int_repo = None
+        self.no_dep_file = no_dep_file
+
+    def intial_work_dir(self):
+        if self.int_repo:
+            return
+        if not self.only_mapping_file:
             with_dep_file = not self.if_bb_mapping
             integration_dir = os.path.join(
-                os.getcwd(), 'Integration_{}'.format(base_pkg))
+                os.getcwd(), 'Integration_{}'.format(self.base_pkg))
             self.int_repo = integration_repo.INTEGRATION_REPO(
-                INTEGRATION_URL, base_pkg, work_dir=integration_dir)
-            branch = self.int_repo.get_integration_branch()
-            if with_dep_file and not no_dep_file:
+                utils.INTEGRATION_URL, self.base_pkg, work_dir=integration_dir)
+            if with_dep_file and not self.no_dep_file:
                 self.int_repo.get_dep_files()
                 self.int_repo.gen_dep_all()
-            try:
-                print('Base tag: {} add to gerrit'.format(base_pkg))
-                g = git.Git(integration_dir)
-                g.push('origin', '{}:refs/for/{}%merged'.format(base_pkg, branch))
-            except Exception:
-                traceback.print_exc()
-                print('Tag {} may already exists'.format(base_pkg))
-                print('Please ignore above error, \
-                      it will not cause the job build failed! \
-                      The build is moving on....')
 
     def find_bb_target(self, comp_name, dep_dict):
         if comp_name in dep_dict:
@@ -76,6 +69,7 @@ class GET_COMPONENT_INFO(object):
         return ''
 
     def get_comp_bbver_from_dep_file(self, comp_name):
+        self.intial_work_dir()
         dep_all_file = os.path.join(self.int_repo.work_dir, 'build/dep_all', 'all.dep')
         regex_comps = r'" \[label="{}\\n:([^\\]+)\\n([^\\]+)"\]'.format(comp_name)
         # regex_dep_file = r'dep_file:\s*(\S+)'
@@ -92,6 +86,7 @@ class GET_COMPONENT_INFO(object):
         return comp_bbver
 
     def get_comp_hash_from_dep_file(self, comp_name):
+        self.intial_work_dir()
         dep_all_file = os.path.join(self.int_repo.work_dir, 'build/dep_all', 'all.dep')
         regex_deps = r'"([^"]+)" -> "([^"]+)"'
         # regex_dep_file = r'dep_file:\s*(\S+)'
@@ -118,7 +113,7 @@ class GET_COMPONENT_INFO(object):
             logging.info("Get %s bb_mapping form WFT failed, try Artifactory", self.base_pkg)
             file_exists = self.download_bbmapping_from_artifactory()
         if file_exists:
-            with open("bb_mapping.json", 'r') as f:
+            with open("bb_mapping.{}.json".format(self.base_pkg), 'r') as f:
                 json_str = f.read()
             bb_mapping_dict = json.loads(json_str)
             src_list = bb_mapping_dict['sources']
@@ -169,9 +164,10 @@ class GET_COMPONENT_INFO(object):
             params={'access_key': WFT_KEY}
         )
         if response.ok:
-            with open("bb_mapping.json", 'w') as bb_mapping_fd:
+            bb_mapping_file = "bb_mapping.{}.json".format(wft_version.split('_')[1])
+            with open(bb_mapping_file, 'w') as bb_mapping_fd:
                 bb_mapping_fd.write(response.text)
-            logging.info("Write WFT yocto_mapping to bb_mapping.json")
+            logging.info("Write WFT yocto_mapping to %s", bb_mapping_file)
             return True
         else:
             logging.warn("WFT return %s when download %s bbmapping", response.status_code, self.base_pkg)
@@ -186,7 +182,7 @@ class GET_COMPONENT_INFO(object):
             file_exists = True
         print("[Info] find bb mapping file from: {}".format(artifactory_url))
         print("[Info] result of finding bb mapping file: {}".format(file_exists))
-        file_name = os.path.join(os.getcwd(), artifactory_url.split('/')[-1])
+        file_name = 'bb_mapping.{}.json'.format(self.base_pkg)
         http_api.download(artifactory_url, file_name)
         return file_exists
 
@@ -235,6 +231,7 @@ class GET_COMPONENT_INFO(object):
                     if mapping_key in src:
                         value = src[mapping_key]
                     elif not self.only_mapping_file:
+                        self.intial_work_dir()
                         integration_target = self.get_integration_target(comp_name)
                         for key_name in recipe.keys():
                             if key_name.endswith('.bb'):

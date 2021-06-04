@@ -16,6 +16,7 @@ from api import config
 from api import gitlab_api
 from api import gerrit_rest
 from api import env_repo as get_env_repo
+from mod import utils
 from mod import wft_tools
 from mod import env_changes
 from mod import mailGenerator
@@ -30,6 +31,16 @@ from mod.integration_change import RootChange, IntegrationChange, IntegrationCom
 CONF = config.ConfigTool()
 CONF.load('repo')
 CONF.load('mail')
+COMP_INFO_DICT = {}
+
+
+def get_comp_info_obj(base_load):
+    if base_load in COMP_INFO_DICT:
+        return COMP_INFO_DICT[base_load]
+    else:
+        comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+        COMP_INFO_DICT[base_load] = comp_info
+        return comp_info
 
 
 def get_branch_out_commits(g, org_branch):
@@ -109,7 +120,7 @@ def rebase_by_load(rest, change_no, base_package,
     topic = '{} of {}'.format(int_change_obj.get_version(),
                               int_change_obj.get_title())
     if base_package != 'HEAD':
-        get_comp_info = get_component_info.GET_COMPONENT_INFO(base_package)
+        get_comp_info = get_comp_info_obj(base_package)
     rebase_failed = {}
     rebase_skipped = {}
     rebase_succeed = {}
@@ -148,7 +159,7 @@ def rebase_by_load(rest, change_no, base_package,
                 print('Try get hash from {}'.format(extra_bases))
                 for extra_base in extra_bases:
                     if extra_base not in extra_base_repos:
-                        extra_base_get_comp_info = get_component_info.GET_COMPONENT_INFO(extra_base)
+                        extra_base_get_comp_info = get_comp_info_obj(extra_base)
                     try:
                         comp_hash = extra_base_get_comp_info.get_comp_hash(comp_name)
                     except Exception:
@@ -368,6 +379,7 @@ def switch_with_rebase_mod(root_change, rest,
             print('Last base_package is {}'.format(base_package))
             base_list.remove(base_package)
             extra_bases = base_list
+        utils.push_base_tag(base_package)
         rebase_result = rebase_by_load(rest, root_change, base_package,
                                        gitlab_info_path=gitlab_info_path,
                                        mail_list=mail_list,
