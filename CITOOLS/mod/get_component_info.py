@@ -45,26 +45,20 @@ class GET_COMPONENT_INFO(object):
         self.base_pkg = base_pkg
         self.if_bb_mapping, self.src_list = self.check_bb_mapping_file()
         self.only_mapping_file = only_mapping_file
-        self.int_repo = None
-        self.no_dep_file = no_dep_file
-
-    def intial_work_dir(self):
-        if self.int_repo:
-            return
-        if not self.only_mapping_file:
+        if not only_mapping_file:
             with_dep_file = not self.if_bb_mapping
             integration_dir = os.path.join(
-                os.getcwd(), 'Integration_{}'.format(self.base_pkg))
+                os.getcwd(), 'Integration_{}'.format(base_pkg))
             self.int_repo = integration_repo.INTEGRATION_REPO(
-                INTEGRATION_URL, self.base_pkg, work_dir=integration_dir)
+                INTEGRATION_URL, base_pkg, work_dir=integration_dir)
             branch = self.int_repo.get_integration_branch()
-            if with_dep_file and not self.no_dep_file:
+            if with_dep_file and not no_dep_file:
                 self.int_repo.get_dep_files()
                 self.int_repo.gen_dep_all()
             try:
-                print('Base tag: {} add to gerrit'.format(self.base_pkg))
+                print('Base tag: {} add to gerrit'.format(base_pkg))
                 g = git.Git(integration_dir)
-                g.push('origin', '{}:refs/for/{}%merged'.format(self.base_pkg, branch))
+                g.push('origin', '{}:refs/for/{}%merged'.format(base_pkg, branch))
             except Exception:
                 traceback.print_exc()
 
@@ -78,7 +72,6 @@ class GET_COMPONENT_INFO(object):
         return ''
 
     def get_comp_bbver_from_dep_file(self, comp_name):
-        self.intial_work_dir()
         dep_all_file = os.path.join(self.int_repo.work_dir, 'build/dep_all', 'all.dep')
         regex_comps = r'" \[label="{}\\n:([^\\]+)\\n([^\\]+)"\]'.format(comp_name)
         # regex_dep_file = r'dep_file:\s*(\S+)'
@@ -95,7 +88,6 @@ class GET_COMPONENT_INFO(object):
         return comp_bbver
 
     def get_comp_hash_from_dep_file(self, comp_name):
-        self.intial_work_dir()
         dep_all_file = os.path.join(self.int_repo.work_dir, 'build/dep_all', 'all.dep')
         regex_deps = r'"([^"]+)" -> "([^"]+)"'
         # regex_dep_file = r'dep_file:\s*(\S+)'
@@ -239,7 +231,6 @@ class GET_COMPONENT_INFO(object):
                     if mapping_key in src:
                         value = src[mapping_key]
                     elif not self.only_mapping_file:
-                        self.intial_work_dir()
                         integration_target = self.get_integration_target(comp_name)
                         for key_name in recipe.keys():
                             if key_name.endswith('.bb'):
