@@ -37,7 +37,8 @@ def fixed_base_validator(rest, components, base_dict):
     base_list = list()
     for base in base_dict:
         try:
-            base_obj_list.append(get_component_info.GET_COMPONENT_INFO(base_dict[base]))
+            base_obj = get_component_info.GET_COMPONENT_INFO(base_dict[base])
+            base_obj_list.append(base_obj)
         except Exception:
             print("get {} base object failed".format(base_dict[base]))
         base_list.append(base_dict[base])

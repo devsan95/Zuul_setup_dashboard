@@ -101,7 +101,7 @@ class GET_COMPONENT_INFO(object):
                 if m_d:
                     up_comp = m_d.group(1)
                     down_comp = m_d.group(2)
-                    dep_dict[down_comp] = up_comp
+                    dep_dict[down_comp.split('.')[0]] = up_comp.split('.')[0]
         platform = self.find_bb_target(comp_name, dep_dict).split('integration-')[-1]
         logging.info('Get %s version on %s', comp_name, platform)
         version_dict = self.int_repo.get_version_for_comp(comp_name, platform=platform)
@@ -198,9 +198,9 @@ class GET_COMPONENT_INFO(object):
                         m = re.search(r'\s*{}\s*'.format(comp_name), depends)
                         if m and len(m.group(0)) > len(comp_name) or depends == comp_name:
                             if recipe['component'].startswith('integration-'):
-                                return recipe['component']
+                                return recipe['component'].split('.')[0]
                             else:
-                                return self.get_integration_target(recipe['component'])
+                                return self.get_integration_target(recipe['component']).split('.')[0]
         raise Exception('Cannot get integration target for {}'.format(comp_name))
 
     def get_comp_hash_from_mapping_file(self, comp_name):
@@ -208,7 +208,7 @@ class GET_COMPONENT_INFO(object):
         if not revision:
             revision = self.get_value_from_mapping_and_env(comp_name, 'rev', 'repo_ver')
         if not revision:
-            return self.get_value_from_mapping_and_env(comp_name, 'PV', 'repo_ver')
+            revision = self.get_value_from_mapping_and_env(comp_name, 'PV', 'repo_ver')
         return revision
 
     def get_recipe_from_mapping(self, comp_name):
