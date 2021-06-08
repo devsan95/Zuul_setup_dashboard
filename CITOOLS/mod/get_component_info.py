@@ -61,6 +61,10 @@ class GET_COMPONENT_INFO(object):
                 g.push('origin', '{}:refs/for/{}%merged'.format(base_pkg, branch))
             except Exception:
                 traceback.print_exc()
+                print('Tag {} may already exists'.format(base_pkg))
+                print('Please ignore above error, \
+                      it will not cause the job build failed! \
+                      The build is moving on....')
 
     def find_bb_target(self, comp_name, dep_dict):
         if comp_name in dep_dict:
