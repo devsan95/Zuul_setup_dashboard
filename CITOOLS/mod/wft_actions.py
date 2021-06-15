@@ -69,6 +69,36 @@ class WFTUtils(object):
         log.info("New build increment version: {}".format(new_version))
         return new_version
 
+    @staticmethod
+    def set_note(version, note):
+        """
+        WFT API link: https://wft.int.net.nokia.com/api/index.html#/Builds/patch_api_v1__project___component__builds__version___format_
+        parameters:
+            version: baseline version in WFT
+            note: note string which need to be added in baseline
+        return: None
+        """
+        build_detail = WFTUtils.get_build_detail(version)
+        wftauth = wft_api.WftAuth(WFT_KEY)
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        json_str = {"build": {"note": note}}
+        json_str.update(wftauth.get_auth())
+        request_url = 'https://wft.int.net.nokia.com:8091/api/v1/{project}/{component}/builds/{version}.json'.format(
+            project=build_detail['project'],
+            component=build_detail['component'],
+            version=version
+        )
+        response = requests.patch(
+            request_url,
+            headers=headers,
+            json=json_str
+        )
+        if not response.ok:
+            raise Exception('error {}, content: {}'.format(response.status_code, response.content))
+
 
 class BuildIncrement(object):
     '''
