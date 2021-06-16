@@ -90,6 +90,11 @@ def update_with_rebase_info(rest, change_id, with_zuul_rebase):
     for change in changes:
         print('Updating {}'.format(change))
         try:
+            rest.delete_edit(change)
+        except Exception as e:
+            print('Delete edit failed, reason:')
+            print(str(e))
+        try:
             mess = retry.retry_func(
                 retry.cfn(rest.get_commit, change),
                 max_retry=10, interval=3
