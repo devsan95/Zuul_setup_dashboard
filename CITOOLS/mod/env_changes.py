@@ -157,9 +157,7 @@ def rebase_integration_change(rest, change_no):
     integration_git.push(INTEGRATION_URL, 'HEAD:refs/for/{}'.format(branch))
 
 
-def rebase_component_config_yaml(rest, change_no, config_yaml_dict):
-    op = RootChange(rest, change_no)
-    comp_change_list, int_change = op.get_components_changes_by_comments()
+def get_yaml_change_from_root(rest, change_no):
     updated_dict = {}
     removed_dict = {}
     try:
@@ -169,6 +167,13 @@ def rebase_component_config_yaml(rest, change_no, config_yaml_dict):
     except Exception as e:
         print('Cannot find config.yaml for %s', change_no)
         print(str(e))
+    return updated_dict, removed_dict
+
+
+def rebase_component_config_yaml(rest, change_no, config_yaml_dict):
+    op = RootChange(rest, change_no)
+    comp_change_list, int_change = op.get_components_changes_by_comments()
+    updated_dict, removed_dict = get_yaml_change_from_root(rest, change_no)
     for comp_change in comp_change_list:
         if comp_change == change_no:
             continue
@@ -178,19 +183,44 @@ def rebase_component_config_yaml(rest, change_no, config_yaml_dict):
         comp_project = int_change_obj.get_project()
         if comp_project in config_yaml_dict:
             local_config_yaml = config_yaml_dict[comp_project]
-            print('Update local config yaml :{} for {}'.format(local_config_yaml, comp_change))
-            rest.restore_file_to_change(comp_change, local_config_yaml)
-            rest.publish_edit(comp_change)
+            rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
+                                            updated_dict, removed_dict)
+
+
+def get_yaml_change_and_rebase(rest, root_change, comp_change,
+                               local_config_yaml, rebase_version='HEAD'):
+    updated_dict, removed_dict = get_yaml_change_from_root(rest, root_change)
+    return rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
+                                           updated_dict, removed_dict, rebase_version)
+
+
+def rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
+                                    updated_dict, removed_dict, rebase_version='HEAD'):
+    rebase_result = True
+    print('Update local config yaml :{} for {}'.format(local_config_yaml, comp_change))
+    delete_edit(rest, comp_change)
+    print('Restor local_config_yaml: {}'.format(local_config_yaml))
+    rest.restore_file_to_change(comp_change, local_config_yaml)
+    rest.publish_edit(comp_change)
+    try:
+        print('Try rebase ...')
+        if rebase_version == 'HEAD':
             rest.rebase(comp_change)
-            config_yaml_content = create_config_yaml_by_env_change(
-                '',
-                rest,
-                comp_change,
-                config_yaml_file=local_config_yaml,
-                config_yaml_updated_dict=updated_dict,
-                config_yaml_removed_dict=removed_dict)[0][local_config_yaml]
-            rest.add_file_to_change(comp_change, local_config_yaml, config_yaml_content)
-            rest.publish_edit(comp_change)
+        else:
+            rest.rebase(comp_change, rebase_version)
+    except Exception:
+        print('Rebase Failed ...')
+        rebase_result = False
+    config_yaml_content = create_config_yaml_by_env_change(
+        '',
+        rest,
+        comp_change,
+        config_yaml_file=local_config_yaml,
+        config_yaml_updated_dict=updated_dict,
+        config_yaml_removed_dict=removed_dict)[0][local_config_yaml]
+    rest.add_file_to_change(comp_change, local_config_yaml, config_yaml_content)
+    rest.publish_edit(comp_change)
+    return rebase_result
 
 
 def get_nb_related_files(rest, change_no, int_work_dir):
@@ -233,3 +263,12 @@ def get_submodule_map(int_work_dir):
             if m_url and file_path:
                 submodule_map[file_path] = m_url.group(1)
     return submodule_map
+
+
+def delete_edit(rest, change_no):
+    print('delete edit for change {}'.format(change_no))
+    try:
+        rest.delete_edit(change_no)
+    except Exception as e:
+        print('delete edit failed, reason:')
+        print(str(e))

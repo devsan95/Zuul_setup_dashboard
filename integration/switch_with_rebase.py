@@ -6,6 +6,7 @@ import git
 import sys
 import copy
 import fire
+import yaml
 import shlex
 import shutil
 import traceback
@@ -113,7 +114,7 @@ def update_base_commit(rest, comp_change, comp_change_obj, comp_hash):
 
 
 def rebase_by_load(rest, change_no, base_package,
-                   gitlab_info_path='', mail_list=None, extra_bases=[]):
+                   gitlab_info_path='', mail_list=None, extra_bases=[], config_yaml_dict={}):
     op = RootChange(rest, change_no)
     comp_change_list, int_change = op.get_components_changes_by_comments()
     int_change_obj = IntegrationChange(rest, int_change)
@@ -202,7 +203,20 @@ def rebase_by_load(rest, change_no, base_package,
                     except Exception:
                         traceback.print_exc()
                         rebase_failed[comp_name_with_change] = comp_hash
+                elif project in config_yaml_dict:
+                    print('Try to solve config yaml conflict for {}'.format(comp_change))
+                    try:
+                        rebase_ret = env_changes.get_yaml_change_and_rebase(
+                            rest, change_no, comp_change, config_yaml_dict[project], comp_hash)
+                        if not rebase_ret:
+                            rebase_failed[comp_name_with_change] = comp_hash
+                        else:
+                            rebase_succeed[comp_name_with_change] = comp_hash
+                    except Exception:
+                        traceback.print_exc()
+                        rebase_failed[comp_name_with_change] = comp_hash
                 else:
+                    print('Cannot solve conflict for {}'.format(comp_change))
                     rebase_failed[comp_name_with_change] = comp_hash
         else:
             update_base_commit(rest, comp_change, comp_change_obj, comp_hash)
@@ -354,7 +368,7 @@ def get_gitlab_branch_hash(gitlab_obj, project_name, branch):
 
 
 def switch_with_rebase_mod(root_change, rest,
-                           base_package, gitlab_info_path=''):
+                           base_package, gitlab_info_path='', config_yaml_dict={}):
     op = RootChange(rest, root_change)
     comp_change_list, int_change = op.get_components_changes_by_comments()
     mail_list = get_mail_list(comp_change_list, int_change, root_change, rest)
@@ -362,7 +376,9 @@ def switch_with_rebase_mod(root_change, rest,
         update_with_rebase_info(rest, root_change, 'with-zuul-rebase')
         rest.review_ticket(int_change, 'use_default_base')
         rebase_result = rebase_by_load(rest, root_change, base_package,
-                                       gitlab_info_path=gitlab_info_path, mail_list=mail_list)
+                                       gitlab_info_path=gitlab_info_path,
+                                       mail_list=mail_list,
+                                       config_yaml_dict=config_yaml_dict)
     else:
         update_with_rebase_info(rest, root_change, 'without-zuul-rebase')
         # get last package if multi pacakges
@@ -383,7 +399,8 @@ def switch_with_rebase_mod(root_change, rest,
         rebase_result = rebase_by_load(rest, root_change, base_package,
                                        gitlab_info_path=gitlab_info_path,
                                        mail_list=mail_list,
-                                       extra_bases=extra_bases)
+                                       extra_bases=extra_bases,
+                                       config_yaml_dict=config_yaml_dict)
     return rebase_result
 
 
@@ -425,11 +442,24 @@ def send_rebase_results(mail_list, mail_params, rebase_succeed, rebase_failed):
     mail_generator.generate()
 
 
+def get_config_yaml_dict(comp_config):
+    config_yaml_dict = {}
+    if comp_config:
+        comp_config_dict = {}
+        with open(comp_config, 'r') as fr:
+            comp_config_dict = yaml.load(fr.read(), Loader=yaml.Loader)
+        if 'config_yaml' in comp_config_dict:
+            config_yaml_dict = comp_config_dict['config_yaml']
+    print('Config yaml dict: {}'.format(config_yaml_dict))
+    return config_yaml_dict
+
+
 def run(root_change, gerrit_info_path,
-        gitlab_info_path='', base_package='HEAD', database_info_path=None):
+        gitlab_info_path='', base_package='HEAD', database_info_path=None, comp_config=''):
     rest = init_gerrit_rest(gerrit_info_path)
     update_depends.remove_meta5g_change(rest, root_change)
-    rebase_result = switch_with_rebase_mod(root_change, rest, base_package, gitlab_info_path)
+    config_yaml_dict = get_config_yaml_dict(comp_config)
+    rebase_result = switch_with_rebase_mod(root_change, rest, base_package, gitlab_info_path, config_yaml_dict)
     update_depends.add_interface_bb_to_root(rest, root_change)
     origin_msg = rest.get_commit(root_change)['message']
     msg = " ".join(origin_msg.split("\n"))
