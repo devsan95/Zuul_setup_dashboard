@@ -558,7 +558,7 @@ def traverse_element_list(releasenote, knife_json, action="update"):
         new_version = None
         knife_json_key = None
         if item['name'] in knife_json:
-            new_version = get_component_version(knife_json, item['name'], parse=False)
+            new_version = get_component_version(knife_json, item['name'], parse=True)
             knife_json_key = item['name']
         else:
             item_re_name = re.sub(r'_|-', '(?:-|_)', item['name'])
@@ -566,7 +566,7 @@ def traverse_element_list(releasenote, knife_json, action="update"):
             item_re_name = re.sub(r'$', '$', item_re_name)
             for component in knife_json.keys():
                 if re.match(item_re_name, component, re.I):
-                    new_version = get_component_version(knife_json, component, parse=False)
+                    new_version = get_component_version(knife_json, component, parse=True)
                     knife_json_key = component
                     break
         if new_version:
@@ -576,7 +576,7 @@ def traverse_element_list(releasenote, knife_json, action="update"):
     if knife_json and action == "add":
         add_list = list()
         for component in knife_json.keys():
-            version = get_component_version(knife_json, component, parse=False)
+            version = get_component_version(knife_json, component, parse=True)
             if version:
                 add_list.append(component)
                 log.info('Add {}:"{}" to releasenote directely.'.format(component, version))
