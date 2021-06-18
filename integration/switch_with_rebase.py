@@ -197,6 +197,8 @@ def rebase_by_load(rest, change_no, base_package,
                 if comp_name == 'env' or project == 'MN/5G/COMMON/integration':
                     env_path = get_env_repo.get_env_repo_info(rest, comp_change)[1]
                     try:
+                        # after all streams not use config.yaml disabled
+                        # we can use 'rebase_integration_change()' instead
                         clear_and_rebase_file(rest, comp_change,
                                               env_path, comp_hash)
                         rebase_succeed['env {}'.format(comp_change)] = comp_hash
