@@ -254,7 +254,9 @@ def get_subbuild_json(isar_version, build_content, subbuild_list):
             subbuild_content = ET.fromstring(wft.get_build_content(subbuild.text))
             subbuild_commit = get_bitbake_setting(subbuild_content)[1]
             if not subbuild_commit:
-                raise Exception("Can not get {} commit hash!".format(subbuild.text))
+                print("Can not get {} commit hash!".format(subbuild.text))
+                subbuild_list.remove(subbuild.get("sc"))
+                continue
             subbuild_dict[key] = {'commit': subbuild_commit, 'version': subbuild.text}
             print("{}: {}".format(key, subbuild_dict[key]))
             subbuild_list.remove(subbuild.get("sc"))
