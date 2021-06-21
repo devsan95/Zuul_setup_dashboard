@@ -573,6 +573,14 @@ def traverse_element_list(releasenote, knife_json, action="update"):
             item['version'] = new_version
             log.info("Update {}'s version to {}".format(item['name'], new_version))
             knife_json.pop(knife_json_key)
+        if item['name'] == "PS":
+            ps_ver = item['version']
+            ps_assignments = get_build_assignments(item['project'], item['name'], ps_ver)
+            ecl_sack_base = get_ecl_sack_base_from_ps_assignments(ps_assignments)
+            if ecl_sack_base:
+                releasenote['releasenote']['element_list'].append(
+                    {'name': "ECL_SACK_BASE", 'project': "Common", 'version': ecl_sack_base}
+                )
     if knife_json and action == "add":
         add_list = list()
         for component in knife_json.keys():
@@ -664,6 +672,31 @@ def generate_local_releasenote(build_config):
     local_template = json.loads(releasenote_template)
     local_template['releasenote']["element_list"] = element_list
     return local_template
+
+
+def get_build_assignments(project, component, baseline_name):
+    build_assignments_url = "{}:8091/api/v1/{}/{}/builds/{}.json?items[]=assignments".format(
+        wft_url, project, component, baseline_name
+    )
+    response = requests.get(
+        build_assignments_url,
+        params={'access_key': os.environ['WFT_KEY']},
+        verify=verify_ssl
+    )
+    if not response.ok:
+        log.warn("Get build assignments failed!")
+        return None
+    return json.loads(response.text)
+
+
+def get_ecl_sack_base_from_ps_assignments(ps_assignments):
+    ecl_sack_base = ""
+    for item in ps_assignments["assignments"]["used_in"]:
+        if item["branch"] == "ECL_PSINT":
+            for build in item["used_in"]:
+                log.info("Found ECL_SACK_BASE: {}".format(build["baseline"]))
+                ecl_sack_base = build["baseline"]
+    return ecl_sack_base
 
 
 def get_releasenote(base_pkg, wft_prefix):
