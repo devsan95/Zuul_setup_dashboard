@@ -246,16 +246,19 @@ def get_available_base(change_id, rest, comp_config):
     return stream_json
 
 
-def get_subbuild_json(isar_version, build_content, subbuild_list):
+def get_subbuild_json(isar_version, build_content, subbuild_list, component_list):
     subbuild_dict = dict()
     for subbuild in build_content.findall('.//baseline'):
         if subbuild.get("sc") in subbuild_list:
             key = "{}:{}".format(subbuild.get("project"), subbuild.get("sc"))
+            if key not in component_list:
+                print("{} is not in build_config components".format(key))
+                subbuild_list.remove(subbuild.get("sc"))
+                continue
             subbuild_content = ET.fromstring(wft.get_build_content(subbuild.text))
             subbuild_commit = get_bitbake_setting(subbuild_content)[1]
             if not subbuild_commit:
                 print("Can not get {} commit hash!".format(subbuild.text))
-                subbuild_list.remove(subbuild.get("sc"))
                 continue
             subbuild_dict[key] = {'commit': subbuild_commit, 'version': subbuild.text}
             print("{}: {}".format(key, subbuild_dict[key]))
@@ -285,16 +288,23 @@ def parse_isar_subbuild(isar_version, change_id, rest, comp_config):
         return {}
     print("ISAR_XML is staged...")
     isar_subbuild_list = list()
+    component_list = list()
     base_list = get_available_base(change_id, rest, comp_config)
     if not base_list:
         return {}
     for stream in base_list:
-        isar_subbuild_list = wft_tools.filter_inherit_subbuilds(base_list[stream], "ISAR_XML")
-        if isar_subbuild_list:
-            break
-    else:
+        isar_subbuild_list.extend(
+            wft_tools.filter_inherit_subbuilds(base_list[stream], "ISAR_XML"))
+        try:
+            build_config = wft_tools.get_build_config(base_list[stream])
+            component_list.extend(
+                yaml.safe_load(build_config)['components'].keys())
+        except Exception:
+            print('Cannot get build_config for {}'.format(base_list[stream]))
+            continue
+    if not isar_subbuild_list:
         return {}
-    return get_subbuild_json(isar_version, build_content, isar_subbuild_list)
+    return get_subbuild_json(isar_version, build_content, isar_subbuild_list, component_list)
 
 
 def add_isar_subbuild(ex_comment_dict, change_id, rest, comp_config):

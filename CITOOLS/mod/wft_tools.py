@@ -276,13 +276,24 @@ def get_subuild_from_wft(wft_name, component=None):
     return sub_builds
 
 
+def get_build_config(base_wft_name):
+    print("Try download build configration!")
+    build_config = requests.get(
+        '{}:8091/ext/build_config/{}'.format(WFT.url, base_wft_name),
+        params={'access_key': WFT.key},
+    )
+    if not build_config.ok:
+        raise Exception("Get {base_wft_name}'s configuration and releasenote failed!")
+    return build_config.text
+
+
 def filter_inherit_subbuilds(build, parent_component):
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     wft_url = "{}:8091/ALL/api/v1/build.json".format(WFT.url)
     values = {"build": build, "wft_key": WFT.key}
     response = requests.post(wft_url, headers=headers, data=inherit_json % values, verify=False)
     if not response.ok:
-        return None
+        return []
     subbuild_list = list()
     base_subbuild_list = json.loads(response.text)['items'][0]['build_deliverers']
     for subbuild in base_subbuild_list:
