@@ -694,8 +694,9 @@ def get_ecl_sack_base_from_ps_assignments(ps_assignments):
     for item in ps_assignments["assignments"]["used_in"]:
         if item["branch"] == "ECL_PSINT":
             for build in item["used_in"]:
-                log.info("Found ECL_SACK_BASE: {}".format(build["baseline"]))
-                ecl_sack_base = build["baseline"]
+                if "ECL_SACK_BASE" in build["baseline"]:
+                    log.info("Found ECL_SACK_BASE: {}".format(build["baseline"]))
+                    ecl_sack_base = build["baseline"]
     return ecl_sack_base
 
 
