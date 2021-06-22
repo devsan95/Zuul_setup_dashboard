@@ -569,11 +569,7 @@ def traverse_element_list(releasenote, knife_json, action="update"):
                     new_version = get_component_version(knife_json, component, parse=True)
                     knife_json_key = component
                     break
-        if new_version:
-            item['version'] = new_version
-            log.info("Update {}'s version to {}".format(item['name'], new_version))
-            knife_json.pop(knife_json_key)
-        if item['name'] == "PS":
+        if "PS" in knife_json and item['name'] == "PS":
             ps_ver = item['version']
             ps_assignments = get_build_assignments(item['project'], item['name'], ps_ver)
             ecl_sack_base = get_ecl_sack_base_from_ps_assignments(ps_assignments)
@@ -581,6 +577,10 @@ def traverse_element_list(releasenote, knife_json, action="update"):
                 releasenote['releasenote']['element_list'].append(
                     {'name': "ECL_SACK_BASE", 'project': "Common", 'version': ecl_sack_base}
                 )
+        if new_version:
+            item['version'] = new_version
+            log.info("Update {}'s version to {}".format(item['name'], new_version))
+            knife_json.pop(knife_json_key)
     if knife_json and action == "add":
         add_list = list()
         for component in knife_json.keys():
@@ -691,12 +691,15 @@ def get_build_assignments(project, component, baseline_name):
 
 def get_ecl_sack_base_from_ps_assignments(ps_assignments):
     ecl_sack_base = ""
+    ecl_sack_base_dict = {}
     for item in ps_assignments["assignments"]["used_in"]:
-        if item["branch"] == "ECL_PSINT":
+        if "ECL_PSINT" in item["branch"]:
             for build in item["used_in"]:
                 if "ECL_SACK_BASE" in build["baseline"]:
                     log.info("Found ECL_SACK_BASE: {}".format(build["baseline"]))
-                    ecl_sack_base = build["baseline"]
+                    ecl_sack_base_dict[build["id"]] = build["baseline"]
+    if ecl_sack_base_dict:
+        ecl_sack_base = ecl_sack_base_dict[list(sorted(ecl_sack_base_dict, reverse=True))[0]]
     return ecl_sack_base
 
 
