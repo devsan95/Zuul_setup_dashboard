@@ -569,6 +569,9 @@ def traverse_element_list(releasenote, knife_json, action="update"):
                     new_version = get_component_version(knife_json, component, parse=True)
                     knife_json_key = component
                     break
+        if new_version:
+            item['version'] = new_version
+            log.info("Update {}'s version to {}".format(item['name'], new_version))
         if "PS" in knife_json and item['name'] == "PS":
             ps_ver = item['version']
             ps_assignments = get_build_assignments(item['project'], item['name'], ps_ver)
@@ -578,8 +581,6 @@ def traverse_element_list(releasenote, knife_json, action="update"):
                     {'name': "ECL_SACK_BASE", 'project': "Common", 'version': ecl_sack_base}
                 )
         if new_version:
-            item['version'] = new_version
-            log.info("Update {}'s version to {}".format(item['name'], new_version))
             knife_json.pop(knife_json_key)
     if knife_json and action == "add":
         add_list = list()
