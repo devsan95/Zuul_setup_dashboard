@@ -17,6 +17,8 @@ class ConfigYaml(object):
         self.local_config_file = local_config_file
         self.local_config_content = local_config_content
         self.local_config_yaml = None
+        self.config_yaml = {}
+        self.components = {}
         self.update_yaml_data()
 
     def update_yaml_data(self):

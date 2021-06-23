@@ -25,15 +25,16 @@ def parse_env_change_split(env_change_split):
 def update_config_yaml_change_dict(rest, change_no, config_yaml_file,
                                    updated_dict, removed_dict):
     if not updated_dict:
-        update_dict = {}
+        updated_dict = {}
     if not removed_dict:
         removed_dict = {}
-    local_update_dict, local_remove_dict = get_yaml_change_from_change(rest, change_no, config_yaml_file)
-    for local_key, local_section in local_update_dict.items():
-        if local_key not in update_dict:
-            print('Add {} change to update_dict from {}'.format(local_key, change_no))
-            update_dict[local_key] = local_section
-    for local_key, local_remove_section in local_remove_dict.items():
+    local_updated_dict, local_removed_dict = get_yaml_change_from_change(
+        rest, change_no, config_yaml_file=config_yaml_file)
+    for local_key, local_section in local_updated_dict.items():
+        if local_key not in updated_dict:
+            print('Add {} change to updated_dict from {}'.format(local_key, change_no))
+            updated_dict[local_key] = local_section
+    for local_key, local_remove_section in local_removed_dict.items():
         if local_key not in removed_dict:
             print('Add {} change to removed_dict from {}'.format(local_key, change_no))
             removed_dict[local_key] = local_remove_section
@@ -181,8 +182,12 @@ def get_yaml_change_from_change(rest, change_no, config_yaml_file='config.yaml')
     removed_dict = {}
     try:
         config_yaml_change = rest.get_file_change(config_yaml_file, change_no)
-        config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
-        updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+        if ('new' in config_yaml_change and config_yaml_change['new']) and \
+                'old' in config_yaml_change and config_yaml_change['old']:
+            print('Initial config_yaml_obj')
+            config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
+            print('Get change from config_yaml_obj')
+            updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
     except Exception as e:
         print('Cannot find config.yaml for %s', change_no)
         print(str(e))
@@ -217,6 +222,8 @@ def rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
                                     updated_dict, removed_dict, rebase_version='HEAD'):
     rebase_result = True
     print('Update local config yaml :{} for {}'.format(local_config_yaml, comp_change))
+    update_config_yaml_change_dict(rest, comp_change, local_config_yaml,
+                                   updated_dict, removed_dict)
     delete_edit(rest, comp_change)
     print('Restor local_config_yaml: {}'.format(local_config_yaml))
     rest.restore_file_to_change(comp_change, local_config_yaml)
@@ -230,8 +237,6 @@ def rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
     except Exception:
         print('Rebase Failed ...')
         rebase_result = False
-    update_config_yaml_change_dict(rest, comp_change, local_config_yaml,
-                                   updated_dict, removed_dict)
     config_yaml_content = create_config_yaml_by_env_change(
         '',
         rest,
