@@ -22,6 +22,24 @@ def parse_env_change_split(env_change_split):
     return env_change_dict
 
 
+def update_config_yaml_change_dict(rest, change_no, config_yaml_file,
+                                   updated_dict, removed_dict):
+    if not updated_dict:
+        update_dict = {}
+    if not removed_dict:
+        removed_dict = {}
+    local_update_dict, local_remove_dict = get_yaml_change_from_change(rest, change_no, config_yaml_file)
+    for local_key, local_section in local_update_dict.items():
+        if local_key not in update_dict:
+            print('Add {} change to update_dict from {}'.format(local_key, change_no))
+            update_dict[local_key] = local_section
+    for local_key, local_remove_section in local_remove_dict.items():
+        if local_key not in removed_dict:
+            print('Add {} change to removed_dict from {}'.format(local_key, change_no))
+            removed_dict[local_key] = local_remove_section
+    return update_dict, removed_dict
+
+
 def create_config_yaml_by_env_change(env_change_split, rest,
                                      change_id, config_yaml_file='config.yaml',
                                      config_yaml_updated_dict=None, config_yaml_removed_dict=None):
@@ -36,6 +54,8 @@ def create_config_yaml_by_env_change(env_change_split, rest,
     if not old_content:
         return {}
     config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=old_content)
+    update_config_yaml_change_dict(rest, change_id, config_yaml_file,
+                                   config_yaml_updated_dict, config_yaml_removed_dict)
     # update config_yaml change in config.yaml if there's any
     if config_yaml_updated_dict or config_yaml_removed_dict:
         print("Updating config yaml with config_yaml_change")
@@ -157,11 +177,11 @@ def rebase_integration_change(rest, change_no):
     integration_git.push(INTEGRATION_URL, 'HEAD:refs/for/{}'.format(branch))
 
 
-def get_yaml_change_from_root(rest, change_no):
+def get_yaml_change_from_change(rest, change_no, config_yaml_file='config.yaml'):
     updated_dict = {}
     removed_dict = {}
     try:
-        config_yaml_change = rest.get_file_change('config.yaml', change_no)
+        config_yaml_change = rest.get_file_change(config_yaml_file, change_no)
         config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
         updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
     except Exception as e:
@@ -173,7 +193,7 @@ def get_yaml_change_from_root(rest, change_no):
 def rebase_component_config_yaml(rest, change_no, config_yaml_dict):
     op = RootChange(rest, change_no)
     comp_change_list, int_change = op.get_components_changes_by_comments()
-    updated_dict, removed_dict = get_yaml_change_from_root(rest, change_no)
+    updated_dict, removed_dict = get_yaml_change_from_change(rest, change_no)
     for comp_change in comp_change_list:
         if comp_change == change_no:
             continue
@@ -189,7 +209,7 @@ def rebase_component_config_yaml(rest, change_no, config_yaml_dict):
 
 def get_yaml_change_and_rebase(rest, root_change, comp_change,
                                local_config_yaml, rebase_version='HEAD'):
-    updated_dict, removed_dict = get_yaml_change_from_root(rest, root_change)
+    updated_dict, removed_dict = get_yaml_change_from_change(rest, root_change)
     return rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
                                            updated_dict, removed_dict, rebase_version)
 
@@ -211,6 +231,8 @@ def rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
     except Exception:
         print('Rebase Failed ...')
         rebase_result = False
+    update_config_yaml_change_dict(rest, comp_change, local_config_yaml,
+                                   updated_dict, removed_dict)
     config_yaml_content = create_config_yaml_by_env_change(
         '',
         rest,
