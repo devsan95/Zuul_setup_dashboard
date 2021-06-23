@@ -293,9 +293,9 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
             comp_config_dict = yaml.load(fr.read(), Loader=yaml.Loader)
         if 'config_yaml' in comp_config_dict:
             config_yaml_dict = comp_config_dict['config_yaml']
-    if not integration_verification_check(rest, component_list):
-        skytrack_log.skytrack_output("ERROR: Verified+1 missing for repository MN/5G/COMMON/integration")
-        sys.exit(213)
+    #if not integration_verification_check(rest, component_list):
+    #    skytrack_log.skytrack_output("ERROR: Verified+1 missing for repository MN/5G/COMMON/integration")
+    #    sys.exit(213)
     closed_dict = dict()
     if inte_change.get_with_without() == '<without-zuul-rebase>':
         integration_mode = 'FIXED_BASE'
