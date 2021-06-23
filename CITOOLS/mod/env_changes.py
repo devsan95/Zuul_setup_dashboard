@@ -37,7 +37,6 @@ def update_config_yaml_change_dict(rest, change_no, config_yaml_file,
         if local_key not in removed_dict:
             print('Add {} change to removed_dict from {}'.format(local_key, change_no))
             removed_dict[local_key] = local_remove_section
-    return update_dict, removed_dict
 
 
 def create_config_yaml_by_env_change(env_change_split, rest,
