@@ -35,9 +35,13 @@ DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def clear_change(rest, change_id, only_clear_env=True):
+    # can be removed after no env file in all production branch
     env_related = ['env/env-config.d/ENV', 'env-config.d/ENV', 'meta-ps-rel',
                    'meta-rcp', 'config.yaml', 'meta-rcp-ccs-vdu',
                    'meta-rcp-ccs', 'meta-rcp-lib']
+    env_path = get_env_repo.get_env_repo_info(rest, change_id)[1]
+    if not env_path:
+        env_related = env_changes.get_nb_related_files_from_change(rest, change_id)
     flist = rest.get_file_list(change_id)
     for file_path in flist:
         file_path = file_path.split('\n', 2)[0]

@@ -134,15 +134,8 @@ def create_file_change_by_env_change_dict(change_dict, file_content, filename, e
     return ret_dict
 
 
-def rebase_integration_change(rest, change_no):
-    # only suport change with only config.yaml, without env_change
-    env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
+def get_int_branch_repo(rest, change_no):
     branch = rest.get_ticket(change_no)['branch']
-    if env_path:
-        print('Only support new branch without env file')
-        print('Exit rebasing integration')
-        return
-    # get integration workspace
     int_work_dir = os.path.join(os.getcwd(), 'integration_{}'.format(change_no))
     if os.path.exists(int_work_dir):
         shutil.rmtree(int_work_dir)
@@ -151,9 +144,28 @@ def rebase_integration_change(rest, change_no):
     integration_git.init()
     integration_git.fetch(INTEGRATION_URL, branch)
     integration_git.checkout('FETCH_HEAD')
+    return int_work_dir
+
+
+def get_nb_related_files_from_change(rest, change_no):
+    int_work_dir = get_int_branch_repo(rest, change_no)
+    return get_nb_related_files(rest, change_no, int_work_dir)
+
+
+def rebase_integration_change(rest, change_no):
+    # only suport change with only config.yaml, without env_change
+    env_path = get_env_repo.get_env_repo_info(rest, change_no)[1]
+    if env_path:
+        print('Only support new branch without env file')
+        print('Exit rebasing integration')
+        return
+    branch = rest.get_ticket(change_no)['branch']
+    # get integration workspace
+    int_work_dir = get_int_branch_repo(rest, change_no)
     # get staged/submodule list from config.yaml files
     nb_related_files = get_nb_related_files(rest, change_no, int_work_dir)
     # cherry-pick ticket change
+    integration_git = git.Git(int_work_dir)
     print("Executing git fetch {}".format(rest.get_commit(change_no)['commit']))
     integration_git.fetch(INTEGRATION_URL, rest.get_commit(change_no)['commit'])
     cherry_pick_params = '--strategy=recursive -X theirs'
