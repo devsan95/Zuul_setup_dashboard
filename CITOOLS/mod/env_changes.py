@@ -24,10 +24,6 @@ def parse_env_change_split(env_change_split):
 
 def update_config_yaml_change_dict(rest, change_no, config_yaml_file,
                                    updated_dict, removed_dict):
-    if not updated_dict:
-        updated_dict = {}
-    if not removed_dict:
-        removed_dict = {}
     local_updated_dict, local_removed_dict = get_yaml_change_from_change(
         rest, change_no, config_yaml_file=config_yaml_file)
     for local_key, local_section in local_updated_dict.items():
@@ -43,6 +39,10 @@ def update_config_yaml_change_dict(rest, change_no, config_yaml_file,
 def create_config_yaml_by_env_change(env_change_split, rest,
                                      change_id, config_yaml_file='config.yaml',
                                      config_yaml_updated_dict=None, config_yaml_removed_dict=None):
+    if not config_yaml_updated_dict:
+        config_yaml_updated_dict = {}
+    if not config_yaml_removed_dict:
+        config_yaml_removed_dict = {}
     change_content = rest.get_file_change(config_yaml_file, change_id)
     old_content = change_content['old']
     if not old_content:
