@@ -128,7 +128,7 @@ sudo pip install --no-cache-dir \
     jenkinsapi \
     networkx \
     requests \
-    ruamel.yaml<=0.15
+    ruamel.yaml==0.15.0
 
 sudo pip install --no-cache-dir \
     paramiko
