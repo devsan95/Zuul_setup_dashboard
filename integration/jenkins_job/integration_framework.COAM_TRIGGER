@@ -1,4 +1,4 @@
-source ${WORKSPACE}/mn_scripts/pyenv.sh
+source ${WORKSPACE}/mn_scripts/pyenv_cb.sh
 set +e
 unset https_proxy
 unset http_proxy
