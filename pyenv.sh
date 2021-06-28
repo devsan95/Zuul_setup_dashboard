@@ -167,7 +167,7 @@ pip install --no-cache-dir \
     python-jenkins \
     PyZMQ \
     requests \
-    ruamel.yaml==0.15.0
+    ruamel.yaml==0.16.13
 
 pip install --no-cache-dir \
     beautifulsoup4 \
