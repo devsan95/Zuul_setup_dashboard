@@ -551,12 +551,15 @@ def get_component_version(knife_json, component, parse=True):
 
 
 def traverse_element_list(releasenote, knife_json, action="update"):
+    # todo: get config_yaml change
     for item in releasenote['releasenote']['element_list']:
         if not knife_json:
             log.info("Knife_json dict empty!")
             return
         new_version = None
         knife_json_key = None
+        # todo: try to match <proj>:<name> to config_yaml_change
+        # todo: if matched get version, get new_veresion, knife_json_key
         if item['name'] in knife_json:
             new_version = get_component_version(knife_json, item['name'], parse=True)
             knife_json_key = item['name']
@@ -564,7 +567,10 @@ def traverse_element_list(releasenote, knife_json, action="update"):
             item_re_name = re.sub(r'_|-', '(?:-|_)', item['name'])
             item_re_name = re.sub(r'^', '^', item_re_name)
             item_re_name = re.sub(r'$', '$', item_re_name)
-            for component in knife_json.keys() and isinstance(knife_json[component], dict):
+            for component in knife_json.keys():
+                if not isinstance(knife_json[component], dict):
+                    log.warning("Skip key {}", knife_json)
+                    continue
                 if re.match(item_re_name, component, re.I):
                     new_version = get_component_version(knife_json, component, parse=True)
                     knife_json_key = component
