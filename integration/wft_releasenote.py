@@ -564,7 +564,7 @@ def traverse_element_list(releasenote, knife_json, action="update"):
             item_re_name = re.sub(r'_|-', '(?:-|_)', item['name'])
             item_re_name = re.sub(r'^', '^', item_re_name)
             item_re_name = re.sub(r'$', '$', item_re_name)
-            for component in knife_json.keys():
+            for component in knife_json.keys() and isinstance(knife_json[component], dict):
                 if re.match(item_re_name, component, re.I):
                     new_version = get_component_version(knife_json, component, parse=True)
                     knife_json_key = component
