@@ -568,9 +568,6 @@ def traverse_element_list(releasenote, knife_json, action="update"):
             item_re_name = re.sub(r'^', '^', item_re_name)
             item_re_name = re.sub(r'$', '$', item_re_name)
             for component in knife_json.keys():
-                if not isinstance(knife_json[component], dict):
-                    log.warning("Skip key {}", knife_json)
-                    continue
                 if re.match(item_re_name, component, re.I):
                     new_version = get_component_version(knife_json, component, parse=True)
                     knife_json_key = component
@@ -591,6 +588,9 @@ def traverse_element_list(releasenote, knife_json, action="update"):
     if knife_json and action == "add":
         add_list = list()
         for component in knife_json.keys():
+            if not isinstance(knife_json[component], dict):
+                log.warning("Skip key {}".format(component))
+                continue
             version = get_component_version(knife_json, component, parse=True)
             if version:
                 add_list.append(component)
