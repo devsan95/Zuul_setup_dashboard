@@ -18,7 +18,9 @@ from mod import env_changes
 from mod import ecl_changes
 from mod import common_regex
 from mod import config_yaml
+from mod import inherit_map
 from mod.integration_change import RootChange
+from mod.integration_change import ManageChange
 from mod.integration_change import IntegrationChange
 from difflib import SequenceMatcher
 
@@ -241,6 +243,22 @@ def update_component_ecl(env_file_changes, rest, change_no, ecl_dict):
                 print(str(e))
 
 
+def update_inherit_changes(rest, change_no, env_change_dict):
+    op = RootChange(rest, change_no)
+    comp_change_list, int_change = op.get_components_changes_by_comments()
+    inte_change = ManageChange(rest, change_no)
+    build_stream_list = inte_change.get_build_streams()
+    inherit_map_obj = inherit_map.Inherit_Map(stream_list=build_stream_list)
+    inherit_change_dict = inherit_map_obj.get_inherit_change_by_changedict(
+        rest, env_change_dict, change_no, type_filter='in_parent')
+    inherit_change_dict.update(env_change_dict)
+    print('Final change dict with inherit is:\n{}'.format(inherit_change_dict))
+    for key, change_dict in inherit_change_dict.items():
+        if 'version' in change_dict and key not in env_change_dict:
+            env_change_dict[key] = change_dict['version']
+    return ['{}={}'.format(x, y) for x, y in env_change_dict.items()]
+
+
 def get_combined_env_changes(origin_env_change, new_env_change_dict, new_env_change_list):
     # get origin env diff
     origin_env_change_list = []
@@ -325,6 +343,7 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
     else:
         print("New env change is {}".format(env_change_list))
         # get combined env change
+        env_change_list = update_inherit_changes(rest, change_no, env_change_dict)
         combine_env_list = get_combined_env_changes(origin_env_change, env_change_dict, env_change_list)
     print("Combined env change is {}".format(combine_env_list))
 

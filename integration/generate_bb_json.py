@@ -18,6 +18,7 @@ from slugify import slugify
 from api import mysql_api
 from mod import integration_change
 from mod import wft_tools
+from mod import inherit_map
 
 import api.file_api
 import api.gerrit_api
@@ -246,28 +247,6 @@ def get_available_base(change_id, rest, comp_config):
     return stream_json
 
 
-def get_subbuild_json(isar_version, build_content, subbuild_list, component_list):
-    subbuild_dict = dict()
-    for subbuild in build_content.findall('.//baseline'):
-        if subbuild.get("sc") in subbuild_list:
-            key = "{}:{}".format(subbuild.get("project"), subbuild.get("sc"))
-            if key not in component_list:
-                print("{} is not in build_config components".format(key))
-                subbuild_list.remove(subbuild.get("sc"))
-                continue
-            subbuild_content = ET.fromstring(wft.get_build_content(subbuild.text))
-            subbuild_commit = get_bitbake_setting(subbuild_content)[1]
-            if not subbuild_commit:
-                print("Can not get {} commit hash!".format(subbuild.text))
-                continue
-            subbuild_dict[key] = {'commit': subbuild_commit, 'version': subbuild.text}
-            print("{}: {}".format(key, subbuild_dict[key]))
-            subbuild_list.remove(subbuild.get("sc"))
-    if subbuild_list:
-        raise Exception("Can not find {} from {} sub build!".format(subbuild_list, isar_version))
-    return subbuild_dict
-
-
 def get_bitbake_setting(build_content):
     bbrecipe = build_content.find('bbrecipe')
     if bbrecipe is not None:
@@ -281,50 +260,34 @@ def get_bitbake_setting(build_content):
     return bbrecipe_location, bbrecipe_commit, bbrecipe_type
 
 
-def parse_isar_subbuild(isar_version, change_id, rest, comp_config):
-    build_content = ET.fromstring(wft.get_build_content(isar_version))
+def parse_inherit_subbuild(proj_component, version, inherit_map_obj):
+    build_content = ET.fromstring(wft.get_build_content(version))
     bbrecipe_type = get_bitbake_setting(build_content)[2]
     if bbrecipe_type != "staged":
         return {}
-    print("ISAR_XML is staged...")
-    isar_subbuild_list = list()
-    component_list = list()
+    print("{} is staged...".format(proj_component))
+    return inherit_map_obj.get_inherit_changes(proj_component, version, type_filter='in_build')
+
+
+def add_inherit_into_json(ex_comment_dict, change_id, rest, comp_config):
     base_list = get_available_base(change_id, rest, comp_config)
     if not base_list:
-        return {}
-    for stream in base_list:
-        isar_subbuild_list.extend(
-            wft_tools.filter_inherit_subbuilds(base_list[stream], "ISAR_XML"))
-        try:
-            build_config = wft_tools.get_build_config(base_list[stream])
-            component_list.extend(
-                yaml.safe_load(build_config)['components'].keys())
-        except Exception:
-            print('Cannot get build_config for {}'.format(base_list[stream]))
-            continue
-    if not isar_subbuild_list:
-        return {}
-    return get_subbuild_json(isar_version, build_content, isar_subbuild_list, component_list)
-
-
-def add_isar_subbuild(ex_comment_dict, change_id, rest, comp_config):
+        return
+    inherit_map_obj = inherit_map.Inherit_Map(base_loads=base_list.values())
     for stream in ex_comment_dict:
-        try:
-            isar_version = ex_comment_dict[stream]['Common:ISAR_XML']["version"]
-        except KeyError:
-            print("Not find ISAR_XML in ex_comment_dict['{}'].".format(stream))
-        else:
-            print("Find ISAR_XML in ex_comment_dict['{}']: {}".format(isar_version, stream))
-            isar_subbuilds = parse_isar_subbuild(
-                isar_version,
-                change_id,
-                rest,
-                comp_config
-            )
-            isar_subbuilds["isarxml"] = {"PV": isar_version}
-            if isar_subbuilds:
-                ex_comment_dict[stream].update(isar_subbuilds)
-                print("Add isar subbuild to ex_comment_dict['{}'] finish".format(stream))
+        for section_key, section in ex_comment_dict[stream].items():
+            if 'version' in section:
+                inherit_changes = parse_inherit_subbuild(
+                    section_key,
+                    section['version'],
+                    inherit_map_obj
+                )
+                if inherit_changes:
+                    if ex_comment_dict[stream]:
+                        inherit_changes.update(ex_comment_dict[stream])
+                    ex_comment_dict[stream] = inherit_changes
+                    print("Add {} subbuild to ex_comment_dict['{}'] finish".format(section_key, stream))
+                    print(inherit_changes)
 
 
 def parse_ex_comments(ex_dict, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
@@ -877,7 +840,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         add_isar(ex_comment_dict)
         add_isar(comment_dict)
 
-    add_isar_subbuild(ex_comment_dict, change_id, rest, comp_config)
+    add_inherit_into_json(ex_comment_dict, change_id, rest, comp_config)
 
     save_json_file(knife_path,
                    [combine_knife_json([

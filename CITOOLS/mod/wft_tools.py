@@ -243,20 +243,23 @@ def get_staged_from_wft(wft_name, component=None, project=None):
     return {}
 
 
-def get_subuild_from_wft(wft_name, component=None):
+def get_subuild_from_wft(wft_name, component=None, project=None):
     build_content = ''
     sub_builds = []
+    project_list = ["5G", "Common", "ALL"]
     try:
         build_content = WFT.get_build_content(wft_name)
     except Exception:
         if component:
-            for project in ["5G", "Common", "ALL"]:
-                print('Try to get from WFT, version:{}, component:{}, project:{}'.format(wft_name, component, project))
+            if project:
+                project_list = [project]
+            for proj_name in project_list:
+                print('Try to get from WFT, version:{}, component:{}, project:{}'.format(wft_name, component, proj_name))
                 try:
-                    build_content = WFT.get_build_content(wft_name, component=component, project=project)
+                    build_content = WFT.get_build_content(wft_name, component=component, project=proj_name)
                     break
                 except Exception:
-                    print('Cannot get get from WFT, version:{}, component:{}, project:{}'.format(wft_name, component, project))
+                    print('Cannot get get from WFT, version:{}, component:{}, project:{}'.format(wft_name, component, proj_name))
     if build_content:
         tree = ET.fromstring(build_content)
         for one in tree.findall("content/baseline"):
@@ -283,21 +286,16 @@ def get_build_config(base_wft_name):
         params={'access_key': WFT.key},
     )
     if not build_config.ok:
-        raise Exception("Get {base_wft_name}'s configuration and releasenote failed!")
+        print(build_config)
+        raise Exception("Get {}'s build config failed!".format(base_wft_name))
     return build_config.text
 
 
-def filter_inherit_subbuilds(build, parent_component):
+def get_subbuilds(build):
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     wft_url = "{}:8091/ALL/api/v1/build.json".format(WFT.url)
     values = {"build": build, "wft_key": WFT.key}
     response = requests.post(wft_url, headers=headers, data=inherit_json % values, verify=False)
     if not response.ok:
         return []
-    subbuild_list = list()
-    base_subbuild_list = json.loads(response.text)['items'][0]['build_deliverers']
-    for subbuild in base_subbuild_list:
-        if "inherited_from" in subbuild and subbuild['inherited_from']['component'] == parent_component:
-            subbuild_list.append(subbuild['sc'])
-    print("{} matchd subbuild: {}".format(len(subbuild_list), subbuild_list))
-    return subbuild_list
+    return json.loads(response.text)['items'][0]['build_deliverers']

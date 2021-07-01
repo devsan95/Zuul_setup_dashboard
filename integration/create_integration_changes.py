@@ -35,6 +35,7 @@ from mod import ecl_changes
 from mod import get_component_info
 from mod import wft_tools
 from mod import config_yaml
+from mod import inherit_map
 from mod import integration_change as inte_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -1003,24 +1004,12 @@ class IntegrationChangesCreation(object):
                         self.gerrit_rest.change_commit_msg_to_edit(node['ticket_id'], new_msg)
                         self.gerrit_rest.publish_edit(node['ticket_id'])
 
-    def get_inherit_change(self, component, version, inherit_list):
+    def get_inherit_change(self, component, version, inherit_map_obj):
+        print('Get inherit change for {}:{}'.format(component, version))
         change_list = [{'name': component, 'version': version}]
-        if not inherit_list:
-            return change_list
-        for sub_build in wft_tools.get_subuild_from_wft(version):
-            project_component = "{}:{}".format(sub_build['project'], sub_build['component'])
-            if project_component in inherit_list:
-                change_list.append({'name': project_component, 'version': sub_build['version']})
-                inherit_list.remove(project_component)
-                print("{} sub build {}'s version is {}".format(
-                    version,
-                    project_component,
-                    sub_build['version'])
-                )
-                if not inherit_list:
-                    break
-        else:
-            raise Exception("Can not get {} version from {}'s sub_build".format(inherit_list, version))
+        inherite_change_dict = inherit_map_obj.get_inherit_changes(component, version, type_filter='in_parent')
+        for change_key, change_dict in inherite_change_dict.items():
+            change_list.append({'name': change_key, 'version': change_dict['version']})
         return change_list
 
     def generate_trigger_file(self, yaml_change_list):
@@ -1067,16 +1056,18 @@ class IntegrationChangesCreation(object):
         return '\n'.join(change_lines)
 
     def process_yaml_entry(self, env_change):
+        stream_list = []
+        if 'streams' in self.meta and self.meta['streams']:
+            stream_list = [x for x in self.meta['streams'].split(',') if x]
+        print('Stream list: {}'.format(stream_list))
+        inherit_map_obj = inherit_map.Inherit_Map(stream_list=stream_list)
         if 'yaml_entry' in self.meta and self.meta['yaml_entry']:
             yaml_change_list = list()
             for entry in self.meta['yaml_entry']:
                 if entry['name'] == 'Feature_ID':
                     continue
-                inherit_list = list()
-                if entry['name'] in self.comp_config['inheritance']:
-                    inherit_list = self.comp_config['inheritance'][entry['name']]
                 yaml_change_list.extend(
-                    self.get_inherit_change(entry['name'], entry['value'], inherit_list)
+                    self.get_inherit_change(entry['name'], entry['value'], inherit_map_obj)
                 )
             if yaml_change_list:
                 return self.generate_env_change(yaml_change_list), yaml_change_list
