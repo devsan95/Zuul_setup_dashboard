@@ -47,6 +47,9 @@ env_repo = ['MN/5G/COMMON/env', 'MN/5G/COMMON/integration']
 CONF = config.ConfigTool()
 CONF.load('repo')
 
+topic_url = 'https://skytrack.dynamic.nsn-net.net/showCompsDetail?issueKey='
+root_change_url = 'https://gerrit.ext.net.nokia.com/gerrit/#/c/'
+
 
 def load_structure(path):
     structure_obj = yaml.load(open(path),
@@ -1277,6 +1280,11 @@ class IntegrationChangesCreation(object):
                 integration_name=self.info_index['meta']['jira_key'],
                 description="Integration Topic created"
             )
+        for node in self.info_index['nodes'].values():
+            self.gerrit_rest.review_ticket(node['rest_id'], 'Skytrack integration URL:' + topic_url + self.info_index['meta']['jira_key'])
+            if node is not self.info_index['root']:
+                self.gerrit_rest.review_ticket(node['rest_id'], 'Root change URL:' + root_change_url + node['ticket_id'])
+            self.gerrit_rest.review_ticket(node['rest_id'], 'BUILD_URL:', os.getenv('BUILD_URL'))
 
 
 @click.group()
