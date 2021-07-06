@@ -235,3 +235,61 @@ class WftBuild(object):
 
     def find_items(self, xpath):
         return self.tree.findall(xpath)
+
+
+class WftBaselineConfigurations(object):
+
+    def __init__(self, content):
+        self.content = content
+        self.json_content = json.loads(self.content)
+
+    @classmethod
+    def get_baseline_configurations(cls, project, component, version, wftauth):
+        headers = {
+            'Accept': 'text/legacy'
+        }
+        requests_url = 'https://wft.int.net.nokia.com:8091/api/v1/{project}/{component}/builds/{version}.json'.format(
+            project=project,
+            component=component,
+            version=version
+        )
+        response = requests.get(
+            requests_url,
+            headers=headers,
+            data=wftauth.get_auth()
+        )
+        if not response.ok:
+            raise Exception('error {}, content: {}'.format(response.status_code, response.content))
+        return cls(response.content)
+
+    def get_element(self, element_key):
+        return self.json_content[element_key] if element_key in self.json_content else None
+
+    def get_html_releasenote_id(self):
+        return self.get_element('html_releasenote_id') if self.get_element('html_releasenote_id') else 0
+
+    def get_xml_releasenote_id(self):
+        return self.get_element('xml_releasenote_id') if self.get_element('xml_releasenote_id') else 0
+
+    def get_release_setting_id(self):
+        return self.get_element('release_setting_id') if self.get_element('release_setting_id') else 0
+
+    def get_release_note_template_id(self):
+        return self.get_element('release_note_template_id') if self.get_element('release_note_template_id') else 0
+
+    def get_release_note_template_version_id(self):
+        return self.get_element('release_note_template_version_id') if self.get_element('release_note_template_version_id') else 0
+
+    def get_config_spec_id(self):
+        return self.get_element('config_spec_id') if self.get_element('config_spec_id') else 0
+
+    def get_config_spec_version_id(self):
+        return self.get_element('config_spec_version_id') if self.get_element('config_spec_version_id') else 0
+
+    def get_repository(self):
+        return {
+            'repository_url': self.get_element('repository_url'),
+            'repository_branch': self.get_element('repository_branch'),
+            'repository_revision': self.get_element('repository_revision'),
+            'repository_type': self.get_element('repository_type')
+        }

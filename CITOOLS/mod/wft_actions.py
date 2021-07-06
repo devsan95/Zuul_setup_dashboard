@@ -8,6 +8,7 @@ from datetime import datetime
 WFT_API_URL = os.environ['WFT_API_URL']
 WFT_KEY = os.environ['WFT_KEY']
 log = log_api.get_console_logger("WFT actions")
+WFTAUTH = wft_api.WftAuth(WFT_KEY)
 
 
 class WFTUtils(object):
@@ -20,8 +21,7 @@ class WFTUtils(object):
         return build list, each build as a dictionary,
         include keys/fields: deliverer.title, branches_title, branch.title, baseline, version
         '''
-        wftauth = wft_api.WftAuth(WFT_KEY)
-        wft = wft_api.WftBuildQuery(wftauth)
+        wft = wft_api.WftBuildQuery(WFTAUTH)
         wft.set_sorting('created_at')
         wft.add_filter("branch.title", "eq", branch)
         if project:
@@ -79,13 +79,12 @@ class WFTUtils(object):
         return: None
         """
         build_detail = WFTUtils.get_build_detail(version)
-        wftauth = wft_api.WftAuth(WFT_KEY)
         headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
         }
         json_str = {"build": {"note": note}}
-        json_str.update(wftauth.get_auth())
+        json_str.update(WFTAUTH.get_auth())
         request_url = 'https://wft.int.net.nokia.com:8091/api/v1/{project}/{component}/builds/{version}.json'.format(
             project=build_detail['project'],
             component=build_detail['component'],
@@ -143,6 +142,12 @@ class BuildIncrement(object):
         base_details = WFTUtils.get_build_detail(self.base_build)
         current_detail = WFTUtils.get_build_detail(current_version)
         new_version = WFTUtils.get_next_version(current_version, psint_cycle)
+        build_configurations = wft_api.WftBaselineConfigurations.get_baseline_configurations(
+            project=base_details["project"],
+            component=base_details["component"],
+            version=current_version,
+            wftauth=WFTAUTH
+        )
         diff_list = self.get_diff(base_details['subbuilds'], self.changed)
         inc_data = {
             "parent_version": base_details['baseline'],
@@ -152,7 +157,11 @@ class BuildIncrement(object):
             "branch_for": current_detail['branch_for'],
             "repository_url": current_detail['repository_url'],
             "increment": diff_list,
-            "check_before_freeze": 'false'
+            "check_before_freeze": 'false',
+            'xml_releasenote_id': build_configurations.get_xml_releasenote_id(),
+            'release_setting_id': build_configurations.get_release_setting_id(),
+            'release_note_template_id': build_configurations.get_release_note_template_id(),
+            'release_note_template_version_id': build_configurations.get_release_note_template_version_id()
         }
         inc_service = "{}/api/v1/{}/{}/builds/{}/increment.json".format(
             WFT_API_URL, current_detail['project'], current_detail['component'], new_version
@@ -167,8 +176,7 @@ class BuildIncrement(object):
             verify=True
         )
         if not response.ok:
-            raise Exception("Failed to increment new %s:%s in WFT; error message was: %s" %
-                            current_detail['project'], current_detail['component'], response.text)
+            raise Exception("Failed to increment new {0}:{1} in WFT; error message was: {2}".format(current_detail['project'], current_detail['component'], response.text))
         log.info("New build {} created in WFT".format(new_version))
 
         return new_version
