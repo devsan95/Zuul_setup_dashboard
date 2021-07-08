@@ -112,7 +112,7 @@ def create_integration_change(base, version_dict):
     if not integration.diff():
         raise Exception("config.yaml and env file no change!")
     integration.config("user.name", "CA 5GCV")
-    integration.config("user.email", "5g_cb.scm@nokia.com")
+    integration.config("user.email", "I_5G_CB_SCM@internal.nsn.com")
     integration.add(updated_filist)
     integration.commit('-m', 'Automated rcpvduint trigger')
     process = subprocess.Popen(

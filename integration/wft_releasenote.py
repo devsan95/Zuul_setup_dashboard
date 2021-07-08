@@ -86,7 +86,7 @@ filter_str = '''
 releasenote_template = '''{
     "releasenote": {
         "baseline": {
-            "author": "5g_cb.scm@nokia.com",
+            "author": "I_5G_CB_SCM@internal.nsn.com",
             "basedOn": {
                 "name": "5G_Central",
                 "project": "5G:WMP",

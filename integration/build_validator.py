@@ -274,7 +274,7 @@ def build_info_post(change_id, gerrit_info_path, gitlab_info_path, output_path,
         message.extend(['WARNING: Fail to get build content',
                         'You can click confirm to continue',
                         'And also contact CB for help',
-                        'Email: 5g_cb.scm@nokia.com'])
+                        'Email: I_5G_CB_SCM@internal.nsn.com'])
     skytrack_log.skytrack_output(
         message
     )
