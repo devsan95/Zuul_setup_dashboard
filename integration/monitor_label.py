@@ -12,7 +12,6 @@ import urllib3
 
 import api.gerrit_api
 import api.gerrit_rest
-import gerrit_int_op
 from mod import integration_change as inte_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -42,8 +41,6 @@ def _parse_args():
                         help='')
     parser.add_argument('auth_type', type=str, default='digest',
                         help='')
-    parser.add_argument('--backup-topic', type=str, dest='backup_topic',
-                        default=None, help='')
     args = parser.parse_args()
     return vars(args)
 
@@ -208,19 +205,13 @@ def check_interface(rest, tickets_dict, skytrack_log):
 
 
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
-          rest_url, rest_user, rest_pwd, auth_type, backup_topic):
+          rest_url, rest_user, rest_pwd, auth_type):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     if auth_type == 'basic':
         rest.change_to_basic_auth()
     elif auth_type == 'digest':
         rest.change_to_digest_auth()
     rest.init_cache()
-    gop = gerrit_int_op.IntegrationGerritOperation(rest)
-    if not backup_topic:
-        name, branch, repo, platform = gop.get_info_from_change(change_id)
-        if platform:
-            backup_topic = 'integration_{}_backup'.format(platform)
-    print('backup_topic : {}'.format(backup_topic))
     targets = None
     while not targets:
         try:
@@ -275,46 +266,11 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
             if verified_new != item['verified']:
                 print('Change {} verified status changed!'.format(
                     item['ticket']))
-                if verified_new:
-                    print('Change {} verified became True, '
-                          'need to backup'.format(item['ticket']))
-                    item['need_backup'] = True
             # check if external component
             item['external'] = _check_if_external(rest, item['ticket'])
             if item['external']:
                 item['need_backup'] = False
                 print('Ticket {} is external component, no need to backup'.format(item['ticket']))
-            if backup_topic and item['need_backup']:
-                print('Ticket {} begin to backup to topic {}'.format(
-                    item['ticket'], backup_topic))
-                try:
-                    name, branch, repo, platform = gop.get_info_from_change(
-                        item['ticket'])
-                    backup_id = gop.get_ticket_from_topic(backup_topic, repo,
-                                                          branch, name)
-                    if not backup_id:
-                        backup_id = gop.create_change_by_topic(
-                            backup_topic, repo, branch, name)
-                except Exception as ex:
-                    print('Backup {} failed.'.format(item['ticket']))
-                    print('Because {}'.format(str(ex)))
-                    traceback.print_exc()
-
-                if not backup_id:
-                    print('Can not create or find change for '
-                          '{} {} {}'.format(backup_topic, branch, name))
-                else:
-                    try:
-                        gop.clear_change(backup_id)
-                        gop.copy_change(item['ticket'], backup_id, True)
-                        item['need_backup'] = False
-                        print('Backup {} complete.'.format(item['ticket']))
-                    except Exception as ex:
-                        print('Backup {} failed.'.format(item['ticket']))
-                        print('Can not copy {} to {}'.format(
-                            item['ticket'], backup_id))
-                        print('Because {}'.format(str(ex)))
-                        traceback.print_exc()
             # update status
             item['verified'] = verified_new
             ticket_result = rest.get_ticket(item['ticket'])
