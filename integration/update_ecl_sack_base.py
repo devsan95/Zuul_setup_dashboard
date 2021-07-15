@@ -81,9 +81,9 @@ def main():
     ecl_incrementer = BuildIncrement(args.ecl_branch, changed, ecl_base_load)
     try:
         if not re.match(r'\d{6}$', args.PSINT_cycle.strip()):
-            new_ecl_sack_base = ecl_incrementer.run()
+            new_ecl_sack_base = ecl_incrementer.run(name_regex='.*ECL_SACK_BASE')
         else:
-            new_ecl_sack_base = ecl_incrementer.run(int(args.PSINT_cycle) + 1)
+            new_ecl_sack_base = ecl_incrementer.run(int(args.PSINT_cycle) + 1, name_regex='.*ECL_SACK_BASE')
         send_mail(rest, root_change, status="success", ecl_sack_base=new_ecl_sack_base)
     except Exception as e:
         print('Increment ECL_SACK_BASE in WFT failed, reason:')

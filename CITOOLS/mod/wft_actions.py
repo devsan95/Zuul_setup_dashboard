@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import requests
 from api import log_api
 from api import wft_api
@@ -181,14 +182,21 @@ class BuildIncrement(object):
 
         return new_version
 
-    def run(self, psint_cycle=None):
+    def filter_candidate_builds(self, candidate_builds, name_regex):
+        for candidate_build in candidate_builds:
+            if re.match(name_regex, candidate_build['baseline']):
+                return candidate_build
+        raise Exception('Not find matched regex {} in {}'.format(name_regex, candidate_builds))
+
+    def run(self, psint_cycle=None, name_regex='.*'):
         base_build_project = None
         base_build_component = None
         if self.base_build:
             base_build_detail = WFTUtils.get_build_detail(self.base_build)
             base_build_project = base_build_detail['project']
             base_build_component = base_build_detail['component']
-        latest_build = WFTUtils.get_branch_builds(self.wft_branch, project=base_build_project, component=base_build_component)[0]
+        candidate_builds = WFTUtils.get_branch_builds(self.wft_branch, project=base_build_project, component=base_build_component)
+        latest_build = self.filter_candidate_builds(candidate_builds, name_regex)
         if not self.base_build:
             self.base_build = latest_build['baseline']
 
