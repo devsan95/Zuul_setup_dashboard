@@ -21,6 +21,7 @@ from mod import utils
 from mod import wft_tools
 from mod import env_changes
 from mod import mailGenerator
+from mod import yocto_mapping
 from mod import get_component_info
 from update_with_zuul_rebase import update_with_rebase_info
 from generate_bb_json import parse_comments_mail
@@ -36,6 +37,8 @@ COMP_INFO_DICT = {}
 
 
 def get_comp_info_obj(base_load):
+    if 'SBTS' in base_load:
+        return yocto_mapping.Yocto_Mapping(base_load)
     if base_load in COMP_INFO_DICT:
         return COMP_INFO_DICT[base_load]
     else:
@@ -113,6 +116,38 @@ def update_base_commit(rest, comp_change, comp_change_obj, comp_hash):
         rest.publish_edit(comp_change)
 
 
+def get_component_hash(rest, base_package, extra_bases, comp_names, get_comp_info):
+    comp_hash = ''
+    try:
+        if 'integration' in comp_names:
+            comp_hash = rest.get_tag(
+                'MN/5G/COMMON/integration', base_package)['object']
+        else:
+            for sub_comp_name in comp_names:
+                comp_hash = get_comp_info.get_comp_hash(sub_comp_name)
+                if comp_hash:
+                    comp_name = sub_comp_name
+                    break
+    except Exception:
+        print('Cannot get hash for {}'.format(comp_names))
+    if not comp_hash:
+        print('Try get hash from {}'.format(extra_bases))
+        for extra_base in extra_bases:
+            extra_base_get_comp_info = get_comp_info_obj(extra_base)
+            try:
+                comp_hash = extra_base_get_comp_info.get_comp_hash(comp_name)
+            except Exception:
+                print('Exception when get hash from {}'.format(extra_base))
+                continue
+            if not comp_hash:
+                print('Not get hash from {}'.format(extra_base))
+                continue
+            else:
+                print('Get hash from {}'.format(extra_base))
+                break
+    return comp_hash
+
+
 def rebase_by_load(rest, change_no, base_package,
                    gitlab_info_path='', mail_list=None, extra_bases=[], config_yaml_dict={}):
     op = RootChange(rest, change_no)
@@ -126,7 +161,6 @@ def rebase_by_load(rest, change_no, base_package,
     rebase_skipped = {}
     rebase_succeed = {}
     comp_change_list.append(change_no)
-    extra_base_repos = {}
     for comp_change in comp_change_list:
         print('Find component info for change: {}'.format(comp_change))
         comp_change_obj = IntegrationChange(rest, comp_change)
@@ -143,35 +177,8 @@ def rebase_by_load(rest, change_no, base_package,
         comp_name_with_change = '{} {}'.format(change_name, comp_change)
         comp_hash = 'HEAD'
         if base_package != 'HEAD':
-            comp_hash = ''
-            try:
-                if 'integration' in comp_names:
-                    comp_hash = rest.get_tag(
-                        'MN/5G/COMMON/integration', base_package)['object']
-                else:
-                    for sub_comp_name in comp_names:
-                        comp_hash = get_comp_info.get_comp_hash(sub_comp_name)
-                        if comp_hash:
-                            comp_name = sub_comp_name
-                            break
-            except Exception:
-                print('Cannot get hash for {}'.format(comp_name))
-            if not comp_hash:
-                print('Try get hash from {}'.format(extra_bases))
-                for extra_base in extra_bases:
-                    if extra_base not in extra_base_repos:
-                        extra_base_get_comp_info = get_comp_info_obj(extra_base)
-                    try:
-                        comp_hash = extra_base_get_comp_info.get_comp_hash(comp_name)
-                    except Exception:
-                        print('Exception when get hash from {}'.format(extra_base))
-                        continue
-                    if not comp_hash:
-                        print('Not get hash from {}'.format(extra_base))
-                        continue
-                    else:
-                        print('Get hash from {}'.format(extra_base))
-                        break
+            comp_hash = get_component_hash(rest, base_package, extra_bases,
+                                           comp_names, get_comp_info)
             if not comp_hash:
                 rebase_skipped[comp_name_with_change] = 'No component in packages: {},{}'.format(
                     base_package, extra_bases)
@@ -397,7 +404,8 @@ def switch_with_rebase_mod(root_change, rest,
             print('Last base_package is {}'.format(base_package))
             base_list.remove(base_package)
             extra_bases = base_list
-        utils.push_base_tag(base_package)
+        if 'SBTS' not in base_package:
+            utils.push_base_tag(base_package)
         rebase_result = rebase_by_load(rest, root_change, base_package,
                                        gitlab_info_path=gitlab_info_path,
                                        mail_list=mail_list,
@@ -474,7 +482,7 @@ def run(root_change, gerrit_info_path,
             wft_name = wft_tools.get_wft_release_name(base)
             base_package = base_package + wft_name + ','
         base_package = base_package[:-1]
-    if base_package != 'HEAD' and ',' not in base_package:
+    if base_package != 'HEAD' and ',' not in base_package and 'SBTS' not in base_package:
         base_package = wft_tools.get_wft_release_name(base_package)
     if database_info_path:
         skytrack_database_handler.update_integration_mode(

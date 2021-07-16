@@ -36,6 +36,7 @@ from mod import get_component_info
 from mod import wft_tools
 from mod import config_yaml
 from mod import inherit_map
+from mod import yocto_mapping
 from mod import integration_change as inte_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -857,9 +858,16 @@ class IntegrationChangesCreation(object):
                 return comp_ver
         return comp_ver
 
+    def get_sbts_bb_mapping(self):
+        sbts_load = self.meta.get('SBTS_base_load', '')
+        if sbts_load:
+            return yocto_mapping.Yocto_Mapping(sbts_load)
+        return None
+
     def parse_base_load(self, base_load):
         base_commits = {}
         get_comp_info = self.get_comp_info_obj(base_load)
+        sbts_bb_mapping = self.get_sbts_bb_mapping()
         node_list = self.info_index['nodes'].values()
         print("[Info] Start to parse base load for node_list: {}".format(node_list))
         for node in node_list:
@@ -877,7 +885,11 @@ class IntegrationChangesCreation(object):
             if 'type' in node and 'integration' in node['type']:
                 continue
             else:
-                com_name, com_ver = self.get_base_commit_for_node(node, get_comp_info, base_load)
+                com_name, com_ver = self.get_base_commit_for_node(
+                    node,
+                    get_comp_info,
+                    base_load,
+                    sbts_bb_mapping=sbts_bb_mapping)
                 if 'airphone' in node['repo'] and not com_ver:
                     continue
                 if 'type' in node and 'external' in node['type'] and not com_ver:
@@ -889,7 +901,7 @@ class IntegrationChangesCreation(object):
         print("[Error] Failed to parse base_commits!")
         return None
 
-    def get_base_commit_for_node(self, node, get_comp_info, base_load):
+    def get_base_commit_for_node(self, node, get_comp_info, base_load, sbts_bb_mapping=None):
         com_ver = ''
         com_name = node['name']
         if 'ric' in node and node['ric']:
@@ -902,6 +914,9 @@ class IntegrationChangesCreation(object):
                 if com_ver:
                     com_name = ric_com
                     break
+                if not com_ver and sbts_bb_mapping:
+                    com_ver = sbts_bb_mapping.get_component_hash(ric_com)
+                    print('Component ver from SBTS load is {}'.format(com_ver))
             if not com_ver:
                 print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))
                 for ric_com in node['ric']:
