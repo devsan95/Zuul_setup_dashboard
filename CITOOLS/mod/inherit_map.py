@@ -175,3 +175,14 @@ class Inherit_Map(object):
                                                   subbuild['inherited_from']['component'])
                 inherit_dict[wft_comp_name] = parent_comp_name
         return inherit_dict
+
+    def get_all_inherit_dict(self):
+        for base_load in self.base_loads:
+            self.get_inherit_dict(base_load)
+
+    def is_in_inherit_map(self, component):
+        self.get_all_inherit_dict()
+        for inherit_dict in self.inherit_dict.values():
+            if component in inherit_dict.keys() or component in inherit_dict.values():
+                return True
+        return False

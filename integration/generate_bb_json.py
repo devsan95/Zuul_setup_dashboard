@@ -19,6 +19,7 @@ from api import mysql_api
 from mod import integration_change
 from mod import wft_tools
 from mod import inherit_map
+from mod import config_yaml
 
 import api.file_api
 import api.gerrit_api
@@ -261,21 +262,43 @@ def get_bitbake_setting(build_content):
 
 
 def parse_inherit_subbuild(proj_component, version, inherit_map_obj):
-    build_content = ET.fromstring(wft.get_build_content(version))
-    bbrecipe_type = get_bitbake_setting(build_content)[2]
-    if bbrecipe_type != "staged":
+    if not inherit_map_obj.is_in_inherit_map(proj_component):
+        print("{} is not in inherit Map...".format(proj_component))
         return {}
-    print("{} is staged...".format(proj_component))
+    print("{} is in inherit Map...".format(proj_component))
     return inherit_map_obj.get_inherit_changes(proj_component, version, type_filter='in_build')
+
+
+def get_env_change_dict(rest, change_id, config_yaml_file='config.yaml'):
+    integration_obj = integration_change.IntegrationChange(rest, change_id)
+    root_change = integration_obj.get_root_change()
+    config_yaml_change = rest.get_file_change(config_yaml_file, root_change)
+    if ('new' in config_yaml_change and config_yaml_change['new']) and \
+            'old' in config_yaml_change and config_yaml_change['old']:
+        print('Initial config_yaml_obj')
+        config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
+        print('Get change from config_yaml_obj')
+        updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+        return updated_dict
+    return {}
 
 
 def add_inherit_into_json(ex_comment_dict, change_id, rest, comp_config):
     base_list = get_available_base(change_id, rest, comp_config)
     if not base_list:
         return
+    print('Get inherit change from {}'.format(base_list))
     inherit_map_obj = inherit_map.Inherit_Map(base_loads=base_list.values())
-    for stream in ex_comment_dict:
-        for section_key, section in ex_comment_dict[stream].items():
+    env_change_dict = get_env_change_dict(rest, change_id)
+    for stream in base_list:
+        all_change_dict = {}
+        if stream in ex_comment_dict:
+            all_change_dict = copy.deepcopy(ex_comment_dict[stream])
+        all_change_dict.update(env_change_dict)
+        print('Change dict for {} is {}'.format(stream, all_change_dict))
+        if not all_change_dict:
+            continue
+        for section_key, section in all_change_dict.items():
             if 'version' in section:
                 inherit_changes = parse_inherit_subbuild(
                     section_key,
@@ -283,7 +306,7 @@ def add_inherit_into_json(ex_comment_dict, change_id, rest, comp_config):
                     inherit_map_obj
                 )
                 if inherit_changes:
-                    if ex_comment_dict[stream]:
+                    if stream in ex_comment_dict and ex_comment_dict[stream]:
                         inherit_changes.update(ex_comment_dict[stream])
                     ex_comment_dict[stream] = inherit_changes
                     print("Add {} subbuild to ex_comment_dict['{}'] finish".format(section_key, stream))
