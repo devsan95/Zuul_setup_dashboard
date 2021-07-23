@@ -246,7 +246,7 @@ def update_component_ecl(env_file_changes, rest, change_no, ecl_dict):
 def update_inherit_changes(rest, change_no, env_change_dict):
     op = RootChange(rest, change_no)
     comp_change_list, int_change = op.get_components_changes_by_comments()
-    inte_change = ManageChange(rest, change_no)
+    inte_change = ManageChange(rest, int_change)
     build_stream_list = inte_change.get_build_streams()
     inherit_map_obj = inherit_map.Inherit_Map(stream_list=build_stream_list)
     inherit_change_dict = inherit_map_obj.get_inherit_change_by_changedict(
