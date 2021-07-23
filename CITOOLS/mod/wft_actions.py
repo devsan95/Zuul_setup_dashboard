@@ -108,31 +108,37 @@ class BuildIncrement(object):
                     if not set, get the latest build based on wft_branch
         changed: python dictionary, format like: {"Common:RCPvDU_oam": {"version": "RCPvDU_oam-2.23.0"}}
     '''
-    INHERIT_COMP = ["PS:PS_LFS_REL", "Common:GLOBAL_ENV"]
 
-    def __init__(self, wft_branch, changed={}, base_build=None):
+    def __init__(self, wft_branch, changed={}, base_build=None, inherit_map_obj=None, type_filter=''):
         self.wft_branch = wft_branch
         self.base_build = base_build
         self.changed = changed
+        self.inherit_map_obj = inherit_map_obj
+        self.type_filter = type_filter
+        if type_filter != 'in_parent':
+            inherit_map_obj.get_all_inherit_dict()
 
     def get_diff(self, current, updated):
         diff_list = list()
         if (not updated):
             return diff_list
-
+        if self.type_filter != 'in_build':
+            for comp_key in updated:
+                self.inherit_map_obj.get_list_in_parent_from_builds(comp_key)
         for c in current:
             project = c.get('project')
             component = c.get('component')
             version = c.text
             comp_key = "{}:{}".format(project, component)
             updated_version = updated.get(comp_key, {}).get('version')
-            if (comp_key not in self.INHERIT_COMP) and (comp_key in updated) and version != updated_version:
-                log.info('Component {0} need update version: {1} -> {2}'.format(comp_key, version, updated_version))
-                diff = dict()
-                diff["version"] = updated_version
-                diff["project"] = project
-                diff["component"] = component
-                diff_list.append(diff)
+            if comp_key in updated and version != updated_version:
+                if not self.inherit_map_obj.is_in_inherit_sub(comp_key, type_filter=self.type_filter):
+                    log.info('Component {0} need update version: {1} -> {2}'.format(comp_key, version, updated_version))
+                    diff = dict()
+                    diff["version"] = updated_version
+                    diff["project"] = project
+                    diff["component"] = component
+                    diff_list.append(diff)
         log.debug("ENV change list: {}".format(diff_list))
         return diff_list
 
@@ -168,7 +174,7 @@ class BuildIncrement(object):
             WFT_API_URL, current_detail['project'], current_detail['component'], new_version
         )
         log.info("Build increment url: {}".format(inc_service))
-        log.info(inc_data)
+        log.info("inc data: %s", inc_data)
         inc_data.update({"access_key": WFT_KEY})
         response = requests.post(
             inc_service,

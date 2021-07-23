@@ -180,9 +180,44 @@ class Inherit_Map(object):
         for base_load in self.base_loads:
             self.get_inherit_dict(base_load)
 
-    def is_in_inherit_map(self, component):
+    def is_in_inherit_map(self, component, type_filter=''):
         self.get_all_inherit_dict()
-        for inherit_dict in self.inherit_dict.values():
+        for build_name, inherit_dict in self.inherit_dict.items():
+            if type_filter:
+                if type_filter == 'in_parent':
+                    if build_name in self.base_loads:
+                        continue
+                if type_filter == 'in_build':
+                    if build_name not in self.base_loads:
+                        continue
             if component in inherit_dict.keys() or component in inherit_dict.values():
+                return True
+        return False
+
+    def is_in_inherit_parent(self, component, type_filter=''):
+        self.get_all_inherit_dict()
+        for build_name, inherit_dict in self.inherit_dict.items():
+            if type_filter:
+                if type_filter == 'in_parent':
+                    if build_name in self.base_loads:
+                        continue
+                if type_filter == 'in_build':
+                    if build_name not in self.base_loads:
+                        continue
+            if component in inherit_dict.values():
+                return True
+        return False
+
+    def is_in_inherit_sub(self, component, type_filter=''):
+        self.get_all_inherit_dict()
+        for build_name, inherit_dict in self.inherit_dict.items():
+            if type_filter:
+                if type_filter == 'in_parent':
+                    if build_name in self.base_loads:
+                        continue
+                if type_filter == 'in_build':
+                    if build_name not in self.base_loads:
+                        continue
+            if component in inherit_dict.keys():
                 return True
         return False

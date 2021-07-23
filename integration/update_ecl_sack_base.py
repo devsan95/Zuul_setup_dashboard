@@ -8,8 +8,9 @@ from api import config
 from api import log_api
 from api import gerrit_rest
 from mod.wft_actions import BuildIncrement, WFTUtils
-from mod.integration_change import RootChange, IntegrationChange
+from mod.integration_change import RootChange, ManageChange, IntegrationChange
 from mod import mailGenerator
+from mod import inherit_map
 from switch_with_rebase import get_mail_list
 
 CONF = config.ConfigTool()
@@ -54,6 +55,15 @@ def send_mail(rest, root_change, status, ecl_sack_base=None):
     mail_generator.generate()
 
 
+def get_inherit_obj(rest, root_change):
+    op = RootChange(rest, root_change)
+    comp_change_list, int_change = op.get_components_changes_by_comments()
+    inte_change = ManageChange(rest, int_change)
+    build_stream_list = inte_change.get_build_streams()
+    inherit_map_obj = inherit_map.Inherit_Map(stream_list=build_stream_list)
+    return inherit_map_obj
+
+
 def arguments():
     parse = argparse.ArgumentParser()
     parse.add_argument('--gerrit_yaml', '-g', required=True, help="gerrit_yaml")
@@ -72,13 +82,16 @@ def main():
     rest = gerrit_rest.init_from_yaml(args.gerrit_yaml)
     changed = json.loads(args.changed_content)
     ecl_base_load = ''
+    inherit_map_obj = get_inherit_obj(rest, root_change)
     if args.base_load and args.base_branch and args.ecl_branch:
-        cb_incrementer = BuildIncrement(args.base_branch, base_build=args.base_load)
+        cb_incrementer = BuildIncrement(args.base_branch, base_build=args.base_load,
+                                        inherit_map_obj=inherit_map_obj)
         new_cb_build = cb_incrementer.run(args.PSINT_cycle)
         WFTUtils.set_note(new_cb_build, args.base_load)
         ecl_base_load = WFTUtils.get_build_detail(args.base_load)['ecl_sack_base']
 
-    ecl_incrementer = BuildIncrement(args.ecl_branch, changed, ecl_base_load)
+    ecl_incrementer = BuildIncrement(args.ecl_branch, changed, ecl_base_load,
+                                     inherit_map_obj=inherit_map_obj, type_filter='in_parent')
     try:
         if not re.match(r'\d{6}$', args.PSINT_cycle.strip()):
             new_ecl_sack_base = ecl_incrementer.run(name_regex='.*ECL_SACK_BASE')
