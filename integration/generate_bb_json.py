@@ -290,7 +290,7 @@ def add_inherit_into_json(ex_comment_dict, change_id, rest, comp_config):
     print('Get inherit change from {}'.format(base_list))
     inherit_map_obj = inherit_map.Inherit_Map(base_loads=base_list.values())
     env_change_dict = get_env_change_dict(rest, change_id)
-    for stream in base_list:
+    for stream in ex_comment_dict:
         all_change_dict = {}
         if stream in ex_comment_dict:
             all_change_dict = copy.deepcopy(ex_comment_dict[stream])

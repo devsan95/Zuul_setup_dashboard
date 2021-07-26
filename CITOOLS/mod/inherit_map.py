@@ -83,6 +83,20 @@ class Inherit_Map(object):
                 component_list.extend(build_config['components'].keys())
         return component_list
 
+    def is_component_staged(self, component):
+        is_staged = False
+        if not self.build_config_dict:
+            self.get_build_configs()
+        for build_config in self.build_config_dict.values():
+            if 'components' in build_config:
+                if component in build_config['components']:
+                    if 'type' in build_config['components'][component]:
+                        if build_config['components'][component]['type'] == 'staged':
+                            is_staged = True
+                        else:
+                            return False
+        return is_staged
+
     def get_inherit_changes(self, component, version, type_filter='', filter_by_build_config=True):
         inherit_list = self.get_inherit_list_by_filter(component, type_filter=type_filter)
         component_list = self.get_build_components()
@@ -101,7 +115,10 @@ class Inherit_Map(object):
                     sub_build['version'],
                     project=sub_build['project'],
                     component=sub_build['component'])
+                is_staged = self.is_component_staged(project_component)
                 for key, value in staged_dict.items():
+                    if not is_staged and key not in ['commit', 'version']:
+                        continue
                     if key and value:
                         update_dict[key] = value
                 inherit_change_dict[project_component] = update_dict
