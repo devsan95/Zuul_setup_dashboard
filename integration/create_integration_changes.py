@@ -1286,11 +1286,13 @@ class IntegrationChangesCreation(object):
                 integration_name=self.info_index['meta']['jira_key'],
                 description="Integration Topic created"
             )
+        root_node = self.info_index['root']
+        root_change = root_node['ticket_id']
         for node in self.info_index['nodes'].values():
             self.gerrit_rest.review_ticket(node['rest_id'], 'Skytrack integration URL:{}{}'.format(topic_url, self.info_index['meta']['jira_key']))
-            if node is not self.info_index['root']:
-                self.gerrit_rest.review_ticket(node['rest_id'], 'Root change URL:{}{}'.format(root_change_url, node['ticket_id']))
             self.gerrit_rest.review_ticket(node['rest_id'], 'BUILD_URL:{}'.format(os.getenv('BUILD_URL')))
+            if node is not root_node:
+                self.gerrit_rest.review_ticket(node['rest_id'], 'Root change: {}'.format(self.gerrit_rest.get_change_address(root_change)))
 
 
 @click.group()
