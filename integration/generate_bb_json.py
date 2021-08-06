@@ -241,7 +241,7 @@ def get_available_base(change_id, rest, comp_config):
         for stream in comp_config['streams']:
             if build_stream == stream['value']:
                 stream_json[build_stream] = ET.fromstring(
-                    wft.get_build_list(stream['name'], items=1)
+                    wft.get_build_list(stream['name'], baseline_type=0, items=1)
                 ).findall('.//baseline')[0].text
                 break
     print(stream_json)

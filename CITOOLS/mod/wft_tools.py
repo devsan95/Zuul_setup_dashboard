@@ -82,7 +82,7 @@ def get_lasted_success_build(stream):
         'released_with_restrictions',
         'skipped_by_qt'
     ]
-    build_list = WFT.get_build_list(branch_name=stream, items=100)
+    build_list = get_build_list(stream)
     xml_tree = ET.fromstring(build_list)
     for build in xml_tree.findall('build'):
         if build.find('state').text in success_state:
@@ -91,7 +91,7 @@ def get_lasted_success_build(stream):
 
 
 def get_latest_qt_passed_build(stream, status=None):
-    build_list = WFT.get_build_list(branch_name=stream)
+    build_list = get_build_list(stream)
     root = ET.fromstring(build_list)
     build_name = ''
     release_date = ''
@@ -106,7 +106,11 @@ def get_latest_qt_passed_build(stream, status=None):
 
 
 def get_build_list(stream):
-    return WFT.get_build_list(branch_name=stream)
+    build_list = WFT.get_build_list(branch_name=stream, items=100)
+    xml_tree = ET.fromstring(build_list)
+    if not xml_tree.findall('build'):
+        build_list = WFT.get_build_list(branch_name=stream, baseline_type=0, items=100)
+    return build_list
 
 
 def get_build_list_from_custom_filter(custom_filter):
