@@ -72,7 +72,12 @@ class Inherit_Map(object):
     def get_build_configs(self):
         for base_load in self.base_loads:
             if base_load not in self.build_config_dict:
-                self.build_config_dict[base_load] = yaml.safe_load(wft_tools.get_build_config(base_load))
+                base_build_config = {}
+                try:
+                    base_build_config = yaml.safe_load(wft_tools.get_build_config(base_load))
+                except Exception:
+                    print('Cannot find build_config for {}'.format(base_load))
+                self.build_config_dict[base_load] = base_build_config
 
     def get_build_components(self):
         if not self.build_config_dict:
