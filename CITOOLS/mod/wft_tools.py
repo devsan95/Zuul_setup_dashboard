@@ -106,11 +106,7 @@ def get_latest_qt_passed_build(stream, status=None):
 
 
 def get_build_list(stream):
-    build_list = WFT.get_build_list(branch_name=stream, items=100)
-    xml_tree = ET.fromstring(build_list)
-    if not xml_tree.findall('build'):
-        build_list = WFT.get_build_list(branch_name=stream, baseline_type=0, items=100)
-    return build_list
+    return WFT.get_build_list(branch_name=stream, baseline_type=0, items=100)
 
 
 def get_build_list_from_custom_filter(custom_filter):
