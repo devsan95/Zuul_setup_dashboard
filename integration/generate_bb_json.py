@@ -164,6 +164,12 @@ def parse_ric_list(rest, subject, zuul_url,
                 if project == 'MN/5G/COMMON/integration':
                     ret_dict['integration'] = {'repo_ver': rest.get_commit(change_no)['commit']}
                     continue
+                if key == 'deployment':
+                    change = rest.get_change(change_no, using_cache=True)
+                    project_name = 'gitsm://gerrit.ext.net.nokia.com:29418/{}.git'.format(change['project'])
+                    commit = change['change_id']
+                    ret_dict[project_name] = {'REVISION': commit}
+                    continue
 
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
                                  'repo_ver': zuul_ref}
