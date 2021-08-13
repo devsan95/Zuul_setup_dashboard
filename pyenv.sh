@@ -130,8 +130,8 @@ else
     exit 1
 fi
 
-export http_proxy=http://10.158.100.1:8080
-export https_proxy=https://10.158.100.1:8080
+export http_proxy=10.158.100.1:8080
+export https_proxy=10.158.100.1:8080
 
 prepare_python_env(){
 if [ ! -e "$VENV_PATH"/envs/python2/bin/python ];
