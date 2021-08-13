@@ -282,14 +282,20 @@ class ManageChange(IntegrationChange):
             components.add(m)
         return list(components)
 
-    def get_build_streams(self):
+    def get_build_streams(self, with_sbts=False):
         streams = list()
         streams_regex = re.compile(r'.+\/([.0-9]*)\/.*')
+        sbts_regex = re.compile(r'.+\/(SBTS[.0-9]*)\/.*')
         changed_files = self.rest.get_file_list(self.change_no)
         for change in changed_files:
             stream = streams_regex.match(change)
             if stream and 'default' not in stream.group(1):
                 streams.append(stream.group(1))
+                continue
+            if with_sbts:
+                sbts_stream = sbts_regex.match(change)
+                if sbts_stream and 'default' not in sbts_stream.group(1):
+                    streams.append(sbts_stream.group(1))
         return streams
 
 

@@ -14,12 +14,15 @@ import datetime
 import git
 import fire
 import urllib3
+from random import randint
 from slugify import slugify
 from api import mysql_api
+from mod import utils
 from mod import integration_change
 from mod import wft_tools
 from mod import inherit_map
 from mod import config_yaml
+from mod import yocto_mapping
 
 import api.file_api
 import api.gerrit_api
@@ -35,6 +38,33 @@ wft = wft_tools.WFT
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 MAIL_REGEX = r'^[^@]+@(nokia|nokia-sbell|internal\.nsn|groups\.nokia)\.com'
 PACKAGE_TAG_REGEX = r'[0-9]+.[0-9]+.[0-9]+'
+KEY_LIST = ['REVISION', 'rev', 'SRCREV', 'SRC_REV', 'repo_ver']
+SBTS_KNIFE_TEMPLATE = {
+    "knife_request":
+        {
+            "baseline": "",
+            "purpose": "debug",
+            "rebuild_sc": [],
+            "flags": [
+                "bts"
+            ],
+            "reference_type": "",
+            "changes": {},
+            "force_knife_dir": "1",
+            "knife_config": "",
+            "knife_info": "",
+            "module": "",
+            "reference_ir": "",
+            "server": "http://production.cb.scm.nsn-rdnet.net:80",
+            "signed_software": True,
+            "upload_location": [],
+            "version_number": "99",
+            "customer_knife_source": "",
+            "knife_changes": {},
+            "needed_results_mask": 2048
+        },
+    "access_key": wft_tools.WFT.key
+}
 
 
 def strip_begin(text, prefix):
@@ -232,10 +262,10 @@ def parse_comments(change_id, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
     return retd
 
 
-def get_available_base(change_id, rest, comp_config):
+def get_available_base(change_id, rest, comp_config, with_sbts=False):
     stream_json = dict()
     inte_change = integration_change.ManageChange(rest, change_id)
-    build_stream_list = inte_change.get_build_streams()
+    build_stream_list = inte_change.get_build_streams(with_sbts=with_sbts)
     print(build_stream_list)
     for build_stream in build_stream_list:
         for stream in comp_config['streams']:
@@ -283,8 +313,7 @@ def get_env_change_dict(rest, change_id, config_yaml_file='config.yaml'):
     return {}
 
 
-def add_inherit_into_json(ex_comment_dict, change_id, rest, comp_config):
-    base_list = get_available_base(change_id, rest, comp_config)
+def add_inherit_into_json(ex_comment_dict, change_id, rest, base_list):
     if not base_list:
         return
     print('Get inherit change from {}'.format(base_list))
@@ -585,7 +614,7 @@ def parse_comments_base(change_id, rest, using_cache=True):
                 print(line)
                 m1 = m.group(1).strip().strip('"')
                 m2 = m.group(2).strip().strip('"')
-                if re.match(PACKAGE_TAG_REGEX, m2):
+                if re.match(PACKAGE_TAG_REGEX, m2) or m1.startswith('SBTS'):
                     retd[m1] = m2
             if de in line:
                 print(line)
@@ -818,6 +847,80 @@ def add_isar(comment_dict):
                     break
 
 
+def initial_sbts_knife_dict(sbts_base):
+    sbts_knife_dict = copy.deepcopy(SBTS_KNIFE_TEMPLATE)
+    sbts_knife_dict['knife_request']['baseline'] = sbts_base
+    sbts_work_dir = os.path.join(os.getcwd(), 'sbts_integration')
+    branch_config_file = os.path.join(sbts_work_dir, 'branch-config.json')
+    if os.path.exists(sbts_work_dir):
+        shutil.rmtree(sbts_work_dir)
+    os.makedirs(sbts_work_dir)
+    base_repo_info = wft_tools.get_repository_info(sbts_base)
+    git_sbts = git.Git(sbts_work_dir)
+    git_sbts.init()
+    git_sbts.fetch(utils.INTEGRATION_URL, base_repo_info['branch'])
+    git_sbts.checkout(base_repo_info['revision'], 'branch-config.json')
+    with open(branch_config_file, 'r') as fr:
+        branch_config_dict = json.load(fr)
+        sbts_knife_dict['knife_request']['module'] = branch_config_dict['modules'][0]['LTE_MODULE']
+        return sbts_knife_dict
+    raise Exception('Cannot get module info for {}'.format(sbts_base))
+
+
+def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict):
+    random_key = randint(0, 999999999999999)
+    while random_key in sbts_knife_dict['knife_request']['knife_changes']:
+        random_key = randint(0, 999999999999999)
+    sbts_knife_dict['knife_request']['knife_changes'][random_key] = comp_knife_dict
+
+
+def gen_sbts_knife_dict(knife_dict, stream_json):
+    sbts_base = None
+    base_stream_map = stream_json
+    if 'SBTS' not in ','.join(stream_json.keys()):
+        print('No SBTS branch for this topic')
+        return {}
+    for stream, stream_base in base_stream_map.items():
+        if stream.startswith('SBTS'):
+            sbts_base = stream_base
+    if not sbts_base:
+        print('No SBTS branch for this topic')
+        return {}
+    sbts_knife_dict = initial_sbts_knife_dict(sbts_base)
+    print('sbts_knife_dict:')
+    print(sbts_knife_dict)
+    # get bb_mapping for SBTS load
+    sbts_bb_mapping = yocto_mapping.Yocto_Mapping(sbts_base)
+    for target_dict in knife_dict.values():
+        for component_name, replace_dict in target_dict.items():
+            recipe_dict = sbts_bb_mapping.get_component_dict(component_name)[0]
+            comp_knife_dict = {}
+            if recipe_dict and 'src_uri' in recipe_dict and replace_dict['src_uri']:
+                comp_knife_dict[recipe_dict['src_uri']] = replace_dict
+                comp_knife_dict['source_repo'] = recipe_dict['src_uri']
+                comp_knife_dict['source_type'] = recipe_dict['src_uri_type']
+                if 'repo_url' in replace_dict and replace_dict['repo_url']:
+                    comp_knife_dict['replace_source'] = replace_dict['repo_url']
+                else:
+                    comp_knife_dict['replace_source'] = replace_dict['repo_url']
+                replace_commit = get_revision_from_dict(replace_dict)
+                if replace_commit:
+                    comp_knife_dict['replace_commit'] = replace_commit
+                if 'package_path' in replace_dict and replace_dict['package_path']:
+                    comp_knife_dict['package_path'] = replace_dict['package_path']
+            if comp_knife_dict:
+                update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
+    return sbts_knife_dict
+
+
+def get_revision_from_dict(replace_dict):
+    for key in KEY_LIST:
+        if key in replace_dict:
+            return replace_dict[key]
+    print('Cannot found revision from {}'.format(replace_dict))
+    return None
+
+
 def run(zuul_url, zuul_ref, output_path, change_id,
         gerrit_info_path, zuul_changes, gnb_list_path, db_info_path, comp_config):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
@@ -827,6 +930,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     # path
     knife_path = os.path.join(output_path, 'knife.json')
+    sbts_knife_path = os.path.join(output_path, 'sbts_knife.json')
     base_path = os.path.join(output_path, 'base.json')
     reviews_path = os.path.join(output_path, 'reviewers.json')
 
@@ -863,23 +967,29 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         add_isar(ex_comment_dict)
         add_isar(comment_dict)
 
-    add_inherit_into_json(ex_comment_dict, change_id, rest, comp_config)
+    stream_json = parse_comments_base(change_id, rest)
+    if not stream_json:
+        stream_json = get_available_base(change_id, rest, comp_config)
+    add_inherit_into_json(ex_comment_dict, change_id, rest, stream_json)
 
+    combined_knife_dict = combine_knife_json([
+        {'all': ric_dict},
+        {'all': ric_commit_dict},
+        {'all': env_dict},
+        {'all': interfaces_dict},
+        ex_comment_dict,
+        comment_dict], abandoned_changes)
     save_json_file(knife_path,
-                   [combine_knife_json([
-                       {'all': ric_dict},
-                       {'all': ric_commit_dict},
-                       {'all': env_dict},
-                       {'all': interfaces_dict},
-                       ex_comment_dict,
-                       comment_dict
-                   ], abandoned_changes)],
+                   [combined_knife_dict],
                    override=True)
 
     # stream base json
-    stream_json = parse_comments_base(change_id, rest)
     save_json_file(base_path, stream_json)
 
+    # sbts knife json
+    save_json_file(sbts_knife_path,
+                   [gen_sbts_knife_dict(combined_knife_dict, stream_json)],
+                   override=True)
     # email list
     reviews_json = rest.get_reviewer(change_id)
     reviews_mail_list = [x['email'] for x in reviews_json if 'email' in x]

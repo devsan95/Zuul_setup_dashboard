@@ -129,6 +129,18 @@ def get_stream_name(version):
     raise Exception('Can not get {} stream name from comp-deps repo'.format(version))
 
 
+def get_repository_info(package):
+    rs = WFT.get_build_content(package)
+    tree = ET.fromstring(rs)
+    repository_info = {}
+    for key_name in ['url', 'branch', 'revision', 'type']:
+        repository_key = 'repository_{}'.format(key_name)
+        for one in tree.findall(repository_key):
+            repository_info[key_name] = one.text
+            break
+    return repository_info
+
+
 def get_release_date(package):
     rs = WFT.get_build_content(package)
     tree = ET.fromstring(rs)

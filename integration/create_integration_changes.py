@@ -949,10 +949,11 @@ class IntegrationChangesCreation(object):
                         self.info_index['nodes'][node['name']]['title_replace'] = '[none] [NOREBASE] {node[name]} {meta[version_name]} {meta[branch]}'
                 if 'type' in node and 'integration' in node['type'] and 'all' not in node['type']:
                     for build in self.base_load_list:
+                        stream_value = build.rsplit('.', 1)[0].rsplit('_')[0]
                         if 'comments' in node:
-                            self.info_index['nodes'][node['name']]['comments'].append('update_base:{},{}'.format(build.rsplit('.', 1)[0], build))
+                            self.info_index['nodes'][node['name']]['comments'].append('update_base:{},{}'.format(stream_value, build))
                         else:
-                            self.info_index['nodes'][node['name']]['comments'] = ['update_base:{},{}'.format(build.rsplit('.', 1)[0], build)]
+                            self.info_index['nodes'][node['name']]['comments'] = ['update_base:{},{}'.format(stream_value, build)]
                 if base_commits and 'MN/SCMTA/zuul/inte_ric' in node['repo']:
                     base_commit_info = ''
                     if node['name'] in base_commits:
@@ -1172,6 +1173,12 @@ class IntegrationChangesCreation(object):
             base_commits = self.parse_base_load(base_load)
             if base_commits:
                 self.base_commits_info = base_commits
+
+        # add SBTS to base loads and streams
+        sbts_load = self.meta.get('SBTS_base_load', '')
+        if sbts_load:
+            self.meta['streams'].append(sbts_load.split('_')[0])
+            self.base_load_list.append(sbts_load)
 
         # insert integration mode to changes
         self.insert_integration_mode(integration_mode, base_load, base_commits)

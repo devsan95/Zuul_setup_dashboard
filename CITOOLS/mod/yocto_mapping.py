@@ -54,13 +54,15 @@ class Yocto_Mapping(object):
             if 'recipes' not in source:
                 continue
             for recipe_dict in source['recipes']:
+                if 'src_uri' in recipe_dict and recipe_dict['src_uri']:
+                    return recipe_dict, None, None
                 for recipe_dict_key, recipe_dict_value in recipe_dict.items():
                     if os.path.basename(recipe_dict_key).split('.bb')[0].split('_')[0] == comp_name:
-                        return recipe_dict_key, recipe_dict_value
-        return None, None
+                        return recipe_dict, recipe_dict_key, recipe_dict_value
+        return None, None, None
 
     def get_component_sources(self, comp_name):
-        recipe_path, recipe_info = self.get_component_dict(comp_name)
+        recipe_dict, recipe_path, recipe_info = self.get_component_dict(comp_name)
         if recipe_info and 'subsources' in recipe_info:
             return recipe_info['subsources']
         return {}

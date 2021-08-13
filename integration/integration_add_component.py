@@ -72,7 +72,7 @@ def create_comp_change(rest, comp, base_commit, base_change, root):
     return ticket_id
 
 
-def get_base_load(rest, manager_change):
+def get_base_load(rest, manager_change, with_sbts=False):
     base_load = None
     base_load_re = re.compile(r'update_base:(.*),(.*)')
     detail_info = rest.get_detailed_ticket(manager_change)
@@ -81,8 +81,11 @@ def get_base_load(rest, manager_change):
         comments = comments['message']
         result_list = base_load_re.findall(comments)
         if len(result_list) > 0:
-            base_load = result_list[0][1]
-            break
+            for base_match in result_list:
+                if not with_sbts and base_match[1].startswith('SBTS'):
+                    continue
+                base_load = base_match[1]
+                break
     if not base_load:
         raise Exception('[Error] Failed to get base load info in manager change {}'.format(manager_change))
     return base_load
