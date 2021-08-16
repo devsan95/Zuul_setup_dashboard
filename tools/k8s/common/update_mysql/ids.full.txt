@@ -1,0 +1,9 @@
+bbp
+ecp
+soc
+trs
+l1
+oam
+oam-qa
+hyman-dev
+fnok-qa

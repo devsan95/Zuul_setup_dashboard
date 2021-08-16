@@ -1,0 +1,5 @@
+l1 | zuul_url=http://zuul-l1-merger-0.dyn.nesc.nokia.net:30114/p
+trs | zuul_url=http://zuul-trs-merger-0.dyn.nesc.nokia.net:32670/p
+ecp  | soc | zuul_url=http://zuul-soc-merger-0.dyn.nesc.nokia.net:30972/p
+hetran | zuul_url=http://zuul-hetran-merger-0.dyn.nesc.nokia.net:31154/p
+bbp | 

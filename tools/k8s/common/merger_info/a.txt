@@ -1,0 +1,7 @@
+l1 | zuul_url=http://10.157.98.95:30544/p
+l1 | zuul_url=http://10.157.98.95:30544/p
+trs | zuul_url=http://10.157.99.215:31318/p
+ecp  | soc | zuul_url=http://10.157.98.165 10.157.98.95:32556/p
+hetran | zuul_url=http://10.157.98.165 10.157.98.165:32331/p
+bbp | zuul_url=http://10.157.102.53 10.157.99.215:31029/p
+oam | zuul_url=http://10.157.98.95:31263/p

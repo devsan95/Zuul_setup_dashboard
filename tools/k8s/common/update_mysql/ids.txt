@@ -1,0 +1,9 @@
+bbp
+ecp
+soc
+trs
+l1
+oam
+5g
+rf
+lte
