@@ -759,6 +759,7 @@ class IntegrationChangesCreation(object):
         branch = node_obj['branch']
         key = '{},{}'.format(project, branch)
         print('[Info] Integration mode is: {}'.format(integration_mode))
+        print('[Info] get base commit from {} in {}'.format(project, branch))
         if 'Head' in integration_mode:
             commit_info = self.gerrit_rest.get_latest_commit_from_branch(project, branch)
             commit_hash = commit_info['revision']
@@ -1098,8 +1099,13 @@ class IntegrationChangesCreation(object):
         if base_load in self.comp_info_dict:
             return self.comp_info_dict[base_load]
         else:
-            comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
-            self.comp_info_dict[base_load] = comp_info
+            comp_info = None
+            if base_load.startswith('SBTS'):
+                comp_info = yocto_mapping.Yocto_Mapping(base_load)
+            else:
+                comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+            if comp_info:
+                self.comp_info_dict[base_load] = comp_info
             return comp_info
 
     def run(self, version_name=None, topic_prefix=None, streams=None,

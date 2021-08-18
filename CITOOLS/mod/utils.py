@@ -95,7 +95,7 @@ def get_file_content(file_path):
         return fr.read()
 
 
-def push_base_tag(base_pkg):
+def push_base_tag(base_pkg, branch=''):
     integration_dir = os.path.join(os.getcwd(), 'Integration_for_tags')
     if os.path.exists(integration_dir):
         g = git.Git(integration_dir)
@@ -106,8 +106,15 @@ def push_base_tag(base_pkg):
     else:
         git.Repo.clone_from(INTEGRATION_URL, integration_dir)
     g = git.Git(integration_dir)
+    if branch:
+        g.fetch('origin', branch)
     g.checkout(base_pkg)
-    branch = get_integration_branch(integration_dir)
+    push_merged_change(integration_dir, base_pkg, branch=branch)
+
+
+def push_merged_change(integration_dir, base_pkg, branch=''):
+    if not branch:
+        branch = get_integration_branch(integration_dir)
     try:
         print('Base tag: {} add to gerrit'.format(base_pkg))
         g = git.Git(integration_dir)

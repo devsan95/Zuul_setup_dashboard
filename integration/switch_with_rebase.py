@@ -37,12 +37,14 @@ COMP_INFO_DICT = {}
 
 
 def get_comp_info_obj(base_load):
-    if 'SBTS' in base_load:
-        return yocto_mapping.Yocto_Mapping(base_load)
     if base_load in COMP_INFO_DICT:
         return COMP_INFO_DICT[base_load]
     else:
-        comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+        comp_info = None
+        if 'SBTS' in base_load:
+            comp_info = yocto_mapping.Yocto_Mapping(base_load)
+        else:
+            comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
         COMP_INFO_DICT[base_load] = comp_info
         return comp_info
 
@@ -120,8 +122,11 @@ def get_component_hash(rest, base_package, extra_bases, comp_names, get_comp_inf
     comp_hash = ''
     try:
         if 'integration' in comp_names:
-            comp_hash = rest.get_tag(
-                'MN/5G/COMMON/integration', base_package)['object']
+            if base_package.startswith('SBTS'):
+                base_repo_info = wft_tools.get_repository_info(base_package)
+                comp_hash = base_repo_info['revision']
+            else:
+                comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_package)['object']
         else:
             for sub_comp_name in comp_names:
                 comp_hash = get_comp_info.get_comp_hash(sub_comp_name)
@@ -196,12 +201,18 @@ def rebase_by_load(rest, change_no, base_package,
                 if comp_hash == 'HEAD':
                     rest.rebase(comp_change)
                 else:
-                    rest.rebase(comp_change, comp_hash)
-                rebase_succeed[comp_name_with_change] = comp_hash
+                    if '@' in comp_hash:
+                        rebase_skipped[comp_name_with_change] = 'svn revision {} not fit for git repo'.format(comp_hash)
+                    else:
+                        rest.rebase(comp_change, comp_hash)
+                        rebase_succeed[comp_name_with_change] = comp_hash
             except Exception:
                 traceback.print_exc()
                 # if is env:
                 if comp_name == 'env' or project == 'MN/5G/COMMON/integration':
+                    if base_package.startswith('SBTS'):
+                        rebase_skipped['env {}'.format(comp_change)] = 'no need rebase root[{}] for SBTS'.format(comp_change)
+                        continue
                     env_path = get_env_repo.get_env_repo_info(rest, comp_change)[1]
                     try:
                         # after all streams not use config.yaml disabled
@@ -394,6 +405,8 @@ def switch_with_rebase_mod(root_change, rest,
         base_list = base_package.split(',')
         for base_pkg_name in base_list:
             ver_partten = '.'.join(base_pkg_name.split('.')[0:2])
+            if ver_partten == base_pkg_name:
+                ver_partten = base_pkg_name.split('_')[0]
             rest.review_ticket(
                 int_change,
                 'update_base:{},{}'.format(ver_partten, base_pkg_name))

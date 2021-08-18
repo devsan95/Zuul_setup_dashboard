@@ -20,6 +20,7 @@ from api import mysql_api
 from mod import utils
 from mod import integration_change
 from mod import wft_tools
+from mod import env_changes
 from mod import inherit_map
 from mod import config_yaml
 from mod import yocto_mapping
@@ -114,6 +115,7 @@ def parse_ric_list(rest, subject, zuul_url,
     lines = subject.split('\n')
     ric = []
     abandoned_changes = []
+    proj_dict = {}
     r = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>( <(\d*)>)?( <t:([^<>]*)>)?')
     for line in lines:
         m = r.match(line)
@@ -184,7 +186,8 @@ def parse_ric_list(rest, subject, zuul_url,
                     ret_dict[key]['repo_url'] = \
                         ret_dict[key]['repo_url'].replace('http:', 'gitsm:')
                     ret_dict[key]['protocol'] = 'http'
-    return ret_dict, external_dict, abandoned_changes
+                proj_dict[key] = project
+    return ret_dict, external_dict, abandoned_changes, proj_dict
 
 
 def parse_ric_commit_list(subject):
@@ -315,8 +318,8 @@ def get_env_change_dict(rest, change_id, config_yaml_file='config.yaml'):
         config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
         print('Get change from config_yaml_obj')
         updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
-        return updated_dict
-    return {}
+        return updated_dict, removed_dict
+    return {}, {}
 
 
 def add_inherit_into_json(ex_comment_dict, change_id, rest, base_list):
@@ -324,7 +327,7 @@ def add_inherit_into_json(ex_comment_dict, change_id, rest, base_list):
         return
     print('Get inherit change from {}'.format(base_list))
     inherit_map_obj = inherit_map.Inherit_Map(base_loads=base_list.values())
-    env_change_dict = get_env_change_dict(rest, change_id)
+    env_change_dict = get_env_change_dict(rest, change_id)[0]
     for stream in ex_comment_dict:
         all_change_dict = {}
         if stream in ex_comment_dict:
@@ -874,13 +877,50 @@ def initial_sbts_knife_dict(sbts_base):
 
 
 def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict):
+    for knife_change in sbts_knife_dict['knife_request']['knife_changes'].values():
+        if 'source_repo' in knife_change and 'source_repo' in comp_knife_dict:
+            if knife_change['source_repo'] == comp_knife_dict['source_repo']:
+                print('Duplicated source repo {}'.format(knife_change['source_repo']))
+                return
     random_key = randint(0, 999999999999999)
     while random_key in sbts_knife_dict['knife_request']['knife_changes']:
         random_key = randint(0, 999999999999999)
     sbts_knife_dict['knife_request']['knife_changes'][random_key] = comp_knife_dict
 
 
-def gen_sbts_knife_dict(knife_dict, stream_json):
+def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, rest):
+    sbts_base = sbts_knife_dict['knife_request']['baseline']
+    print('Create integration change based on {}'.format(sbts_base))
+    base_repo_info = wft_tools.get_repository_info(sbts_base)
+    sbts_base_commit = base_repo_info['revision']
+    utils.push_base_tag(sbts_base_commit, branch=base_repo_info['branch'])
+    change_id, ticket_id, rest_id = rest.create_ticket(
+        'MN/5G/COMMON/integration',
+        None,
+        sbts_base.split('_')[0],
+        'Integration change for SBTS',
+        base_change=sbts_base_commit
+    )
+    config_yaml_content = env_changes.create_config_yaml_by_env_change(
+        '',
+        rest,
+        ticket_id,
+        config_yaml_file='config.yaml',
+        config_yaml_updated_dict=updated_dict,
+        config_yaml_removed_dict=removed_dict)[0]['config.yaml']
+    rest.add_file_to_change(ticket_id, 'config.yaml', config_yaml_content)
+    rest.publish_edit(ticket_id)
+    rest.review_ticket(rest_id, 'Only for create integration package', {'Code-Review': -2})
+    update_sbts_comp_change(
+        sbts_knife_dict,
+        {'source_repo': 'git://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration.git',
+         'source_type': 'git',
+         'replace_source': 'git://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration.git',
+         'replace_commit': rest.get_commit(ticket_id)['commit'],
+         'package_path': ''})
+
+
+def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
     sbts_base = None
     base_stream_map = stream_json
     if 'SBTS' not in ','.join(stream_json.keys()):
@@ -895,16 +935,23 @@ def gen_sbts_knife_dict(knife_dict, stream_json):
     sbts_knife_dict = initial_sbts_knife_dict(sbts_base)
     print('sbts_knife_dict:')
     print(sbts_knife_dict)
+    updated_dict, removed_dict = get_env_change_dict(rest, change_id)
+    update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, rest)
     # get bb_mapping for SBTS load
     sbts_bb_mapping = yocto_mapping.Yocto_Mapping(sbts_base)
     for target_dict in knife_dict.values():
         for component_name, replace_dict in target_dict.items():
-            recipe_dict = sbts_bb_mapping.get_component_dict(component_name)[0]
+            source = {}
+            if component_name in project_dict:
+                print('Try to get component dict by project: {}'.format(project_dict[component_name]))
+                source = sbts_bb_mapping.get_component_source_by_project(project_dict[component_name])
+            if not source:
+                print('Try to get component dict by name: {}'.format(component_name))
+                source = sbts_bb_mapping.get_component_dict(component_name)[0]
             comp_knife_dict = {}
-            if recipe_dict and 'src_uri' in recipe_dict and replace_dict['src_uri']:
-                comp_knife_dict[recipe_dict['src_uri']] = replace_dict
-                comp_knife_dict['source_repo'] = recipe_dict['src_uri']
-                comp_knife_dict['source_type'] = recipe_dict['src_uri_type']
+            if source and 'src_uri' in source and source['src_uri']:
+                comp_knife_dict['source_repo'] = source['src_uri']
+                comp_knife_dict['source_type'] = source['src_uri_type']
                 if 'repo_url' in replace_dict and replace_dict['repo_url']:
                     comp_knife_dict['replace_source'] = replace_dict['repo_url']
                 else:
@@ -912,6 +959,7 @@ def gen_sbts_knife_dict(knife_dict, stream_json):
                 replace_commit = get_revision_from_dict(replace_dict)
                 if replace_commit:
                     comp_knife_dict['replace_commit'] = replace_commit
+                comp_knife_dict['package_path'] = ''
                 if 'package_path' in replace_dict and replace_dict['package_path']:
                     comp_knife_dict['package_path'] = replace_dict['package_path']
             if comp_knife_dict:
@@ -946,7 +994,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     description, rest_id = get_description(rest, change_id)
 
     # knife json
-    ric_dict, ex_dict, abandoned_changes = parse_ric_list(
+    ric_dict, ex_dict, abandoned_changes, project_dict = parse_ric_list(
         rest, description, zuul_url, zuul_ref, project_branch,
         knife_config)
     ric_commit_dict = parse_ric_commit_list(description)
@@ -993,7 +1041,12 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     # sbts knife json
     save_json_file(sbts_knife_path,
-                   [gen_sbts_knife_dict(combined_knife_dict, stream_json)],
+                   [gen_sbts_knife_dict(
+                       combined_knife_dict,
+                       stream_json,
+                       rest,
+                       change_id,
+                       project_dict)],
                    override=True)
     # email list
     reviews_json = rest.get_reviewer(change_id)

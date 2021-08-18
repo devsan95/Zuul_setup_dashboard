@@ -39,6 +39,7 @@ def update_config_yaml_change_dict(rest, change_no, config_yaml_file,
 def create_config_yaml_by_env_change(env_change_split, rest,
                                      change_id, config_yaml_file='config.yaml',
                                      config_yaml_updated_dict=None, config_yaml_removed_dict=None):
+    env_file_changes = {}
     if not config_yaml_updated_dict:
         config_yaml_updated_dict = {}
     if not config_yaml_removed_dict:
@@ -62,7 +63,8 @@ def create_config_yaml_by_env_change(env_change_split, rest,
         config_yaml_obj.update_changes(config_yaml_updated_dict, config_yaml_removed_dict)
     # update env_change in config.yaml
     # update staged infos if exists
-    env_file_changes = config_yaml_obj.update_by_env_change(parse_env_change_split(env_change_split))
+    if env_change_split:
+        env_file_changes = config_yaml_obj.update_by_env_change(parse_env_change_split(env_change_split))
     config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
     if config_yaml_content != old_content:
         return {config_yaml_file: config_yaml_content}, env_file_changes

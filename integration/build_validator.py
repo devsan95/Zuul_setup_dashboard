@@ -67,7 +67,12 @@ def fixed_base_validator(rest, components, base_dict):
         if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
             base_parent_list = get_base_parent(rest, base_obj_list, component[0])
             if parent not in base_parent_list:
-                mismatch_dict[component[2]] = (component, parent, base_parent_list)
+                if len(base_obj_list) == 1 and \
+                        base_obj_list[0].base_pkg.startswith('SBTS') and \
+                        component[0] == 'integration':
+                    match_change_list.append(component[2])
+                else:
+                    mismatch_dict[component[2]] = (component, parent, base_parent_list)
             else:
                 match_change_list.append(component[2])
                 print("remove change {} from parent_hash_mismatch".format(component[2]))
@@ -181,10 +186,10 @@ def get_build_content(knife_json_path, base_info_path, ex_dict, build_streams,
                 stream_name_prefix,
                 base_build_dict[stream]
             ))
-            messages.append('Stream: {0} Base_build: {1} Release Date: {2}'
-                            .format(stream,
-                                    base_build_dict[stream],
-                                    delivery_date))
+            messages.append('Stream: {0} Base_build: {1} Release Date: {2}'.format(
+                stream,
+                base_build_dict[stream],
+                delivery_date))
         else:
             base_load, release_date = wft_tools.get_latest_qt_passed_build(
                 stream_name
@@ -246,7 +251,7 @@ def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_
     rest.init_cache(1000)
     description, rest_id = generate_bb_json.get_description(rest, change_id)
     knife_config = generate_bb_json.parse_config(rest, change_id)
-    ric_dict, ex_dict, abandoned_changes = generate_bb_json.parse_ric_list(
+    ric_dict, ex_dict, abandoned_changes, proj_dict = generate_bb_json.parse_ric_list(
         rest, description, zuul_url='', zuul_ref='', project_branch={}, config=knife_config)
     messages = get_build_content(knife_path, base_path, ex_dict, build_streams,
                                  integration_mode, compare=compare)
@@ -321,7 +326,8 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     else:
         integration_mode = 'HEAD'
         messages, closed_dict = head_mode_validator(rest, component_list, config_yaml_dict)
-    build_streams = inte_change.get_build_streams()
+    # TO DO: test if with_sbts=True
+    build_streams = inte_change.get_build_streams(with_sbts=True)
     if not build_streams:
         messages.append('Build Pre-check Failed')
         messages.append('No integration streams configured')

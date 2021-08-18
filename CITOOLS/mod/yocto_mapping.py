@@ -28,11 +28,18 @@ class Yocto_Mapping(object):
         if not bbmapping_id:
             raise Exception('Cannot get bb_mapping id from {}'.format(self.base_pkg))
         response = requests.get(
-            '{}/{}/attachments/{}.json'.format(WFT_ATTACHMENT_URL, self.base_pkg, bbmapping_id),
-            params={'access_key': WFT_KEY}
-        )
+            '{}/{}/attachments/{}.json'.format(
+                WFT_ATTACHMENT_URL,
+                self.base_pkg,
+                bbmapping_id),
+            params={'access_key': WFT_KEY})
         if response.ok:
-            return json.loads(response.text)
+            yocto_mapping_path = os.path.join(os.getcwd(), '{}.yocto_mapping'.format(self.base_pkg))
+            print('Write yocto mapping to {}'.format(yocto_mapping_path))
+            with open(yocto_mapping_path, 'w') as fw:
+                fw.write(response.text)
+            with open(yocto_mapping_path, 'r') as fr:
+                return json.load(fr)
         raise Exception("WFT return {} when download {} bbmapping".format(response.status_code, self.base_pkg))
 
     def get_build_bbmapping_id(self, wft_version):
@@ -49,27 +56,44 @@ class Yocto_Mapping(object):
             print("WFT return {} when get {} id".format(response.status_code, self.base_pkg))
         return None
 
+    def get_component_source_by_project(self, project_name):
+        for source in self.bb_mapping_dict['sources']:
+            if 'recipes' not in source:
+                continue
+            if 'src_uri' in source and self.is_src_uri_match(source['src_uri'], project_name):
+                return source
+        return None
+
+    def is_src_uri_match(self, src_uri1, src_uri2):
+        print('Compare {} and {}'.format(src_uri1, src_uri2))
+        if src_uri1.endswith(src_uri2) or src_uri1.endswith('{}.git'.format(src_uri2)):
+            return True
+        return False
+
     def get_component_dict(self, comp_name):
         for source in self.bb_mapping_dict['sources']:
             if 'recipes' not in source:
                 continue
             for recipe_dict in source['recipes']:
-                if 'src_uri' in recipe_dict and recipe_dict['src_uri']:
-                    return recipe_dict, None, None
+                if 'src_uri' in source and source['src_uri'] == comp_name:
+                    return source, recipe_dict.keys[0], recipe_dict.values[0]
                 for recipe_dict_key, recipe_dict_value in recipe_dict.items():
                     if os.path.basename(recipe_dict_key).split('.bb')[0].split('_')[0] == comp_name:
-                        return recipe_dict, recipe_dict_key, recipe_dict_value
+                        return source, recipe_dict_key, recipe_dict_value
         return None, None, None
 
-    def get_component_sources(self, comp_name):
-        recipe_dict, recipe_path, recipe_info = self.get_component_dict(comp_name)
+    def get_component_sub_sources(self, comp_name):
+        source, recipe_path, recipe_info = self.get_component_dict(comp_name)
         if recipe_info and 'subsources' in recipe_info:
-            return recipe_info['subsources']
-        return {}
+            return recipe_info['subsources'], source['src_uri_type']
+        return {}, ''
 
     def get_comp_hash(self, comp_name):
-        sources = self.get_component_sources(comp_name)
-        for source in sources:
-            if 'rev' in source:
-                return source['rev']
+        sub_sources, src_uri_type = self.get_component_sub_sources(comp_name)
+        for sub_source in sub_sources:
+            if 'rev' in sub_source:
+                if src_uri_type != 'svn':
+                    return sub_source['rev']
+                else:
+                    return '{}@{}'.format(sub_source['module'], sub_source['rev'])
         return ''

@@ -75,7 +75,7 @@ def run(zuul_url, zuul_ref, change_id,
     project_branch = parse_zuul_changes(zuul_changes)
     description, rest_id = get_description(rest, change_id)
     knife_config = parse_config(rest, change_id)
-    ric_dict, ex_dict, abandoned_changes = parse_ric_list(
+    ric_dict, ex_dict, abandoned_changes, proj_dict = parse_ric_list(
         rest, description, zuul_url, zuul_ref, project_branch,
         knife_config)
     for change in ex_dict:
