@@ -12,7 +12,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-jenkins_server = 'http://wrlinb147.emea.nsn-net.net:9090/'
+jenkins_server = 'http://production-5g.cb.scm.nsn-rdnet.net:80/'
 label_path = 'label/{}'
 ip_rex = re.compile(r'10\.\d+\.\d+\.\d+')
 id_rex = re.compile(r'-(\d+)_\d$')

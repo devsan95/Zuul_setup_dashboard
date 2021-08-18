@@ -16,7 +16,7 @@ from scm_tools.wft.api import WftAPI
 log = log_api.get_console_logger("rcpvduint_knife")
 wft = WftAPI()
 wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
-jenkins_server = 'http://wrlinb147.emea.nsn-net.net:9090/'
+jenkins_server = 'http://production-5g.cb.scm.nsn-rdnet.net:80/'
 knife_job = 'Knives.START'
 mail_job = 'vran.mail_notification.CI'
 server = jenkins.Jenkins(jenkins_server)

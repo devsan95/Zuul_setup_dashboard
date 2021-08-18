@@ -325,7 +325,7 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     if not build_streams:
         messages.append('Build Pre-check Failed')
         messages.append('No integration streams configured')
-        messages.append('You can add streams via: http://wrlinb147.emea.nsn-net.net:9090/view/008_Integration/job/integration_framework.UPDATE_KNIFE_STREAM/')
+        messages.append('You can add streams via: http://production-5g.cb.scm.nsn-rdnet.net/view/008_Integration/job/integration_framework.UPDATE_KNIFE_STREAM/')
     if len(messages) > 1:
         skytrack_log.skytrack_output(messages)
         sys.exit(213)
