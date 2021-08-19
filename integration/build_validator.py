@@ -13,6 +13,7 @@ from api import skytrack_log
 from mod import wft_tools
 from mod import integration_change
 from mod import env_changes
+from mod import yocto_mapping
 
 
 def get_base_parent(rest, base_obj_list, comp):
@@ -22,7 +23,7 @@ def get_base_parent(rest, base_obj_list, comp):
         if comp == 'integration':
             comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_obj.base_pkg)['object']
         else:
-            comp_hash = base_obj.get_comp_hash_from_mapping_file(comp)
+            comp_hash = base_obj.get_comp_hash(comp)
         if comp_hash:
             if '=' in comp_hash:
                 comp_hash = comp_hash.split('=')[1]
@@ -38,8 +39,12 @@ def fixed_base_validator(rest, components, base_dict):
     base_obj_list = list()
     base_list = list()
     for base in base_dict:
+        base_obj = None
         try:
-            base_obj = get_component_info.GET_COMPONENT_INFO(base_dict[base])
+            if base.startswith('SBTS'):
+                base_obj = yocto_mapping.Yocto_Mapping(base_dict[base])
+            else:
+                base_obj = get_component_info.GET_COMPONENT_INFO(base_dict[base])
             base_obj_list.append(base_obj)
         except Exception:
             print("get {} base object failed".format(base_dict[base]))
@@ -300,6 +305,14 @@ def validator(gerrit_info_path, gitlab_info_path, change_no, output_path,
     if inte_change.get_with_without() == '<without-zuul-rebase>':
         integration_mode = 'FIXED_BASE'
         base_dict = generate_bb_json.parse_comments_base(change_no, rest, using_cache=False)
+        build_streams = inte_change.get_build_streams(with_sbts=True)
+        del_list = []
+        for base_stream in base_dict:
+            if base_stream not in build_streams:
+                del_list.append(base_stream)
+        for del_stream in del_list:
+            print('stream {} do not need to be checked'.format(del_stream))
+            del base_dict[del_stream]
         messages = fixed_base_validator(rest, component_list, base_dict)
     else:
         integration_mode = 'HEAD'
