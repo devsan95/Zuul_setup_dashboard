@@ -54,7 +54,7 @@ def get_component_extend_data(component):
     component_info = {
         'sma-lite': {'jenkins_url': 'http://10.66.13.21:8080/jenkins/', 'job_name': 'ASI_SMA_5G_PS_REL_Trigger', 'token': '123456'},
         'scoam-asi-controller': {'jenkins_url': 'http://krak150.emea.nsn-net.net:8080/', 'job_name': 'ASIR_CPI_Trigger', 'token': 'BNM732V5K6J3J4OP43'},
-        'vl1-hi': {'url': 'https://gitlab.l1.nsn-net.net/api/v4/projects/2491/trigger/pipeline', 'token': '88d273550c37d903429af98e10ebbc'}
+        'vl1-hi': {'url': 'https://gitlab.l1.nsn-net.net/api/v4/projects/2604/trigger/pipeline', 'token': 'e3c8754f1fdc94fb2fbf379a977892'}
     }
     try:
         return component_info[component]
