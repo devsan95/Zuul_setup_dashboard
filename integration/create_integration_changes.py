@@ -915,7 +915,7 @@ class IntegrationChangesCreation(object):
                     com_name = ric_com
                     break
                 if not com_ver and sbts_bb_mapping:
-                    com_ver = sbts_bb_mapping.get_component_hash(ric_com)
+                    com_ver = sbts_bb_mapping.get_comp_hash(ric_com)
                     print('Component ver from SBTS load is {}'.format(com_ver))
             if not com_ver:
                 print("[Warning] failed to find commit in {0}, will try other streams".format(base_load))

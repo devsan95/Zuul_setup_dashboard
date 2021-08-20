@@ -19,21 +19,21 @@ class Yocto_Mapping(object):
     A Class to do operations on yocto mapping from WFT
     """
 
-    def __init__(self, base_load):
-        self.base_load = base_load
+    def __init__(self, base_pkg):
+        self.base_pkg = base_pkg
         self.bb_mapping_dict = self.get_bbmapping_from_wft()
 
     def get_bbmapping_from_wft(self):
-        bbmapping_id = self.get_build_bbmapping_id(self.base_load)
+        bbmapping_id = self.get_build_bbmapping_id(self.base_pkg)
         if not bbmapping_id:
-            raise Exception('Cannot get bb_mapping id from {}'.format(self.base_load))
+            raise Exception('Cannot get bb_mapping id from {}'.format(self.base_pkg))
         response = requests.get(
-            '{}/{}/attachments/{}.json'.format(WFT_ATTACHMENT_URL, self.base_load, bbmapping_id),
+            '{}/{}/attachments/{}.json'.format(WFT_ATTACHMENT_URL, self.base_pkg, bbmapping_id),
             params={'access_key': WFT_KEY}
         )
         if response.ok:
             return json.loads(response.text)
-        raise Exception("WFT return {} when download {} bbmapping".format(response.status_code, self.base_load))
+        raise Exception("WFT return {} when download {} bbmapping".format(response.status_code, self.base_pkg))
 
     def get_build_bbmapping_id(self, wft_version):
         print("{}/{}/attachments.json".format(WFT_ATTACHMENT_URL, wft_version))
@@ -46,7 +46,7 @@ class Yocto_Mapping(object):
                 if attachment['attachment_type'] == 'yocto_mapping':
                     return attachment['id']
         else:
-            print("WFT return {} when get {} id".format(response.status_code, self.base_load))
+            print("WFT return {} when get {} id".format(response.status_code, self.base_pkg))
         return None
 
     def get_component_dict(self, comp_name):
@@ -67,7 +67,7 @@ class Yocto_Mapping(object):
             return recipe_info['subsources']
         return {}
 
-    def get_component_hash(self, comp_name):
+    def get_comp_hash(self, comp_name):
         sources = self.get_component_sources(comp_name)
         for source in sources:
             if 'rev' in source:

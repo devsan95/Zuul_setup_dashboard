@@ -21,7 +21,11 @@ def get_base_parent(rest, base_obj_list, comp):
     for base_obj in base_obj_list:
         comp_hash = ''
         if comp == 'integration':
-            comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_obj.base_pkg)['object']
+            if base_obj.base_pkg.startswith('SBTS'):
+                base_repo_info = wft_tools.get_repository_info(base_obj.base_pkg)
+                comp_hash = base_repo_info['revision']
+            else:
+                comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_obj.base_pkg)['object']
         else:
             comp_hash = base_obj.get_comp_hash(comp)
         if comp_hash:
