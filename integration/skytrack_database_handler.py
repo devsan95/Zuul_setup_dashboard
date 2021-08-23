@@ -13,7 +13,7 @@ import generate_bb_json
 from mod.integration_change import RootChange
 
 
-JENKINS_URL = "http://production-5g.cb.scm.nsn-rdnet.net:80"
+JENKINS_URL = "http://wrlinb147.emea.nsn-net.net:9090"
 
 
 def get_specified_ticket(change_no, database_info_path, gerrit_info_path, ticket_type='root'):
@@ -138,7 +138,7 @@ def auto_update_build_info(integration_tag,
                       'mnp5g-central-public-local/Knife/{pkg_name}/'
     knife_link = knife_link_temp.format(pkg_name=pkg_name)
     if job_url:
-        # example of job_url: http://production-5g.cb.scm.nsn-rdnet.net/job/job_name/build_number/
+        # example of job_url: http://wrlinb147.emea.nsn-net.net:9090/job/job_name/build_number/
         job_name = job_url.strip('/').split('/')[-2]
         build_number = int(job_url.strip('/').split('/')[-1])
         start_time, end_time = get_job_timestamp(JENKINS_URL, job_name, build_number)
