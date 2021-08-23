@@ -974,9 +974,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         add_isar(comment_dict)
 
     stream_json = parse_comments_base(change_id, rest)
-    if not stream_json:
-        stream_json = get_available_base(change_id, rest, comp_config)
-    add_inherit_into_json(ex_comment_dict, change_id, rest, stream_json)
+    inherit_base_dict = get_available_base(change_id, rest, comp_config)
+    add_inherit_into_json(ex_comment_dict, change_id, rest, inherit_base_dict)
 
     combined_knife_dict = combine_knife_json([
         {'all': ric_dict},
