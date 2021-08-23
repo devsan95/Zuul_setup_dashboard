@@ -4,6 +4,8 @@ import json
 import traceback
 import fire
 import yaml
+import git
+import re
 
 import update_oam_commit
 import generate_bb_json
@@ -16,7 +18,7 @@ from mod import env_changes
 from mod import yocto_mapping
 
 
-def get_base_parent(rest, base_obj_list, comp):
+def get_base_parent(rest, base_obj_list, comp, project_name):
     base_parent = list()
     for base_obj in base_obj_list:
         comp_hash = ''
@@ -31,6 +33,11 @@ def get_base_parent(rest, base_obj_list, comp):
         if comp_hash:
             if '=' in comp_hash:
                 comp_hash = comp_hash.split('=')[1]
+            if not re.match('[0-9a-f]{5,40}', comp_hash):
+                repo_url = 'ssh://gerrit.ext.net.nokia.com:29418/{}'.format(project_name)
+                g = git.cmd.Git()
+                tag_hash = g.ls_remote("--tags", repo_url, comp_hash)
+                comp_hash = tag_hash.split('\t')[0]
             base_parent.append(comp_hash)
     print("{}'s base parent hash: {}".format(comp, base_parent))
     return base_parent
@@ -65,7 +72,7 @@ def fixed_base_validator(rest, components, base_dict):
         if component[2] in match_change_list:
             continue
         if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
-            base_parent_list = get_base_parent(rest, base_obj_list, component[0])
+            base_parent_list = get_base_parent(rest, base_obj_list, component[0], component[1])
             if parent not in base_parent_list:
                 if len(base_obj_list) == 1 and \
                         base_obj_list[0].base_pkg.startswith('SBTS') and \
