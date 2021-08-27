@@ -4,16 +4,13 @@ import datetime
 import json
 import requests
 import fire
-from jenkinsapi.jenkins import Jenkins
 
 from api import gerrit_rest
 from api import mysql_api
 from mod import wft_tools
+from mod import utils
 import generate_bb_json
 from mod.integration_change import RootChange
-
-
-JENKINS_URL = "http://wrlinb147.emea.nsn-net.net:9090"
 
 
 def get_specified_ticket(change_no, database_info_path, gerrit_info_path, ticket_type='root'):
@@ -69,8 +66,8 @@ def string_time_format_validator(str_time):
     return True if re.match(r'\d+-\d+-\d+\s\d+:\d+:\d+', str_time) else False
 
 
-def get_job_timestamp(jenkins_url, job_name, build_number):
-    jenkins_server = Jenkins(jenkins_url, timeout=180, ssl_verify=False)
+def get_job_timestamp(job_name, build_number):
+    jenkins_server = utils.get_jenkins_obj_from_nginx(timeout=180, ssl_verify=False)
     jenkins_job = jenkins_server[job_name]
     build = jenkins_job.get_build(build_number)
     start_timestamp = build.get_timestamp()
@@ -141,7 +138,7 @@ def auto_update_build_info(integration_tag,
         # example of job_url: http://wrlinb147.emea.nsn-net.net:9090/job/job_name/build_number/
         job_name = job_url.strip('/').split('/')[-2]
         build_number = int(job_url.strip('/').split('/')[-1])
-        start_time, end_time = get_job_timestamp(JENKINS_URL, job_name, build_number)
+        start_time, end_time = get_job_timestamp(job_name, build_number)
     else:
         print("Can't get build start_time and end_time because job url is missing")
         start_time = end_time = ''

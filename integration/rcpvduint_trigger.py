@@ -5,21 +5,21 @@ import time
 import json
 import yaml
 import argparse
-import jenkins
 import requests
 import git
 import subprocess
 from api import gerrit_rest, log_api
 from scm_tools.wft.api import WftAPI
+from mod import utils
 
 
 log = log_api.get_console_logger("rcpvduint_knife")
 wft = WftAPI()
 wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
-jenkins_server = 'http://wrlinb147.emea.nsn-net.net:9090/'
 knife_job = 'Knives.START'
 mail_job = 'vran.mail_notification.CI'
-server = jenkins.Jenkins(jenkins_server)
+jenkins_server = utils.JENKINS_URL
+server = utils.get_jenkins_obj_from_nginx()
 download_list = [
     'http://es-si-s3-z4.eecloud.nsn-net.net/5g-cb/BucketList/index.html?prefix=knife/',
     'http://s3-china-1.eecloud.nsn-net.net/5g-cb/BucketList/index.html?prefix=knife/'

@@ -5,9 +5,12 @@ import fire
 import shutil
 import fnmatch
 import traceback
+from jenkins import Jenkins
+import jenkinsapi.jenkins
 
 
 INTEGRATION_URL = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration'
+JENKINS_URL = 'http://production-5g.cb.scm.nsn-rdnet.net:80'
 
 
 def classiy_objs(obj_list, typ_key):
@@ -125,6 +128,19 @@ def get_integration_branch(work_dir):
         if line_str == 'master' or 'rel/' in line_str:
             return re.sub('.*/rel', 'rel', line_str)
     return ''
+
+
+def get_jenkins_obj_from_nginx(jenkins_url=JENKINS_URL,
+                               username=None, password=None,
+                               timeout=180, ssl_verify=False):
+    jenkins_server = Jenkins(jenkins_url)
+    real_jenkins_url = jenkins_server.get_jobs()[0]['url'].split('/job/')[0]
+    print(real_jenkins_url)
+    if username and password:
+        return Jenkins(real_jenkins_url, username=username, password=password)
+    if timeout:
+        return jenkinsapi.jenkins.Jenkins(real_jenkins_url, timeout=timeout, ssl_verify=ssl_verify)
+    return Jenkins(real_jenkins_url)
 
 
 if __name__ == '__main__':

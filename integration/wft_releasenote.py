@@ -8,7 +8,6 @@ import re
 import docker
 import argparse
 import fnmatch
-import jenkins
 import requests
 import time
 import git
@@ -20,13 +19,14 @@ from api import log_api
 from api import gerrit_rest
 from bs4 import BeautifulSoup
 from multiprocessing import Process, Queue
+from mod import utils
 
 
 log = log_api.get_console_logger("releasenote")
 wft_api = '{}/ALL/api/v1/build.json'.format(os.environ['WFT_API_URL'])
 wft_url = os.environ['WFT_URL']
 wft_post_url = '{}/ext/api/json'.format(os.environ['WFT_URL'])
-jenkins_server = 'http://wrlinb147.emea.nsn-net.net:9090/'
+jenkins_server = utils.JENKINS_URL
 integration_repo = os.environ['INTEGRATION_REPO_URL']
 job_url = jenkins_server + 'job/{}/{}/'
 base_path = os.path.join(os.environ["WORKSPACE"], "integration")
@@ -358,7 +358,7 @@ def get_upstream_job(args):
 
     upstream_project = None
     upstream_build = None
-    server = jenkins.Jenkins(jenkins_server)
+    server = utils.get_jenkins_obj_from_nginx()
     build_info = server.get_build_info(os.environ["JOB_NAME"], int(os.environ["BUILD_NUMBER"]))
     for action in build_info['actions']:
         if "causes" in action and "upstreamProject" in action['causes'][0]:

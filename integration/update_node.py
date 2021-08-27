@@ -7,12 +7,11 @@ import argparse
 import paramiko
 import time
 import logging
-import jenkins
 import requests
 from bs4 import BeautifulSoup
+from mod import utils
 
 
-jenkins_server = 'http://wrlinb147.emea.nsn-net.net:9090/'
 label_path = 'label/{}'
 ip_rex = re.compile(r'10\.\d+\.\d+\.\d+')
 id_rex = re.compile(r'-(\d+)_\d$')
@@ -170,7 +169,7 @@ def get_node_from_html():
     label_node = list()
     response = requests.get(
         os.path.join(
-            jenkins_server,
+            utils.JENKINS_URL,
             label_path.format(args.label)
         )
     )
@@ -212,7 +211,7 @@ def get_node_info():
             continue
         response = requests.get(
             '{}/computer/{}/'.format(
-                jenkins_server,
+                utils.JENKINS_URL,
                 node
             )
         )
@@ -258,8 +257,7 @@ if __name__ == "__main__":
     args = arguments()
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    server = jenkins.Jenkins(
-        jenkins_server,
+    server = utils.get_jenkins_obj_from_nginx(
         username=args.user,
         password=args.passwd
     )
