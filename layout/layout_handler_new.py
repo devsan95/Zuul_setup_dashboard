@@ -33,10 +33,19 @@ one_repo_name = 'MN/5G/NB/gnb'
 nested_flatten_list = ['all-files', 'files']
 list_list = ['tags', 'branch', 'files']
 skip_if_list = ['all-files-match-any']
+cache_of_job_filters = {}
 
 
 class LayoutNotExistException(Exception):
     pass
+
+
+def cache_of_recompile(fname):
+    filter_cache = cache_of_job_filters.get(fname)
+    if filter_cache:
+        return filter_cache
+    cache_of_job_filters[fname] = re.compile(fname)
+    return cache_of_job_filters[fname]
 
 
 def flatten_recursive(list_, out_list_):
@@ -353,7 +362,7 @@ def check_layout_d_consistency(snippet_list, pipelines):
 
         for rege in list_no_matching:
             try:
-                reg = re.compile(rege)
+                reg = cache_of_recompile(rege)
                 is_matched = False
                 for item in snippet['project_list']:
                     if reg.match(item):
@@ -366,7 +375,7 @@ def check_layout_d_consistency(snippet_list, pipelines):
                 reg_no_matching.add(rege)
 
         for rege in reg_matching:
-            reg = re.compile(rege)
+            reg = cache_of_recompile(rege)
             is_matched = False
             for snippet_e in new_list:
                 if snippet is not snippet_e:
@@ -423,7 +432,7 @@ def check_one_repo_job_filtered(snippet, pipelines):
                 if item['name'] == job:
                     job_filtered = True
                     break
-                reg = re.compile(item['name'])
+                reg = cache_of_recompile(item['name'])
                 if reg.match(job):
                     job_filtered = True
                     break
@@ -442,7 +451,7 @@ def check_regex_availability(tree, path=None):
     if isinstance(tree, basestring):
         if tree.startswith('^'):
             try:
-                re.compile(tree)
+                cache_of_recompile(tree)
             except re.error as e:
                 print('Regex [{}] in [{}] is invalid, because {}'.format(tree, path, e))
                 ret = False
@@ -650,7 +659,7 @@ class LayoutGroup(object):
             else:
                 if str(elt).startswith('^'):
                     try:
-                        re.compile(elt)
+                        cache_of_recompile(elt)
                     except re.error as e:
                         error_list.append(('Regex [{}] in [{}] is invalid, because {}'.format(elt, path, e)))
                 return error_list
@@ -711,7 +720,7 @@ class LayoutGroup(object):
 
                     if filter_['name'].startswith('^'):
                         try:
-                            re.compile(filter_['name'])
+                            cache_of_recompile(filter_['name'])
                         except re.error as e:
                             error_list.append('Regex [{}] in [{}] is invalid, because {}'.format(filter_['name'], path, e))
                             continue
@@ -758,7 +767,7 @@ class LayoutGroup(object):
                         string_filter = filter_
                         filter_['used'] = True
                     elif fname.startswith('^'):
-                        reg = re.compile(fname)
+                        reg = cache_of_recompile(fname)
                         if reg.match(job):
                             filter_['used'] = True
                             regular_filter_list.append(filter_)
@@ -826,7 +835,7 @@ class LayoutGroup(object):
             for voting_false in jobvoting:
                 if check_folder(voting_false["folder"], folder):
                     if voting_false["name"].startswith('^'):
-                        voting_false_regex = re.compile(voting_false["name"])
+                        voting_false_regex = cache_of_recompile(voting_false["name"])
                         if voting_false_regex.match(job):
                             return True
                     else:
