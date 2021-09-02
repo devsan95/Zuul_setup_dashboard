@@ -5,7 +5,7 @@ import fire
 import shutil
 import fnmatch
 import traceback
-from jenkins import Jenkins
+import jenkins
 import jenkinsapi.jenkins
 
 
@@ -23,7 +23,7 @@ def classiy_objs(obj_list, typ_key):
             obj.pop(typ_key, None)
             new_dict[typ_val].append(obj)
         else:
-            print "### Warn, obj:%s do not have key:%s" % (obj, typ_key)
+            print('### Warn, obj:{0} do not have key:{1}'.format(obj, typ_key))
     return new_dict
 
 
@@ -139,15 +139,15 @@ def get_integration_branch(work_dir):
 
 def get_jenkins_obj_from_nginx(jenkins_url=JENKINS_URL,
                                username=None, password=None,
-                               timeout=180, ssl_verify=False):
-    jenkins_server = Jenkins(jenkins_url)
+                               timeout='', ssl_verify=None):
+    jenkins_server = jenkins.Jenkins(jenkins_url)
     real_jenkins_url = jenkins_server.get_jobs()[0]['url'].split('/job/')[0]
     print(real_jenkins_url)
     if username and password:
-        return Jenkins(real_jenkins_url, username=username, password=password)
+        return jenkins.Jenkins(real_jenkins_url, username=username, password=password)
     if timeout:
         return jenkinsapi.jenkins.Jenkins(real_jenkins_url, timeout=timeout, ssl_verify=ssl_verify)
-    return Jenkins(real_jenkins_url)
+    return jenkins.Jenkins(real_jenkins_url)
 
 
 if __name__ == '__main__':
