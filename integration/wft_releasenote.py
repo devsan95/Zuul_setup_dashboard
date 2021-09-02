@@ -28,7 +28,7 @@ wft_url = os.environ['WFT_URL']
 wft_post_url = '{}/ext/api/json'.format(os.environ['WFT_URL'])
 jenkins_server = utils.JENKINS_URL
 integration_repo = os.environ['INTEGRATION_REPO_URL']
-job_url = jenkins_server + 'job/{}/{}/'
+job_url = jenkins_server + '/job/{}/{}/'
 base_path = os.path.join(os.environ["WORKSPACE"], "integration")
 verify_ssl = os.getenv('WFT_VERIFY_SSL') != '0'
 important_notes = {
