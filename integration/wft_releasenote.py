@@ -646,7 +646,7 @@ def update_downloads_url(args, releasenote):
 
 def update_release_date(args, releasenote):
     job, build = get_upstream_job(args)
-    home_page = '{}job/{}/{}/'.format(jenkins_server, job, build)
+    home_page = '{}/job/{}/{}/'.format(jenkins_server, job, build)
     releasenote['releasenote']['baseline']['homepage'] = home_page
     response = requests.get(home_page)
     if not response.ok:
