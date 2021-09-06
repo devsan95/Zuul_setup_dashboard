@@ -954,8 +954,6 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
                 comp_knife_dict['source_type'] = source['src_uri_type']
                 if 'repo_url' in replace_dict and replace_dict['repo_url']:
                     comp_knife_dict['replace_source'] = replace_dict['repo_url']
-                else:
-                    comp_knife_dict['replace_source'] = replace_dict['repo_url']
                 replace_commit = get_revision_from_dict(replace_dict)
                 if replace_commit:
                     comp_knife_dict['replace_commit'] = replace_commit
