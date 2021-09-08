@@ -307,10 +307,15 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
             or ('new_diff' in config_yaml_change and config_yaml_change['new_diff']) \
             or ('old_diff' in config_yaml_change and config_yaml_change['old_diff']):
         env_change_list = []
+        env_change_dict = dict()
         if 'new_diff' in env_change and env_change['new_diff']:
             env_change = env_change['new_diff']
             env_change = env_change.strip()
             env_change_list = shlex.split(env_change)
+            for line in env_change_list:
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    env_change_dict[key] = value
         print('Update env for change {}'.format(change_no))
         # delete edit
         print('delete edit for change {}'.format(change_no))
@@ -351,7 +356,7 @@ def clear_and_rebase_file(rest, change_no, file_path, env_hash):
                     file_path)
             # update config.yaml content
             change_map.update(env_changes.create_config_yaml_by_env_change(
-                env_change_list,
+                env_change_dict,
                 rest,
                 change_no)[0])
         if ('new_diff' in config_yaml_change and config_yaml_change['new_diff']) \

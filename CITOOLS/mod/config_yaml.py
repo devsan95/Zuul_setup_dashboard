@@ -138,6 +138,10 @@ class ConfigYaml(object):
             replace_section_key, replace_section = self.get_env_change_section(key)
             if not replace_section:
                 raise Exception('Cannot find env key {}'.format(key))
+            if isinstance(value, dict):
+                print('Update section by dict : {}'.format(value))
+                replace_section.update(value)
+                continue
             if 'env_key' in replace_section:
                 env_file_changes[replace_section['env_key']] = value
             # update env_change version in config.yaml

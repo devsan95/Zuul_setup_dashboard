@@ -65,13 +65,12 @@ def get_commit_msg(change_no, rest):
     return origin_msg
 
 
-def find_new_version_by_distance(old_version, env_change_list):
+def find_new_version_by_distance(old_version, env_change_dict):
     ratio = 0
     ret_version = None
-    for line in env_change_list:
-        values = line.split('=')
-        if len(values) > 1:
-            new_version = values[1]
+    for values in env_change_dict.values():
+        new_version = env_changes.get_version_from_change_value(values)
+        if new_version:
             new_ratio = SequenceMatcher(None, old_version, new_version).ratio()
             if new_ratio > ratio:
                 ratio = new_ratio
@@ -79,7 +78,7 @@ def find_new_version_by_distance(old_version, env_change_list):
     return ret_version
 
 
-def change_message_by_env_change(change_no, env_change_list, rest):
+def change_message_by_env_change(change_no, env_change_dict, rest):
     try:
         origin_msg = get_commit_msg(change_no, rest)
         msg = " ".join(origin_msg.split("\n"))
@@ -93,20 +92,24 @@ def change_message_by_env_change(change_no, env_change_list, rest):
         gnb_first_line = common_regex.gnb_firstline_reg.search(msg)
         pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
         reg = re.compile(r"({})".format(pattern.encode("utf-8")))
-        result = reg.search('\n'.join(env_change_list))
 
         to_replace = ''
         if version_entry:
-            for line in env_change_list:
-                if version_entry == line.split('=')[0]:
-                    to_replace = line.split('=')[1]
+            for key, value in env_change_dict.items():
+                if version_entry == key:
+                    to_replace = env_changes.get_version_from_change_value(value)
                     break
         else:
-            if result and not to_replace.strip():
-                to_replace = result.groups()[0]
-            if not to_replace.strip():
-                to_replace = find_new_version_by_distance(
-                    to_be_replaced, env_change_list)
+            for key, value in env_change_dict.items():
+                version = env_changes.get_version_from_change_value(value)
+                if not version:
+                    continue
+                result = reg.search(version)
+                if result and not to_replace.strip():
+                    to_replace = result.groups()[0]
+                if not to_replace.strip():
+                    to_replace = find_new_version_by_distance(
+                        to_be_replaced, env_change_dict)
             if not to_replace.strip():
                 raise Exception('Cannot find new version')
         to_replace_string = '<{0}>'.format(to_replace)
@@ -196,7 +199,7 @@ def call_vcf_diff(current_ps, new_ps):
         return "FAILURE"
 
 
-def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_dict,
+def update_component_config_yaml(env_change_dict, rest, change_no, config_yaml_dict,
                                  config_yaml_updated_dict=None, config_yaml_removed_dict=None):
     change_file_dict = {}
     op = RootChange(rest, change_no)
@@ -207,7 +210,7 @@ def update_component_config_yaml(env_change_list, rest, change_no, config_yaml_d
         if comp_project in config_yaml_dict:
             local_config_yaml = config_yaml_dict[comp_project]
             change_file_dict[comp_change] = env_changes.create_config_yaml_by_env_change(
-                env_change_list, rest, comp_change, config_yaml_file=local_config_yaml,
+                env_change_dict, rest, comp_change, config_yaml_file=local_config_yaml,
                 config_yaml_updated_dict=config_yaml_updated_dict,
                 config_yaml_removed_dict=config_yaml_removed_dict)[0]
     for comp_change, file_dict in change_file_dict.items():
@@ -256,40 +259,33 @@ def update_inherit_changes(rest, change_no, env_change_dict):
     for key, change_dict in inherit_change_dict.items():
         if 'version' in change_dict and key not in env_change_dict:
             env_change_dict[key] = change_dict['version']
-    return ['{}={}'.format(x, y) for x, y in env_change_dict.items()]
+    return env_change_dict
 
 
-def get_combined_env_changes(origin_env_change, new_env_change_dict, new_env_change_list):
+def get_combined_env_changes(origin_env_change, new_env_change_dict):
     # get origin env diff
-    origin_env_change_list = []
+    origin_env_change_dict = {}
     if 'new_diff' in origin_env_change and origin_env_change['new_diff']:
         origin_env_change = origin_env_change['new_diff']
         origin_env_change = origin_env_change.strip()
-        origin_env_change_list = shlex.split(origin_env_change)
-    print("Origin env change is {}".format(origin_env_change_list))
+        for line in shlex.split(origin_env_change):
+            if '=' in line:
+                key, value = line.strip().split('=', 1)
+                origin_env_change_dict[key] = value
+    print("Origin env change is {}".format(origin_env_change_dict))
     # combine env change: origin diff + new change
-    combine_env_list = []
-    for env_entry in origin_env_change_list:
-        key, value = env_entry.split('=')
-        if key not in new_env_change_dict.keys():
-            combine_env_list.append(env_entry)
-    combine_env_list.extend(new_env_change_list)
-    return combine_env_list
+    combine_env_dict = {}
+    for key, value in origin_env_change_dict.items():
+        if key not in new_env_change_dict:
+            combine_env_dict[key] = value
+    combine_env_dict.update(new_env_change_dict)
+    return combine_env_dict
 
 
 def run(gerrit_info_path, change_no, comp_config, change_info=None, database_info_path=None):
-    env_change_list = []
     commit_msg_update = False
-    env_change_dict = dict()
     env_change = change_info
-    if env_change is not None:
-        env_change = env_change.strip()
-        env_change_list = shlex.split(env_change)
-        for line in env_change_list:
-            print(line)
-            if '=' in line:
-                key, value = line.strip().split('=', 1)
-                env_change_dict[key] = value
+    env_change_dict = env_changes.parse_change_info(change_info)
     config_yaml_dict = {}
     ecl_dict = {}
     if comp_config:
@@ -328,10 +324,10 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         except Exception as e:
             print('Cannot find env for %s', change_no)
             print(str(e))
-    combine_env_list = []
+    combine_env_dict = {}
     updated_dict, removed_dict = None, None
     if 'new_diff' in origin_env_change and origin_env_change['new_diff']:
-        combine_env_list = env_change_list
+        combine_env_dict = env_change_dict
         # get origin config.yaml change
         try:
             config_yaml_change = rest.get_file_change('config.yaml', change_no)
@@ -341,11 +337,11 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             print('Cannot find config.yaml for %s', change_no)
             print(str(e))
     else:
-        print("New env change is {}".format(env_change_list))
+        print("New env change is {}".format(env_change_dict))
         # get combined env change
-        env_change_list = update_inherit_changes(rest, change_no, env_change_dict)
-        combine_env_list = get_combined_env_changes(origin_env_change, env_change_dict, env_change_list)
-    print("Combined env change is {}".format(combine_env_list))
+        env_change_dict = update_inherit_changes(rest, change_no, env_change_dict)
+        combine_env_dict = get_combined_env_changes(origin_env_change, env_change_dict)
+    print("Combined env change is {}".format(combine_env_dict))
 
     # 1 try rebase env change (if fail then pass)
     if auto_rebase and not env_change:
@@ -384,13 +380,13 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
 
         # update config.yaml content
         change_map, env_file_changes = env_changes.create_config_yaml_by_env_change(
-            combine_env_list,
+            combine_env_dict,
             rest,
             change_no,
             config_yaml_updated_dict=updated_dict,
             config_yaml_removed_dict=removed_dict)
         update_component_config_yaml(
-            combine_env_list,
+            combine_env_dict,
             rest,
             change_no,
             config_yaml_dict,
@@ -401,8 +397,8 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         print('add new env for change {}'.format(change_no))
         print "env_file_changes:"
         print env_file_changes
-        print "combine_env_list:"
-        print combine_env_list
+        print "combine_env_dict:"
+        print combine_env_dict
         try:
             old_env = rest.get_file_content(env_path, change_no)
             # update env/env-config.d/ENV content
@@ -430,7 +426,7 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         # replace commit message
         op = RootChange(rest, root_change)
         commits = op.get_all_changes_by_comments()
-        change_message = partial(change_message_by_env_change, env_change_list=env_change_list, rest=rest)
+        change_message = partial(change_message_by_env_change, env_change_dict=env_change_dict, rest=rest)
         map(change_message, commits)
         old_str, new_str = change_message(root_change)
         # replace jira title.

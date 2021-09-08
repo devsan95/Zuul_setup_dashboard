@@ -1,6 +1,7 @@
 import copy
 import yaml
 from mod import wft_tools
+from mod import env_changes
 from mod import config_yaml
 
 
@@ -140,9 +141,10 @@ class Inherit_Map(object):
         inherit_changes = {}
         config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_content)
         for env_key, env_value in env_change_dict.items():
+            version = env_changes.get_version_from_change_value(env_value)
             section_key, section = config_yaml_obj.get_env_change_section(env_key)
-            if section_key:
-                inherit_changes.update(self.get_inherit_changes(section_key, env_value, type_filter))
+            if section_key and version:
+                inherit_changes.update(self.get_inherit_changes(section_key, version, type_filter))
         return inherit_changes
 
     def get_inherit_dict(self, build):

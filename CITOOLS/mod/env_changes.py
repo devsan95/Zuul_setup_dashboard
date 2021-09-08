@@ -1,7 +1,9 @@
 import os
 import re
 import git
+import json
 import yaml
+import shlex
 import shutil
 from api import env_repo as get_env_repo
 from mod import utils
@@ -36,7 +38,7 @@ def update_config_yaml_change_dict(rest, change_no, config_yaml_file,
             removed_dict[local_key] = local_remove_section
 
 
-def create_config_yaml_by_env_change(env_change_split, rest,
+def create_config_yaml_by_env_change(env_change_dict, rest,
                                      change_id, config_yaml_file='config.yaml',
                                      config_yaml_updated_dict=None, config_yaml_removed_dict=None):
     env_file_changes = {}
@@ -63,8 +65,8 @@ def create_config_yaml_by_env_change(env_change_split, rest,
         config_yaml_obj.update_changes(config_yaml_updated_dict, config_yaml_removed_dict)
     # update env_change in config.yaml
     # update staged infos if exists
-    if env_change_split:
-        env_file_changes = config_yaml_obj.update_by_env_change(parse_env_change_split(env_change_split))
+    if env_change_dict:
+        env_file_changes = config_yaml_obj.update_by_env_change(env_change_dict)
     config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
     if config_yaml_content != old_content:
         return {config_yaml_file: config_yaml_content}, env_file_changes
@@ -252,7 +254,7 @@ def rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
         print('Rebase Failed ...')
         rebase_result = False
     config_yaml_content = create_config_yaml_by_env_change(
-        '',
+        {},
         rest,
         comp_change,
         config_yaml_file=local_config_yaml,
@@ -312,3 +314,34 @@ def delete_edit(rest, change_no):
     except Exception as e:
         print('delete edit failed, reason:')
         print(str(e))
+
+
+def parse_change_info(change_info):
+    print('Parse change info {}'.format(change_info))
+    print('and return a env_change_dict')
+    env_change_dict = dict()
+    if change_info is None:
+        return env_change_dict
+    try:
+        env_change_dict = json.loads(change_info)
+    except Exception:
+        print('Change info is not in json format')
+        print('Try to parse as txt mode')
+        env_change = change_info.strip()
+        env_change_list = shlex.split(env_change)
+        for line in env_change_list:
+            print(line)
+            if '=' in line:
+                key, value = line.strip().split('=', 1)
+                env_change_dict[key] = value
+    return env_change_dict
+
+
+def get_version_from_change_value(values):
+    if not values:
+        return None
+    if isinstance(values, str):
+        return values
+    elif isinstance(values, dict) and 'version' in values:
+        return values['version']
+    return None

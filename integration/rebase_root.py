@@ -1,7 +1,6 @@
 import re
 import fire
 import json
-import shlex
 from pprint import pprint
 from requests.structures import CaseInsensitiveDict
 
@@ -10,6 +9,7 @@ import rebase_env
 import rebase_interface
 from api import gerrit_api
 from api import gerrit_rest
+from mod import env_changes
 
 
 def get_change_list_from_comments(info):
@@ -56,16 +56,7 @@ def run(gerrit_info_path, change_no, comp_config,
         use_ssh = True
         print('SSH used')
     comp_name = 'env'
-    change_info_dict = {}
-    change_info = change_info
-    if change_info is not None:
-        change_info = change_info.strip()
-        change_info_list = shlex.split(change_info)
-        for line in change_info_list:
-            print(line)
-            if '=' in line:
-                key, value = line.strip().split('=', 1)
-                change_info_dict[key] = value
+    change_info_dict = env_changes.parse_change_info(change_info)
     if 'bb_version' in change_info_dict:
         comp_name = change_info_dict['bb_version'].split('_', 1)[0]
     if comp_name == 'env':
