@@ -42,6 +42,9 @@ def update_config_yaml(rest, integration_repo_ticket, interface_infos, config_pa
         }
         component_key = 'Common:{}'.format(interface_info['component'])
         if component_key in config_dict['components']:
+            if config_dict['components'][component_key]['version'] == interface_info['comp_version']:
+                logging.warn('Already updated , nothing to do')
+                continue
             config_dict['components'][component_key].update(compoent_dict)
         else:
             config_dict['components'][component_key] = compoent_dict
