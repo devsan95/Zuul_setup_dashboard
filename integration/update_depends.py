@@ -38,7 +38,7 @@ def update_config_yaml(rest, integration_repo_ticket, interface_infos, config_pa
             'commit': interface_info['comp_version'],
             'version': interface_info['comp_version'],
             'location': 'config.yaml',
-            'type': 'submodule_meta-5g'
+            'type': 'staged'
         }
         component_key = 'Common:{}'.format(interface_info['component'])
         if component_key in config_dict['components']:
