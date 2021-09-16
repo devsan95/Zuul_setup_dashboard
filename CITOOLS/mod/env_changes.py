@@ -5,6 +5,7 @@ import json
 import yaml
 import shlex
 import shutil
+import traceback
 from api import env_repo as get_env_repo
 from mod import utils
 from mod import config_yaml
@@ -320,11 +321,15 @@ def parse_change_info(change_info):
     print('Parse change info {}'.format(change_info))
     print('and return a env_change_dict')
     env_change_dict = dict()
+    if isinstance(change_info, dict):
+        print('change info is already dict')
+        return change_info
     if change_info is None:
         return env_change_dict
     try:
         env_change_dict = json.loads(change_info)
     except Exception:
+        traceback.print_exc()
         print('Change info is not in json format')
         print('Try to parse as txt mode')
         env_change = change_info.strip()
