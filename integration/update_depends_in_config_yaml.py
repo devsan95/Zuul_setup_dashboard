@@ -1,4 +1,5 @@
 import fire
+import yaml
 import logging
 import traceback
 
@@ -6,6 +7,8 @@ import update_depends
 import integration_add_component
 from api import gerrit_rest
 from mod.integration_change import RootChange
+from mod import config_yaml
+from rebase_env import update_component_config_yaml
 
 
 def run(gerrit_info_path, mysql_info_path, change_id, component_config):
@@ -32,8 +35,29 @@ def run(gerrit_info_path, mysql_info_path, change_id, component_config):
         new_comp_changes, integration_tickt = new_root_change_obj.get_components_changes_by_comments()
         integration_repo_ticket = [x for x in new_comp_changes if x not in comp_change_list][0]
 
-    # add component change to config.yaml
-    update_depends.update_config_yaml(rest, integration_repo_ticket, interface_infos)
+    # update component config.yaml
+    config_yaml_dict = {}
+    with open(component_config, 'r') as fr:
+        comp_config_dict = yaml.load(fr.read(), Loader=yaml.Loader)
+    if 'config_yaml' in comp_config_dict:
+        config_yaml_dict = comp_config_dict['config_yaml']
+
+    config_yaml_change = {}
+    try:
+        config_yaml_change = rest.get_file_change('config.yaml', integration_repo_ticket)
+    except Exception:
+        print('Cannot find config.yaml for %s', integration_repo_ticket)
+    if ('new_diff' in config_yaml_change and config_yaml_change['new_diff']) \
+            or ('old_diff' in config_yaml_change and config_yaml_change['old_diff']):
+        config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
+        updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+        update_component_config_yaml(
+            {},
+            rest,
+            integration_repo_ticket,
+            config_yaml_dict,
+            config_yaml_updated_dict=updated_dict,
+            config_yaml_removed_dict=removed_dict)
 
 
 if __name__ == '__main__':

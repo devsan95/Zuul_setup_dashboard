@@ -218,8 +218,23 @@ def commit_and_tag_meta5g(integration, tag_name):
     return re.search(r'\ncommit ([a-z0-9]{40})', tag_info).group(1)
 
 
+def is_already_in_config_yaml(rest, root_change, config_path='config.yaml'):
+    try:
+        config_yaml_content = rest.get_file_content(config_path, root_change)
+        config_dict = yaml.safe_load(config_yaml_content)
+    except Exception:
+        logging.warn('Cannot find %s in %s', config_path, root_change)
+        return False
+    if 'Common:MULTITOOL' in config_dict['components']:
+        return True
+    return False
+
+
 def update_depends(rest, change_id, dep_file_list,
                    dep_submodule_dict, comp_config, project):
+    if is_already_in_config_yaml(rest, change_id):
+        logging.warn('All interfaces already in config.yaml')
+        return
     # check if there is interfaces info in commit-msg
     find_interfaces, interface_infos = search_interfaces(rest, change_id)
     if not find_interfaces:
