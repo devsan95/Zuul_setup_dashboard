@@ -152,6 +152,8 @@ def get_release_date(package):
 
 
 def get_wft_release_name(version):
+    if version.startswith('SBTS'):
+        return version
     stream_name = get_stream_name(version)
     latest_build, release_date = get_lasted_success_build(stream_name)
     if latest_build:
