@@ -233,7 +233,11 @@ class RootChange(IntegrationChange):
         for msg in reversed(self.detailed_info['messages']):
             result_list = json_re.findall(msg['message'])
             if len(result_list) > 0:
-                return json.loads(result_list[-1])
+                for submodule_string in result_list:
+                    if 'externals/integration' in submodule_string:
+                        result_list.remove(submodule_string)
+                if result_list:
+                    return json.loads(result_list[-1])
         return None
 
     def get_create_feature_yaml(self):
