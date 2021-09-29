@@ -28,6 +28,7 @@ from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
 from api import config
+from api import jira_api
 from api import env_repo as get_env_repo
 from mod import utils
 from mod import env_changes
@@ -47,7 +48,13 @@ auto_branch_repos = ['MN/SCMTA/zuul/inte_mn', 'MN/SCMTA/zuul/inte_ric',
 env_repo = ['MN/5G/COMMON/env', 'MN/5G/COMMON/integration']
 
 CONF = config.ConfigTool()
+CONF.load('jira')
+JIRA_DICT = CONF.get_dict('jira3')
 CONF.load('repo')
+
+DEFAULT_JIRA_URL = JIRA_DICT['server']
+DEFAULT_USER = JIRA_DICT['user']
+DEFAULT_PASSWD = JIRA_DICT['password']
 
 topic_url = 'https://skytrack.dynamic.nsn-net.net/showCompsDetail?issueKey='
 root_change_url = 'https://gerrit.ext.net.nokia.com/gerrit/#/c/'
@@ -1232,6 +1239,15 @@ class IntegrationChangesCreation(object):
                     except Exception as ex:
                         print('Exception occured while create jira ticket, {}'.format(str(ex)))
                         raise ex
+
+        jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
+                                  server=DEFAULT_JIRA_URL)
+        jira_title = jira_op.get_issue_title(jira_key)
+        jira_assignee = jira_op.get_issue_assignee(jira_key)
+        jira_page_info = {}
+        jira_page_info['assignee'] = str(jira_assignee)
+        jira_page_info['summary'] = jira_title
+        print(jira_page_info)
 
         # handle feature id
         if feature_id:

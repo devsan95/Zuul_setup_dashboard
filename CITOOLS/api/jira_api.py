@@ -37,6 +37,11 @@ class JIRAPI(object):
             raise Exception("title has not change,replace failed.")
         issue.update(fields=dict(summary=new_title))
 
+    def get_issue_assignee(self, issue_name):
+        issue = self.jira.issue(issue_name)
+        assignee = issue.fields.assignee
+        return assignee
+
     def close_issue(self, issue_name):
         transitions = self.jira.transitions(issue_name)
         print("-------------transition value------------")
