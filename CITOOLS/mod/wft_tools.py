@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import git
 import shutil
@@ -82,27 +83,37 @@ def get_lasted_success_build(stream):
         'released_with_restrictions',
         'skipped_by_qt'
     ]
-    build_list = get_build_list(stream)
-    xml_tree = ET.fromstring(build_list)
-    for build in xml_tree.findall('build'):
-        if build.find('state').text in success_state:
-            return build.find('baseline').text, build.find('date').text
-    return None, None
+    return get_latest_build_by_state(stream, success_state)
 
 
 def get_latest_qt_passed_build(stream, status=None):
-    build_list = get_build_list(stream)
-    root = ET.fromstring(build_list)
+    release_status = [status] if status else RELEASED_STATUS
+    return get_latest_build_by_state(stream, release_status)
+
+
+def get_latest_build_by_state(stream, release_status):
     build_name = ''
     release_date = ''
-    release_status = [status] if status else RELEASED_STATUS
+    build_list = get_build_list(stream)
+    root = ET.fromstring(build_list)
     for build in root.findall('build'):
         build_state = build.find('state').text
-        if build_state in release_status:
+        build_wft_name = build.find('baseline').text
+        if build_state in release_status and is_central_package(build_wft_name):
             release_date = build.find('date').text
-            build_name = build.find('baseline').text
+            build_name = build_wft_name
             break
+    print('Get build name: {}'.format(build_name))
+    print('Get release date: {}'.format(release_date))
     return build_name, release_date
+
+
+def is_central_package(build_wft_name):
+    if re.match(PKG_REGEX_FOR_5G, build_wft_name):
+        return True
+    if build_wft_name.startswith('SBTS'):
+        return True
+    return False
 
 
 def get_build_list(stream):

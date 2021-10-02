@@ -198,10 +198,10 @@ def get_build_content(knife_json_path, base_info_path, ex_dict, build_streams,
                 base_build_dict[stream],
                 delivery_date))
         else:
-            base_load, release_date = wft_tools.get_latest_qt_passed_build(
-                stream_name
-            ) if integration_mode == 'FIXED_BASE' \
-                else last_success_build, last_success_build_date
+            base_load = last_success_build
+            release_date = last_success_build_date
+            if integration_mode == 'FIXED_BASE':
+                base_load, release_date = wft_tools.get_latest_qt_passed_build(stream_name)
             messages.append('Stream: {0} Base_build: {1} Release Date: {2}'.format(stream,
                                                                                    base_load,
                                                                                    release_date))

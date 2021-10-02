@@ -32,7 +32,6 @@ import update_depends
 import api.http_api
 import submodule_handle
 import ruamel.yaml as yaml
-import xml.etree.ElementTree as ET
 
 
 wft = wft_tools.WFT
@@ -271,20 +270,22 @@ def parse_comments(change_id, rest, comp_f_prop=None, zuul_url='', zuul_ref=''):
     return retd
 
 
-def get_available_base(change_id, rest, comp_config, with_sbts=False):
-    stream_json = dict()
+def get_build_stream_base(change_id, rest, comp_config, stream_json):
+    build_stream_dict = copy.deepcopy(stream_json)
     inte_change = integration_change.ManageChange(rest, change_id)
-    build_stream_list = inte_change.get_build_streams(with_sbts=with_sbts)
+    build_stream_list = inte_change.get_build_streams(with_sbts=True)
     print(build_stream_list)
     for build_stream in build_stream_list:
+        if build_stream in build_stream_dict:
+            continue
         for stream in comp_config['streams']:
             if build_stream == stream['value']:
-                stream_json[build_stream] = ET.fromstring(
-                    wft.get_build_list(stream['name'], baseline_type=0, items=1)
-                ).findall('.//baseline')[0].text
+                base_build = wft_tools.get_lasted_success_build(stream['name'])[0]
+                if base_build:
+                    build_stream_dict[build_stream] = base_build
                 break
-    print(stream_json)
-    return stream_json
+    print(build_stream_dict)
+    return build_stream_dict
 
 
 def get_bitbake_setting(build_content):
@@ -1023,8 +1024,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         add_isar(comment_dict)
 
     stream_json = parse_comments_base(change_id, rest)
-    inherit_base_dict = get_available_base(change_id, rest, comp_config)
-    add_inherit_into_json(ex_comment_dict, change_id, rest, inherit_base_dict)
+    build_stream_dict = get_build_stream_base(change_id, rest, comp_config, stream_json)
+    add_inherit_into_json(ex_comment_dict, change_id, rest, build_stream_dict)
 
     combined_knife_dict = combine_knife_json([
         {'all': ric_dict},
@@ -1044,7 +1045,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     save_json_file(sbts_knife_path,
                    [gen_sbts_knife_dict(
                        combined_knife_dict,
-                       stream_json,
+                       build_stream_dict,
                        rest,
                        change_id,
                        project_dict)],
