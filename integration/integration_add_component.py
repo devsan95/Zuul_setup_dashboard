@@ -196,8 +196,10 @@ def check_external_change(rest, root_change):
     return parent_commit
 
 
-def add_depends_info(rest, comp_change, depends_change):
+def add_depends_info(rest, comp_change, depends_change, depends_components=None):
     change_obj = inte_change.IntegrationChange(rest, comp_change)
+    if change_obj.get_change_name() in depends_components:
+        return
     depends_change_obj = inte_change.IntegrationChange(rest, depends_change)
     msg_obj = inte_change.IntegrationCommitMessage(change_obj)
     msg_obj.add_depends(depends_change_obj)
@@ -296,7 +298,8 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
         for comp_change in root['component_changes']:
             if rest.get_ticket(comp_change)['status'] in ['MERGED', 'ABANDONED']:
                 continue
-            add_depends_info(rest, comp_change, depends_change=comp_change_number)
+            add_depends_info(rest, comp_change, depends_change=comp_change_number,
+                             depends_components=depends_components)
 
     int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
     int_operator.add(comp_change_number)

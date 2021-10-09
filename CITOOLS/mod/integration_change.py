@@ -508,6 +508,21 @@ class IntegrationCommitMessage(object):
                     break
         return begin, end
 
+    def add_depends_root(self, root_change_obj):
+        begin_line = -1
+        for i, v in enumerate(self.msg_lines):
+            if v.startswith('Change-Id:'):
+                begin_line = i - 1
+        change_name = root_change_obj.get_change_name()
+        change_no = str(root_change_obj.change_no)
+        change_type = root_change_obj.get_type()
+        if begin_line > -1:
+            line_value = '\nThis change depends on following change(s):\n'
+            line_value += '  - Project:<{}> Change:<{}> Type:<{}>'.format(
+                change_name, change_no, change_type)
+            if line_value not in self.msg_lines:
+                self.msg_lines.insert(begin_line, line_value)
+
     def add_depends_on_root(self, root_change_id):
         begin_line = -1
         for i, v in enumerate(self.msg_lines):

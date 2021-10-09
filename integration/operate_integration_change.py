@@ -100,6 +100,7 @@ class OperateIntegrationChange(object):
         comp_commit_msg_obj = inte_change.IntegrationCommitMessage(to_add)
         root_change_obj = inte_change.RootChange(self.rest, self.root_change)
         root_change_id = str(root_change_obj.get_info().get('change_id'))
+        comp_commit_msg_obj.add_depends_root(root_change_obj)
         comp_commit_msg_obj.add_depends_on_root(root_change_id)
         try:
             self.rest.delete_edit(to_add)
