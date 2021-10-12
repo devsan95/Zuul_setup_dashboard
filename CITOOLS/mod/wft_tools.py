@@ -3,6 +3,7 @@ import re
 import json
 import git
 import shutil
+import time
 
 import requests
 import ruamel.yaml as yaml
@@ -301,6 +302,7 @@ def get_subuild_from_wft(wft_name, component=None, project=None):
             sub_builds.append(sub_build)
     else:
         raise Exception('Cannot find from WFT version:{}, component:{}'.format(wft_name, component))
+    time.sleep(1)
     return sub_builds
 
 
