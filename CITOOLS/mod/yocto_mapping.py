@@ -84,12 +84,16 @@ class Yocto_Mapping(object):
 
     def get_component_sub_sources(self, comp_name):
         source, recipe_path, recipe_info = self.get_component_dict(comp_name)
-        if recipe_info and 'subsources' in recipe_info:
-            return recipe_info['subsources'], source['src_uri_type']
+        if recipe_info:
+            if 'subsources' in recipe_info:
+                return recipe_info['subsources'], source['src_uri_type']
+            return [recipe_info], source['src_uri_type']
         return {}, ''
 
     def get_comp_hash(self, comp_name):
         sub_sources, src_uri_type = self.get_component_sub_sources(comp_name)
+        if sub_sources:
+            print('Get sub_sources {}'.format(sub_sources))
         for sub_source in sub_sources:
             if 'rev' in sub_source:
                 if src_uri_type != 'svn':

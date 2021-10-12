@@ -185,7 +185,7 @@ def rebase_by_load(rest, change_no, base_package,
             comp_hash = get_component_hash(rest, base_package, extra_bases,
                                            comp_names, get_comp_info)
             if not comp_hash:
-                rebase_skipped[comp_name_with_change] = 'No component in packages: {},{}'.format(
+                rebase_skipped[comp_name_with_change] = 'No source component in packages: {},{}'.format(
                     base_package, extra_bases)
                 continue
         parent_hash = rest.get_parent(comp_change)
