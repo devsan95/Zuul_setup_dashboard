@@ -270,6 +270,7 @@ def get_staged_from_wft(wft_name, component=None, project=None):
 
 
 def get_subuild_from_wft(wft_name, component=None, project=None):
+    time.sleep(2)
     build_content = ''
     sub_builds = []
     project_list = ["5G", "Common", "ALL"]
@@ -302,7 +303,6 @@ def get_subuild_from_wft(wft_name, component=None, project=None):
             sub_builds.append(sub_build)
     else:
         raise Exception('Cannot find from WFT version:{}, component:{}'.format(wft_name, component))
-    time.sleep(1)
     return sub_builds
 
 
