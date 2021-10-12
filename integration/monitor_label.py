@@ -12,6 +12,7 @@ import urllib3
 
 import api.gerrit_api
 import api.gerrit_rest
+import ruamel.yaml as yaml
 from mod import integration_change as inte_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -41,16 +42,20 @@ def _parse_args():
                         help='')
     parser.add_argument('auth_type', type=str, default='digest',
                         help='')
+    parser.add_argument('comp_config', type=str,
+                        help='')
     args = parser.parse_args()
     return vars(args)
 
 
-def _if_checklist_all_pass(checklist, skytrack_log_collector):
+def _if_checklist_all_pass(checklist, skytrack_log_collector, comp_config):
     print('\nCheck if all changes are passed...')
     for item in checklist:
         if not item['status'] and item['attached']:
+            if not if_check_verified(item['comp_name'], comp_config):
+                continue
             if not item['verified']:
-                skytrack_log_collector.append("{0} change {1} haven't got verified lable".format(
+                skytrack_log_collector.append("{0} change {1} haven't got verified label".format(
                     item['comp_name'],
                     item['ticket']
                 ))
@@ -204,8 +209,17 @@ def check_interface(rest, tickets_dict, skytrack_log):
     return True
 
 
+def if_check_verified(change_name, comp_config):
+    comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
+    for comps_list in comp_config['components'].values():
+        for comps in comps_list:
+            if change_name == comps['name'] and 'check_verified' in comps and not comps['check_verified']:
+                return False
+    return True
+
+
 def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
-          rest_url, rest_user, rest_pwd, auth_type):
+          rest_url, rest_user, rest_pwd, auth_type, comp_config):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     if auth_type == 'basic':
         rest.change_to_basic_auth()
@@ -235,7 +249,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
                 'attached': True,
                 'need_backup': False,
                 'external': False,
-                'comp_name': ''
+                'comp_name': '',
             }
         )
     print('Starting check if all tickets are done...')
@@ -245,8 +259,11 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
         depends_list = targets['tickets']
         for item in pass_list:
             change_obj = inte_change.IntegrationChange(rest, item['ticket'])
-            change_name = change_obj.get_change_name()
-            item['comp_name'] = change_name
+            comp_name = change_obj.get_change_name()
+            item['comp_name'] = comp_name
+            if not if_check_verified(item['comp_name'], comp_config):
+                print('\nSkip check verified label for {} change {}'.format(item['comp_name'], item['ticket']))
+                continue
             print('\nCheck status of [{}]:'.format(item['ticket']))
             # update attached:
             try:
@@ -286,7 +303,7 @@ def _main(ssh_server, ssh_port, ssh_user, ssh_key, change_id,
     sys.stdout.flush()
     sys.stderr.flush()
     check_result = True
-    if _if_checklist_all_pass(pass_list, skytrack_log_collector) and check_interface(rest, targets, skytrack_log_collector):
+    if _if_checklist_all_pass(pass_list, skytrack_log_collector, comp_config) and check_interface(rest, targets, skytrack_log_collector):
         print('All component changes match the verified+1 and code review+1/+2 requirement.')
         skytrack_log_collector.append('Validation succeed! Ready to merge to production now.')
     else:
