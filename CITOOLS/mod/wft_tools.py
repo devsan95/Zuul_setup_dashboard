@@ -164,7 +164,7 @@ def get_release_date(package):
 
 
 def get_wft_release_name(version):
-    if version.startswith('SBTS'):
+    if version.startswith('SBTS') or '_' in version:
         return version
     stream_name = get_stream_name(version)
     latest_build, release_date = get_lasted_success_build(stream_name)
@@ -246,6 +246,7 @@ def get_ps(baseline):
 
 def get_staged_from_wft(wft_name, component=None, project=None):
     build_content = ''
+    time.sleep(2)
     try:
         if component and project:
             build_content = WFT.get_build_content(wft_name, component=component, project=project)

@@ -19,7 +19,10 @@ class Inherit_Map(object):
 
     def get_base_loads(self, base_loads):
         if base_loads:
-            return base_loads
+            wft_base_loads = []
+            for base_load in base_loads:
+                wft_base_loads.append(wft_tools.get_wft_release_name(base_load))
+            return wft_base_loads
         elif not self.stream_list:
             self.stream_list = DEFAULT_STREAM_LIST
         return wft_tools.get_latest_build_load(self.stream_list, strip_prefix=False)[1]
@@ -198,6 +201,8 @@ class Inherit_Map(object):
                 parent_comp_name = '{}:{}'.format(subbuild['inherited_from']['project'],
                                                   subbuild['inherited_from']['component'])
                 inherit_dict[wft_comp_name] = parent_comp_name
+        print('Inherit dict for {}'.format(build))
+        print(inherit_dict)
         return inherit_dict
 
     def get_all_inherit_dict(self):
