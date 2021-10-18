@@ -118,37 +118,34 @@ def update_base_commit(rest, comp_change, comp_change_obj, comp_hash):
         rest.publish_edit(comp_change)
 
 
-def get_component_hash(rest, base_package, extra_bases, comp_names, get_comp_info):
+def _get_component_hash(rest, base_package, comp_names, get_comp_info):
+    print('Try to get hash for {}'.format(comp_names))
     comp_hash = ''
     try:
         if 'integration' in comp_names:
-            if base_package.startswith('SBTS'):
-                base_repo_info = wft_tools.get_repository_info(base_package)
-                comp_hash = base_repo_info['revision']
-            else:
+            if not base_package.startswith('SBTS'):
                 comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_package)['object']
         else:
             for sub_comp_name in comp_names:
                 comp_hash = get_comp_info.get_comp_hash(sub_comp_name)
                 if comp_hash:
-                    comp_name = sub_comp_name
+                    print('Find hash for {}'.format(sub_comp_name))
                     break
     except Exception:
         print('Cannot get hash for {}'.format(comp_names))
+    return comp_hash
+
+
+def get_component_hash(rest, base_package, extra_bases, comp_names, get_comp_info):
+    comp_hash = _get_component_hash(rest, base_package, comp_names, get_comp_info)
     if not comp_hash:
+        print('Try get hash for {}'.format(comp_names))
         print('Try get hash from {}'.format(extra_bases))
         for extra_base in extra_bases:
             extra_base_get_comp_info = get_comp_info_obj(extra_base)
-            try:
-                comp_hash = extra_base_get_comp_info.get_comp_hash(comp_name)
-            except Exception:
-                print('Exception when get hash from {}'.format(extra_base))
-                continue
-            if not comp_hash:
-                print('Not get hash from {}'.format(extra_base))
-                continue
-            else:
-                print('Get hash from {}'.format(extra_base))
+            comp_hash = _get_component_hash(rest, extra_base, comp_names, extra_base_get_comp_info)
+            if comp_hash:
+                print('Try get hash from {} is {}'.format(extra_bases, comp_hash))
                 break
     return comp_hash
 

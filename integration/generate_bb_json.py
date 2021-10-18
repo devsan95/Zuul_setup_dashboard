@@ -282,7 +282,10 @@ def get_build_stream_base(change_id, rest, comp_config, stream_json):
             if build_stream == stream['value']:
                 base_build = wft_tools.get_lasted_success_build(stream['name'])[0]
                 if base_build:
-                    build_stream_dict[build_stream] = base_build
+                    if base_build.startswith('SBTS'):
+                        build_stream_dict[build_stream] = base_build
+                    else:
+                        build_stream_dict[build_stream] = base_build.split('_')[1]
                 break
     print(build_stream_dict)
     return build_stream_dict

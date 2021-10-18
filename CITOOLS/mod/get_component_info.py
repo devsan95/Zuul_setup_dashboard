@@ -256,6 +256,8 @@ class GET_COMPONENT_INFO(object):
 
     def get_comp_bb_ver(self, comp_name):
         if self.if_bb_mapping:
+            print('Get component from bb_mapping')
             return self.get_comp_bbver_from_mapping_file(comp_name)
         else:
+            print('Get component from dep file')
             return self.get_comp_bbver_from_dep_file(comp_name)
