@@ -130,8 +130,8 @@ else
     exit 1
 fi
 
-export http_proxy=10.158.100.1:8080
-export https_proxy=10.158.100.1:8080
+export http_proxy=http://10.158.100.1:8080
+export https_proxy=http://10.158.100.1:8080
 
 prepare_python_env(){
 if [ ! -e "$VENV_PATH"/envs/python2/bin/python ];
@@ -150,14 +150,21 @@ then
   source "$VENV_PATH"/bin/activate python2
   conda install pycrypto mysql-connector-python -y
   conda install -c conda-forge yappi -y
+  export http_proxy=10.158.100.1:8080
+  export https_proxy=10.158.100.1:8080
   pip install --upgrade pip
   pip install git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
   chmod -R 777 "$VENV_PATH"
 fi
 
+export http_proxy=http://10.158.100.1:8080
+export https_proxy=http://10.158.100.1:8080
+
 cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
 conda install -y certifi
+export http_proxy=10.158.100.1:8080
+export https_proxy=10.158.100.1:8080
 
 pip install --no-cache-dir \
     configobj \
