@@ -196,9 +196,9 @@ def check_external_change(rest, root_change):
     return parent_commit
 
 
-def add_depends_info(rest, comp_change, depends_change, depends_components=None):
+def add_depends_info(rest, comp_change, depends_change, depends_components=None, is_depend=True):
     change_obj = inte_change.IntegrationChange(rest, comp_change)
-    if change_obj.get_change_name() in depends_components:
+    if is_depend and change_obj.get_change_name() in depends_components:
         return
     depends_change_obj = inte_change.IntegrationChange(rest, depends_change)
     msg_obj = inte_change.IntegrationCommitMessage(change_obj)
@@ -303,6 +303,12 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     int_operator = operate_int.OperateIntegrationChange(gerrit_info_path, root['manager_change'], mysql_info_path)
     int_operator.add(comp_change_number)
+
+    if comp_name not in depends_components:
+        depends_comps = inte_change.IntegrationChange(rest, root['manager_change']).get_depends()
+        for i in depends_comps:
+            if i[0] in depends_components:
+                add_depends_info(rest, comp_change_number, depends_change=i[1], is_depend=False)
     skytrack_database_handler.add_integration_tickets(jira_key=root['jira_id'], change_list=[comp_change_number], database_info_path=mysql_info_path)
     return comp_change_number
 
