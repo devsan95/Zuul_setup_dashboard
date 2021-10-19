@@ -187,12 +187,9 @@ def get_build_content(knife_json_path, base_info_path, ex_dict, build_streams,
         stream_name = wft_tools.get_stream_name(stream)
         last_success_build, last_success_build_date = \
             wft_tools.get_lasted_success_build(stream_name)
-        stream_name_prefix = last_success_build.split('_')[0]
+        wft_name = wft_tools.get_wft_release_name(base_build_dict[stream])
         if stream in base_build_dict:
-            delivery_date = wft_tools.get_planed_delivery_date('{0}_{1}'.format(
-                stream_name_prefix,
-                base_build_dict[stream]
-            ))
+            delivery_date = wft_tools.get_planed_delivery_date(wft_name)
             messages.append('Stream: {0} Base_build: {1} Release Date: {2}'.format(
                 stream,
                 base_build_dict[stream],
