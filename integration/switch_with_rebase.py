@@ -197,6 +197,7 @@ def rebase_by_load(rest, change_no, base_package,
             try:
                 if comp_hash == 'HEAD':
                     rest.rebase(comp_change)
+                    rebase_succeed[comp_name_with_change] = comp_hash
                 else:
                     if '@' in comp_hash:
                         rebase_skipped[comp_name_with_change] = 'svn revision {} not fit for git repo'.format(comp_hash)
