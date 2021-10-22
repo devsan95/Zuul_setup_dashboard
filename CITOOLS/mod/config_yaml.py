@@ -158,6 +158,8 @@ class ConfigYaml(object):
                 component=wft_component,
                 project=wft_project
             )
+            if not staged_dict and replace_section['type'] != "submodule_meta-5g":
+                raise Exception("Not able to get bbrecipe info from WFT for {0}".format(value))
             for staged_key, staged_value in staged_dict.items():
                 # some section like ENV_SBTS_PS_REL do not want to update type
                 if staged_value and staged_key != 'type':

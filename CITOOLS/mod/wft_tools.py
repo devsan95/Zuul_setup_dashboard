@@ -249,9 +249,9 @@ def get_staged_from_wft(wft_name, component=None, project=None):
     time.sleep(2)
     try:
         if component and project:
-            build_content = WFT.get_build_content(wft_name, component=component, project=project)
+            build_content = retry.retry_func(retry.cfn(WFT.get_build_content, wft_name, component, project), max_retry=5, interval=3)
         else:
-            build_content = WFT.get_build_content(wft_name)
+            build_content = retry.retry_func(retry.cfn(WFT.get_build_content, wft_name), max_retry=5, interval=3)
     except Exception:
         print('Cannot get build_content for {}'.format(wft_name))
     if not build_content:
