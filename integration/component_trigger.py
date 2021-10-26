@@ -72,6 +72,10 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
     int_change_obj = integration_change.IntegrationChange(rest, change_id)
     depends_comps = int_change_obj.get_depends()
     root_change_no = None
+    depends_on = int_change_obj.get_depends_on()
+    if not depends_on:
+        print('This component has been detached')
+        return
     for depends_comp in depends_comps:
         print('depends_comp: {}'.format(depends_comp))
         if depends_comp[2] == 'root':
