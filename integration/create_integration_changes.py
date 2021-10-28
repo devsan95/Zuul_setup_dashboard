@@ -132,7 +132,7 @@ def check_necessary_nodes(root_node, integration_node, graph_obj):
         raise Exception('There are not root project in the structure.')
     if not integration_node:
         raise Exception('There are not integration project in the structure.')
-    if len(graph_obj.nodes()) < 3:
+    if len(graph_obj.nodes()) < 2:
         raise Exception('There are no enough project in the structure.')
     return True
 
