@@ -7,6 +7,7 @@ import fire
 
 from api import gerrit_rest
 from api import mysql_api
+from api import retry
 from mod import wft_tools
 from mod import utils
 import generate_bb_json
@@ -109,7 +110,10 @@ def skytrack_detail_api(integration_name,
     }
     print "updating build info in detailed page"
     print package_info
-    r = requests.put(url, data=content, headers=headers)
+    r = retry.retry_func(
+        retry.cfn(requests.put, url, data=content, headers=headers),
+        max_retry=5, interval=3
+    )
     print r.text
     if r.status_code != 200:
         print r.text
