@@ -20,7 +20,7 @@ def get_jenkins_build_time(build_job, build_number, yaml_path):
     jenkins_obj = Jenkins(jenkins_server['host'], jenkins_server['user'], jenkins_server['password'])
     current_build = jenkins_obj.get_job(":8080/{0}".format(build_job)).get_build(build_number)
     wft_rn_build = jenkins_obj.get_job(":8080/{0}".format(current_build.get_upstream_job_name())).get_build(current_build.get_upstream_build_number())
-    build = jenkins_obj.get_job(wft_rn_build.get_upstream_job_name()).get_build(wft_rn_build.get_upstream_build_number())
+    build = jenkins_obj.get_job(":8080/{0}".format(wft_rn_build.get_upstream_job_name())).get_build(wft_rn_build.get_upstream_build_number())
     start_time = build.get_timestamp()
     duration = build.get_duration()
     end_time = start_time + duration
