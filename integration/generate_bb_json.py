@@ -894,7 +894,9 @@ def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict):
     sbts_knife_dict['knife_request']['knife_changes'][random_key] = comp_knife_dict
 
 
-def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, rest):
+def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest):
+    # if component in yocto mapping
+    # and it's in config.yaml
     sbts_base = sbts_knife_dict['knife_request']['baseline']
     print('Create integration change based on {}'.format(sbts_base))
     base_repo_info = wft_tools.get_repository_info(sbts_base)
@@ -908,7 +910,7 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, rest):
         base_change=sbts_base_commit
     )
     config_yaml_content = env_changes.create_config_yaml_by_env_change(
-        '',
+        sbts_env_change,
         rest,
         ticket_id,
         config_yaml_file='config.yaml',
@@ -942,9 +944,10 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
     print('sbts_knife_dict:')
     print(sbts_knife_dict)
     updated_dict, removed_dict = get_env_change_dict(rest, change_id)
-    update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, rest)
     # get bb_mapping for SBTS load
     sbts_bb_mapping = yocto_mapping.Yocto_Mapping(sbts_base)
+    # sbts_env_change will contains version change for sbts
+    sbts_env_change = {}
     for target_dict in knife_dict.values():
         for component_name, replace_dict in target_dict.items():
             source = {}
@@ -955,6 +958,7 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
                 print('Try to get component dict by name: {}'.format(component_name))
                 source = sbts_bb_mapping.get_component_dict(component_name)[0]
             comp_knife_dict = {}
+            replacing_find = False
             if source and 'src_uri' in source and source['src_uri']:
                 comp_knife_dict['source_repo'] = source['src_uri']
                 comp_knife_dict['source_type'] = source['src_uri_type']
@@ -964,16 +968,29 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
                     if 'protocol' in replace_dict:
                         comp_knife_dict['replace_source'] = '{};protocol={}'.format(
                             replace_dict['repo_url'], replace_dict['protocol'])
+                        replacing_find = True
                 elif 'SRC_URI' in replace_dict and replace_dict['SRC_URI']:
                     comp_knife_dict['replace_source'] = replace_dict['SRC_URI'].split(';')[0]
+                    replacing_find = True
                 replace_commit = get_revision_from_dict(replace_dict)
                 if replace_commit:
                     comp_knife_dict['replace_commit'] = replace_commit
+                    if not comp_knife_dict['replace_source']:
+                        comp_knife_dict['replace_source'] = comp_knife_dict['source_repo']
+                    replacing_find = True
                 comp_knife_dict['package_path'] = ''
                 if 'package_path' in replace_dict and replace_dict['package_path']:
                     comp_knife_dict['package_path'] = replace_dict['package_path']
-            if comp_knife_dict:
+                    replacing_find = True
+            if source and not replacing_find:
+                for version_key in ['bb_ver', 'version', 'WFT_NAME', 'PV']:
+                    if version_key in replace_dict:
+                        sbts_env_change[component_name] = replace_dict[version_key]
+                        break
+            if comp_knife_dict and replacing_find:
                 update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
+    print('Get SBTS env change: {}'.format(sbts_env_change))
+    update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest)
     return sbts_knife_dict
 
 

@@ -67,7 +67,7 @@ def create_config_yaml_by_env_change(env_change_dict, rest,
     # update env_change in config.yaml
     # update staged infos if exists
     if env_change_dict:
-        env_file_changes = config_yaml_obj.update_by_env_change(env_change_dict)
+        env_file_changes = config_yaml_obj.update_by_env_change(env_change_dict, all_matched=False)
     config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
     if config_yaml_content != old_content:
         return {config_yaml_file: config_yaml_content}, env_file_changes

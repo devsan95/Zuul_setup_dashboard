@@ -98,6 +98,8 @@ class ConfigYaml(object):
                 return section_key, section
             elif section_key.endswith(':{}'.format(component_name)):
                 return section_key, section
+            elif 'location' in section and section['location'].endswith('/{}'.format(component_name)):
+                return section_key, section
         return None, None
 
     def replace_comonent_value(self, component_name, option_key, option_value):
@@ -130,14 +132,16 @@ class ConfigYaml(object):
                     copy_of_config_components[section_key] = value
             fhandler_w.write(yaml.safe_dump(copy_of_config_yaml))
 
-    def update_by_env_change(self, env_change_dict):
+    def update_by_env_change(self, env_change_dict, all_matched=True):
         # used to restore changes to env file
         # will be removed after env file removed
         env_file_changes = {}
         for key, value in env_change_dict.items():
             replace_section_key, replace_section = self.get_env_change_section(key)
-            if not replace_section:
+            if not replace_section and all_matched:
                 raise Exception('Cannot find env key {}'.format(key))
+            elif not replace_section:
+                continue
             if isinstance(value, dict):
                 print('Update section by dict : {}'.format(value))
                 replace_section.update(value)
