@@ -133,13 +133,13 @@ def main(env_type, title, content, author, alert_type, icon, label, label_type,
 
         # cmd = "rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;pwd;kubectl --kubeconfig {} cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/list.yaml".format(os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'])
         r1 = subprocess.call(cmd1, shell=True)
-        print("DEBUG_INFO: main: execute command: " + cmd1 + " Result: " + r1)
+        print("DEBUG_INFO: main: execute command: " + cmd1 + " Result: " + str(r1))
 
         r2 = subprocess.call(cmd_pwd, shell=True)
-        print("DEBUG_INFO: main: execute command: " + cmd_pwd + " Result: " + r2)
+        print("DEBUG_INFO: main: execute command: " + cmd_pwd + " Result: " + str(r2))
 
         r3 = subprocess.call(cmd2, shell=True)
-        print("DEBUG_INFO: main: execute command: " + cmd2 + " Result: " + r3)
+        print("DEBUG_INFO: main: execute command: " + cmd2 + " Result: " + str(r3))
 
     elif env_type == "openstack":
         print("DEBUG_INFO: main: begin to update openstack zuul web page banner")
