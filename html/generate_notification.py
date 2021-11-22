@@ -126,9 +126,18 @@ def main(env_type, title, content, author, alert_type, icon, label, label_type,
                               "docker cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/".format(zuul_server_name), shell=True)
     elif env_type == 'k8s':
         print("DEBUG_INFO: main: begin to update k8s zuul web page banner")
-        cmd = "rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;pwd;kubectl --kubeconfig {} cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/list.yaml".format(os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'])
-        print("DEBUG_INFO: main: execute command: " + cmd)
-        subprocess.call(cmd, shell=True)
+        cmd_pwd = "pwd"
+        cmd1 = "rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;"
+        cmd2 = "kubectl --kubeconfig {} cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/list.yaml".format(
+            os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'])
+
+        # cmd = "rm -rf origin_notification notification_changed;mkdir origin_notification notification_changed;pwd;kubectl --kubeconfig {} cp {}:/ephemeral/zuul/www/notification/list.yaml origin_notification/list.yaml".format(os.environ['ZUUL_SERVICE_CREDENTIAL_FILE'], os.environ['ZUUL_SERVER_CONTAINER_POD'])
+        print("DEBUG_INFO: main: execute command: " + cmd1)
+        subprocess.call(cmd1, shell=True)
+        print("DEBUG_INFO: main: execute command: " + cmd_pwd)
+        subprocess.call(cmd_pwd, shell=True)
+        print("DEBUG_INFO: main: execute command: " + cmd2)
+        subprocess.call(cmd2, shell=True)
 
     elif env_type == "openstack":
         print("DEBUG_INFO: main: begin to update openstack zuul web page banner")
