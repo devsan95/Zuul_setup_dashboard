@@ -501,6 +501,8 @@ class IntegrationChangesCreation(object):
                     lines.append('int_branch: {}'.format(
                         self.comp_config['ecl_int_map'][self.meta['ecl_int_branch']]
                     ))
+                else:
+                    lines.append('int_branch: Testbuild')
                 if 'PSINT_cycle' in self.meta and self.meta['PSINT_cycle']:
                     lines.append('PSINT_cycle: {}'.format(self.meta['PSINT_cycle']))
                 if 'integration_type' in self.meta and self.meta['integration_type']:
