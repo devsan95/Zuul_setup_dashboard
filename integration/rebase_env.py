@@ -437,7 +437,6 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
                 print('{} in env_change is not pre-released.')
                 print('No need to update skytrack topic.')
                 to_update_topic = False
-                return
         if to_update_topic:
             # replace commit message
             commits = op.get_all_changes_by_comments()
