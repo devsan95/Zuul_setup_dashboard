@@ -424,12 +424,8 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             gerrit_info_path
         )
         op = RootChange(rest, root_change)
-        # update file in change_map
-        for key, value in change_map.items():
-            print('update file {}'.format(key))
-            print(value)
-            rest.add_file_to_change(change_no, key, value)
         # do not update topic if env_change_dict contains copmonent in topic
+        to_update_topic = True
         comp_change_list, int_change = op.get_components_changes_by_comments()
         inte_change = ManageChange(rest, int_change)
         component_names = [x[0] for x in inte_change.get_all_components()]
@@ -440,37 +436,43 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             if change_part in component_names:
                 print('{} in env_change is not pre-released.')
                 print('No need to update skytrack topic.')
-                rest.publish_edit(change_no)
+                to_update_topic = False
                 return
-        # replace commit message
-        commits = op.get_all_changes_by_comments()
-        change_message = partial(change_message_by_env_change, env_change_dict=env_change_dict, rest=rest)
-        map(change_message, commits)
-        old_str, new_str = change_message(root_change)
-        # replace jira title.
-        try:
-            origin_msg = get_commit_msg(change_no, rest)
-            msg = " ".join(origin_msg.split("\n"))
-            reg = re.compile(r'%JR=(\w+-\d+)')
-            jira_ticket = reg.search(msg).groups()[0]
-            jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
-                                      server=DEFAULT_JIRA_URL)
-            jira_title = jira_op.get_issue_title(jira_ticket)
-            if old_str in jira_title:
-                jira_op.replace_issue_title(jira_ticket, old_str, new_str)
-            else:
-                jira_title_re = common_regex.jira_title_reg.search(jira_title)
-                if jira_title_re:
-                    jira_op.replace_issue_title(jira_ticket, jira_title_re.groups()[4], new_str)
-        except Exception as e:
-            print('Jira update error')
-        if database_info_path:
-            skytrack_database_handler.update_events(
-                database_info_path=database_info_path,
-                integration_name=jira_ticket,
-                description="Integration Topic Change To {0}".format(new_str),
-                highlight=True
-            )
+        if to_update_topic:
+            # replace commit message
+            commits = op.get_all_changes_by_comments()
+            change_message = partial(change_message_by_env_change, env_change_dict=env_change_dict, rest=rest)
+            map(change_message, commits)
+            old_str, new_str = change_message(root_change)
+            # replace jira title.
+            try:
+                origin_msg = get_commit_msg(change_no, rest)
+                msg = " ".join(origin_msg.split("\n"))
+                reg = re.compile(r'%JR=(\w+-\d+)')
+                jira_ticket = reg.search(msg).groups()[0]
+                jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
+                                          server=DEFAULT_JIRA_URL)
+                jira_title = jira_op.get_issue_title(jira_ticket)
+                if old_str in jira_title:
+                    jira_op.replace_issue_title(jira_ticket, old_str, new_str)
+                else:
+                    jira_title_re = common_regex.jira_title_reg.search(jira_title)
+                    if jira_title_re:
+                        jira_op.replace_issue_title(jira_ticket, jira_title_re.groups()[4], new_str)
+            except Exception as e:
+                print('Jira update error')
+            if database_info_path:
+                skytrack_database_handler.update_events(
+                    database_info_path=database_info_path,
+                    integration_name=jira_ticket,
+                    description="Integration Topic Change To {0}".format(new_str),
+                    highlight=True
+                )
+        # update file in change_map
+        for key, value in change_map.items():
+            print('update file {}'.format(key))
+            print(value)
+            rest.add_file_to_change(change_no, key, value)
         rest.publish_edit(change_no)
         if commit_msg_update:
             rest.set_commit_message(change_no, content=new_commit_msg)
