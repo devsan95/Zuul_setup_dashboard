@@ -468,6 +468,8 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
                     highlight=True
                 )
         # update file in change_map
+        # change_message_by_env_change will delete edit
+        # so we need to publish_edit together after file changed
         for key, value in change_map.items():
             print('update file {}'.format(key))
             print(value)
