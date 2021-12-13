@@ -147,7 +147,7 @@ sudo pip install --no-cache-dir \
     fire \
     jinja2 \
     jira \
-    jsonschema \
+    jsonschema==3.2.0 \
     mysql-connector \
     python-gitlab \
     pytz \
