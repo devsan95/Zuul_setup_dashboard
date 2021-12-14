@@ -37,7 +37,6 @@ from mod import get_component_info
 from mod import wft_tools
 from mod import config_yaml
 from mod import inherit_map
-from mod import yocto_mapping
 from mod import integration_change as inte_change
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -871,7 +870,7 @@ class IntegrationChangesCreation(object):
     def get_sbts_bb_mapping(self):
         sbts_load = self.meta.get('SBTS_base_load', '')
         if sbts_load:
-            return yocto_mapping.Yocto_Mapping(sbts_load)
+            return get_component_info.GET_COMPONENT_INFO(sbts_load)
         return None
 
     def parse_base_load(self, base_load):
@@ -1108,11 +1107,7 @@ class IntegrationChangesCreation(object):
         if base_load in self.comp_info_dict:
             return self.comp_info_dict[base_load]
         else:
-            comp_info = None
-            if base_load.startswith('SBTS'):
-                comp_info = yocto_mapping.Yocto_Mapping(base_load)
-            else:
-                comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+            comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
             if comp_info:
                 self.comp_info_dict[base_load] = comp_info
             return comp_info

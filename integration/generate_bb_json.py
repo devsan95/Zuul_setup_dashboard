@@ -23,7 +23,7 @@ from mod import wft_tools
 from mod import env_changes
 from mod import inherit_map
 from mod import config_yaml
-from mod import yocto_mapping
+from mod import bb_mapping
 
 import api.file_api
 import api.gerrit_api
@@ -945,7 +945,7 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
     print(sbts_knife_dict)
     updated_dict, removed_dict = get_env_change_dict(rest, change_id)
     # get bb_mapping for SBTS load
-    sbts_bb_mapping = yocto_mapping.Yocto_Mapping(sbts_base)
+    sbts_bb_mapping = bb_mapping.BB_Mapping(sbts_base).parser
     # sbts_env_change will contains version change for sbts
     sbts_env_change = {}
     for target_dict in knife_dict.values():
@@ -956,7 +956,7 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
                 source = sbts_bb_mapping.get_component_source_by_project(project_dict[component_name])
             if not source:
                 print('Try to get component dict by name: {}'.format(component_name))
-                source = sbts_bb_mapping.get_component_dict(component_name)[0]
+                source = sbts_bb_mapping.get_component_source(component_name)
             comp_knife_dict = {}
             replacing_find = False
             if source and 'src_uri' in source and source['src_uri']:

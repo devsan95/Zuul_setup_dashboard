@@ -15,7 +15,6 @@ from api import skytrack_log
 from mod import wft_tools
 from mod import integration_change
 from mod import env_changes
-from mod import yocto_mapping
 
 
 def get_base_parent(rest, base_obj_list, comp, project_name):
@@ -52,10 +51,7 @@ def fixed_base_validator(rest, components, base_dict):
     for base in base_dict:
         base_obj = None
         try:
-            if base.startswith('SBTS'):
-                base_obj = yocto_mapping.Yocto_Mapping(base_dict[base])
-            else:
-                base_obj = get_component_info.GET_COMPONENT_INFO(base_dict[base])
+            base_obj = get_component_info.GET_COMPONENT_INFO(base_dict[base])
             base_obj_list.append(base_obj)
         except Exception:
             print("get {} base object failed".format(base_dict[base]))

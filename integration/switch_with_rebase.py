@@ -21,7 +21,6 @@ from mod import utils
 from mod import wft_tools
 from mod import env_changes
 from mod import mailGenerator
-from mod import yocto_mapping
 from mod import get_component_info
 from update_with_zuul_rebase import update_with_rebase_info
 from generate_bb_json import parse_comments_mail
@@ -40,11 +39,7 @@ def get_comp_info_obj(base_load):
     if base_load in COMP_INFO_DICT:
         return COMP_INFO_DICT[base_load]
     else:
-        comp_info = None
-        if 'SBTS' in base_load:
-            comp_info = yocto_mapping.Yocto_Mapping(base_load)
-        else:
-            comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
+        comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
         COMP_INFO_DICT[base_load] = comp_info
         return comp_info
 
@@ -133,6 +128,7 @@ def _get_component_hash(rest, base_package, comp_names, get_comp_info):
                     break
     except Exception:
         print('Cannot get hash for {}'.format(comp_names))
+        traceback.print_exc()
     return comp_hash
 
 

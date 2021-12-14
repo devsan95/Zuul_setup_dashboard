@@ -1,14 +1,12 @@
 import os
 import re
 import logging
-import urllib
-import json
-import requests
+import traceback
 
 from six.moves import configparser
 from mod import integration_repo
 from mod import utils
-from api import http_api
+from mod import bb_mapping
 from api import config
 
 logging.basicConfig(level=logging.INFO)
@@ -35,22 +33,25 @@ WFT_SEARCH_BUILD = "{}:8091/5G:WMP/api/v1/build.json?" \
     "&view[view_filters_attributes[24216713295283]][operation]=matches_regexp" \
     "&view[view_filters_attributes[24216713295283]][value][]=%5CA5G%5B0-9a-zA-Z%5D*_{}%5Cz&"
 HTTP_HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+REVISION_KEYS = ['revision', 'rev', 'pv']
 
 
 class GET_COMPONENT_INFO(object):
 
     def __init__(self, base_pkg, no_dep_file=False, only_mapping_file=False):
         self.base_pkg = base_pkg
-        self.if_bb_mapping, self.src_list = self.check_bb_mapping_file()
+        self.bb_mapping = self.check_bb_mapping_file()
         self.only_mapping_file = only_mapping_file
+        if base_pkg.startswith('SBTS'):
+            self.only_mapping_file = True
         self.int_repo = None
         self.no_dep_file = no_dep_file
 
-    def intial_work_dir(self):
+    def initial_work_dir(self):
         if self.int_repo:
             return
         if not self.only_mapping_file:
-            with_dep_file = not self.if_bb_mapping
+            with_dep_file = not self.bb_mapping
             integration_dir = os.path.join(
                 os.getcwd(), 'Integration_{}'.format(self.base_pkg))
             self.int_repo = integration_repo.INTEGRATION_REPO(
@@ -69,7 +70,7 @@ class GET_COMPONENT_INFO(object):
         return ''
 
     def get_comp_bbver_from_dep_file(self, comp_name):
-        self.intial_work_dir()
+        self.initial_work_dir()
         dep_all_file = os.path.join(self.int_repo.work_dir, 'build/dep_all', 'all.dep')
         regex_comps = r'" \[label="{}\\n:([^\\]+)\\n([^\\]+)"\]'.format(comp_name)
         # regex_dep_file = r'dep_file:\s*(\S+)'
@@ -86,7 +87,7 @@ class GET_COMPONENT_INFO(object):
         return comp_bbver
 
     def get_comp_hash_from_dep_file(self, comp_name):
-        self.intial_work_dir()
+        self.initial_work_dir()
         dep_all_file = os.path.join(self.int_repo.work_dir, 'build/dep_all', 'all.dep')
         regex_deps = r'"([^"]+)" -> "([^"]+)"'
         # regex_dep_file = r'dep_file:\s*(\S+)'
@@ -107,157 +108,49 @@ class GET_COMPONENT_INFO(object):
         return version_dict['repo_ver']
 
     def check_bb_mapping_file(self):
-        src_list = []
-        file_exists = self.download_bbmapping_from_wft()
-        if not file_exists:
-            logging.info("Get %s bb_mapping form WFT failed, try Artifactory", self.base_pkg)
-            file_exists = self.download_bbmapping_from_artifactory()
-        if file_exists:
-            with open("bb_mapping.{}.json".format(self.base_pkg), 'r') as f:
-                json_str = f.read()
-            bb_mapping_dict = json.loads(json_str)
-            src_list = bb_mapping_dict['sources']
-        return file_exists, src_list
-
-    def search_build_on_wft(self):
-        response = requests.get(
-            WFT_SEARCH_BUILD.format(WFT_URL, WFT_KEY, self.base_pkg),
-            headers=HTTP_HEADERS
-        )
-        if response.ok:
-            try:
-                build_list = json.loads(response.text)['items']
-            except Exception:
-                logging.warn("Can not find build %s on WFT", self.base_pkg)
-                return False
-            if len(build_list) == 1:
-                return build_list[0]["version"]
-            else:
-                logging.warn("Multiple builds are found on WFT for %s", self.base_pkg)
-                return False
-        else:
-            logging.warn("WFT return %s when search %s", response.status_code, self.base_pkg)
-            return False
-
-    def get_build_bbmapping_id(self, wft_version):
-        response = requests.get(
-            "{}/{}/attachments.json".format(WFT_ATTACHMENT_URL, wft_version),
-            params={'access_key': WFT_KEY}
-        )
-        if response.ok:
-            for attachment in json.loads(response.text):
-                if attachment['attachment_file_name'] == 'bb_mapping.json':
-                    return attachment['id']
-        else:
-            logging.warn("WFT return %s when get %s attachments", response.status_code, self.base_pkg)
-        return False
-
-    def download_bbmapping_from_wft(self):
-        wft_version = self.search_build_on_wft()
-        if not wft_version:
-            return False
-        bbmapping_id = self.get_build_bbmapping_id(wft_version)
-        if not bbmapping_id:
-            return False
-        response = requests.get(
-            '{}/{}/attachments/{}.json'.format(WFT_ATTACHMENT_URL, wft_version, bbmapping_id),
-            params={'access_key': WFT_KEY}
-        )
-        if response.ok:
-            bb_mapping_file = "bb_mapping.{}.json".format(wft_version.split('_')[1])
-            with open(bb_mapping_file, 'w') as bb_mapping_fd:
-                bb_mapping_fd.write(response.text)
-            logging.info("Write WFT yocto_mapping to %s", bb_mapping_file)
-            return True
-        else:
-            logging.warn("WFT return %s when download %s bbmapping", response.status_code, self.base_pkg)
-        return False
-
-    def download_bbmapping_from_artifactory(self):
-        artifactory_url = "http://artifactory-espoo1.int.net.nokia.com/artifactory/mnp5g-central-public-local/System_Release/{}/bb_mapping.json".format(self.base_pkg)
-        file_exists = False
-        f = urllib.urlopen(artifactory_url)
-        print(f.getcode())
-        if f.getcode() == 200:
-            file_exists = True
-        print("[Info] find bb mapping file from: {}".format(artifactory_url))
-        print("[Info] result of finding bb mapping file: {}".format(file_exists))
-        file_name = 'bb_mapping.{}.json'.format(self.base_pkg)
-        http_api.download(artifactory_url, file_name)
-        return file_exists
+        try:
+            return bb_mapping.BB_Mapping(self.base_pkg)
+        except Exception:
+            logging.warn('Cannot get bb_mapping for %s', self.base_pkg)
+            traceback.print_exc()
+            return None
 
     def get_integration_target(self, comp_name):
-        for src in self.src_list:
-            recipe_list = src['recipes']
-            for recipe in recipe_list:
-                for key_name in recipe.keys():
-                    if key_name.endswith('.bb'):
-                        if 'depends' not in recipe[key_name]:
-                            continue
-                        depends = recipe[key_name]['depends']
-                        m = re.search(r'\s*{}\s*'.format(comp_name), depends)
-                        if m and len(m.group(0)) > len(comp_name) or depends == comp_name:
-                            if recipe['component'].startswith('integration-'):
-                                return recipe['component'].split('.')[0]
-                            else:
-                                return self.get_integration_target(recipe['component']).split('.')[0]
+        targets = self.bb_mapping.get_integration_targets(comp_name)
+        if targets:
+            return targets[0]
         raise Exception('Cannot get integration target for {}'.format(comp_name))
 
     def get_comp_hash_from_mapping_file(self, comp_name):
-        revision = self.get_value_from_mapping_and_env(comp_name, 'revision', 'repo_ver')
-        if not revision:
-            revision = self.get_value_from_mapping_and_env(comp_name, 'rev', 'repo_ver')
-        if not revision:
-            revision = self.get_value_from_mapping_and_env(comp_name, 'PV', 'repo_ver')
-        return revision
+        logging.info('Run get_comp_value_by_keys for %s', comp_name)
+        comp_hash = self.bb_mapping.get_comp_value_by_keys(comp_name, REVISION_KEYS)
+        if comp_hash:
+            return comp_hash
+        # comp_hash is None
+        # means we do not found matched component in mapping
+        if self.base_pkg.startswith('SBTS') or comp_hash is None:
+            return ''
+        return self.get_value_from_bitbake_env(comp_name, 'repo_ver')
 
-    def get_recipe_from_mapping(self, comp_name):
-        for src in self.src_list:
-            recipe_list = src['recipes']
-            for recipe in recipe_list:
-                if comp_name == recipe['component']:
-                    for key_name in recipe.keys():
-                        if key_name.endswith('.bb'):
-                            return key_name
-        return ''
-
-    def get_value_from_mapping_and_env(self, comp_name, mapping_key, env_key):
+    def get_value_from_bitbake_env(self, comp_name, env_key):
         value = ''
-        for src in self.src_list:
-            recipe_list = src['recipes']
-            for recipe in recipe_list:
-                if comp_name == recipe['component']:
-                    print("[Info] Get info for {}: {}".format(comp_name, recipe))
-                    if mapping_key in src:
-                        value = src[mapping_key]
-                    elif not self.only_mapping_file:
-                        self.intial_work_dir()
-                        integration_target = self.get_integration_target(comp_name)
-                        for key_name in recipe.keys():
-                            if key_name.endswith('.bb'):
-                                # get env_key from bb file
-                                logging.info('Get %s  for %s', env_key, key_name)
-                                recipe_path = os.path.join(self.int_repo.work_dir, key_name)
-                                comp_dict = self.int_repo.get_comp_info_by_bitbake(
-                                    integration_target, comp_name, recipe_path)
-                                if env_key in comp_dict:
-                                    value = comp_dict[env_key]
-        print("[Info] Get value {} from bb mapping and env for {} result is: {}".format(mapping_key, comp_name, value))
+        self.initial_work_dir()
+        integration_target = self.get_integration_target(comp_name)
+        recipe_files = self.bb_mapping.get_component_files(comp_name)
+        for recipe_file in recipe_files:
+            # get env_key from bb file
+            logging.info('Get %s  for %s', env_key, comp_name)
+            recipe_path = os.path.join(self.int_repo.work_dir, recipe_file)
+            comp_dict = self.int_repo.get_comp_info_by_bitbake(
+                integration_target, comp_name, recipe_path)
+            if env_key in comp_dict:
+                value = comp_dict[env_key]
         return value
 
-    def get_comp_bbver_from_mapping_file(self, comp_name):
-        return self.get_value_from_mapping_and_env(comp_name, 'bb_ver', 'pv')
-
     def get_comp_hash(self, comp_name):
-        if self.if_bb_mapping:
+        if self.bb_mapping:
             return self.get_comp_hash_from_mapping_file(comp_name)
+        elif self.only_mapping_file:
+            return ''
         else:
             return self.get_comp_hash_from_dep_file(comp_name)
-
-    def get_comp_bb_ver(self, comp_name):
-        if self.if_bb_mapping:
-            print('Get component from bb_mapping')
-            return self.get_comp_bbver_from_mapping_file(comp_name)
-        else:
-            print('Get component from dep file')
-            return self.get_comp_bbver_from_dep_file(comp_name)
