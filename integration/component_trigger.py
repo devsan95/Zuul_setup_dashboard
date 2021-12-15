@@ -12,6 +12,8 @@ from mod import integration_change
 from mod import wft_tools
 from integration_add_component import get_base_load
 
+GERRT_SERVICE_URL = "ssh://gerrit.ext.net.nokia.com:29418/"
+
 
 def get_ps_version(rest, root_change, env_file_path):
     change_files = rest.get_file_list(root_change)
@@ -65,7 +67,15 @@ def get_component_extend_data(component):
         sys.exit(2)
 
 
-def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
+def get_repo_and_version(rest, change_no):
+    change_dict = rest.get_change(change_no)
+    commit_dict = rest.get_commit(change_no)
+    env_repo = GERRT_SERVICE_URL + str(change_dict.get("project"))
+    env_version = str(commit_dict.get("commit"))
+    return env_repo, env_version
+
+
+def main(gerrit_info_path, change_id, branch, pipeline):
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     git_hash_review = rest.get_commit(change_id)['commit']
     change_list = rest.get_file_list(change_id).keys()
@@ -82,14 +92,13 @@ def main(gerrit_info_path, change_id, branch, pipeline, repo_url, repo_ver):
             root_change_no = depends_comp[1]
     if not root_change_no:
         raise Exception("Can not get root ticket")
+    env_repo, env_version = get_repo_and_version(rest, root_change_no)
     env_info = get_env_repo.get_env_repo_info(rest, root_change_no)
     env_repo_info = env_info[0]
     print env_repo_info
     ps_version = get_ps_version(root_change=root_change_no, rest=rest, env_file_path=env_info[1])
     component_list = get_component_list(change_list)
-    env_repo = '{}/{}'.format(repo_url, env_repo_info)
     print "[INFO] env repo: {0}".format(env_repo)
-    env_version = repo_ver
     integration_mode = int_change_obj.get_integration_mode()
     change_name = int_change_obj.get_change_name()
     print('integration_mode:{}'.format(integration_mode))
