@@ -117,8 +117,8 @@ def is_central_package(build_wft_name):
     return False
 
 
-def get_build_list(stream):
-    return WFT.get_build_list(branch_name=stream, baseline_type=0, items=100)
+def get_build_list(stream, items=100):
+    return WFT.get_build_list(branch_name=stream, baseline_type=0, items=items)
 
 
 def get_build_list_from_custom_filter(custom_filter):
@@ -167,9 +167,20 @@ def get_wft_release_name(version):
     if version.startswith('SBTS') or '_' in version:
         return version
     stream_name = get_stream_name(version)
-    latest_build, release_date = get_lasted_success_build(stream_name)
-    if latest_build:
-        return latest_build.split('_')[0] + '_' + version
+    build_list = get_build_list(stream_name, items=1000)
+    root = ET.fromstring(build_list)
+    oldest_build = ''
+    for build in root.findall('build'):
+        build_wft_name = build.find('baseline').text
+        if is_central_package(build_wft_name):
+            build_name = build_wft_name
+            if build_name.endswith(version):
+                oldest_build = build_name
+                break
+            else:
+                oldest_build = build_name
+    if oldest_build:
+        return oldest_build.split('_')[0] + '_' + version
     else:
         raise Exception("Can't find WFT name for {0}".format(version))
 
