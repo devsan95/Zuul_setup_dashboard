@@ -169,7 +169,7 @@ def parse_ric_list(rest, subject, zuul_url,
                     change = rest.get_change(change_no, using_cache=True)
                     project_name = 'gitsm://gerrit.ext.net.nokia.com:29418/{}.git'.format(change['project'])
                     commit = rest.get_commit(change_no)['commit']
-                    ret_dict[project_name] = {'REVISION': commit}
+                    ret_dict[project_name] = {'REVISION': commit, 'GITREV': commit}
                     continue
 
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
