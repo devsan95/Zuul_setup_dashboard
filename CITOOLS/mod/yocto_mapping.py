@@ -48,9 +48,9 @@ class Yocto_Mapping(object):
         return parent_list
 
     def find_sub_components(self, component, sub_list=None, collected=None):
-        if not sub_list:
+        if sub_list is None:
             sub_list = []
-        if not collected:
+        if collected is None:
             collected = []
         if component in self.depend_dict and component not in collected:
             sub_list.extend(self.depend_dict[component])
