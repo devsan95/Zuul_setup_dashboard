@@ -141,6 +141,8 @@ def get_component_hash(rest, base_package, extra_bases, comp_names, get_comp_inf
             extra_base_get_comp_info = get_comp_info_obj(extra_base)
             comp_hash = _get_component_hash(rest, extra_base, comp_names, extra_base_get_comp_info)
             if comp_hash:
+                if 'integration' in comp_names:
+                    utils.push_base_tag(extra_base)
                 print('Try get hash from {} is {}'.format(extra_bases, comp_hash))
                 break
     return comp_hash
