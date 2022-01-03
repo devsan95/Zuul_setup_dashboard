@@ -283,9 +283,10 @@ def arguments():
     parse.add_argument('--gerrit_info_path', '-f', required=False, help="gerrit_info_path")
     parse.add_argument('--upload_to_wft', '-u', required=True, help="UPLOAD_TO_WFT")
     parse.add_argument('--knife_json', '-k', required=False, help="use parameter instead of fetching from jenkins")
-    parse.add_argument('--upstream_job', '-j', required=False, help="use 'project/number' as upstream job (eg. Knives.START/27769)")
     parse.add_argument('--release_name', '-r', required=False, help="use parameter as build name in releasenote")
     parse.add_argument('--release_state', '-s', required=False, help="use parameter as build state in registration")
+    parse.add_argument('--download_url', required=False, action="append", help="download url for releasenote")
+    parse.add_argument('--release_date', required=False, help="timestamp for releasenote")
     return parse.parse_args()
 
 
@@ -350,12 +351,6 @@ def get_stream_config_file(ver_pattern, file_pattern='.config-master*'):
 
 
 def get_upstream_job(args):
-    if args.upstream_job:
-        job = args.upstream_job.split('/')
-        if len(job) != 2:
-            raise Exception("Invalid upstream job format. Expected 'project/number'")
-        return job
-
     upstream_project = None
     upstream_build = None
     server = utils.get_jenkins_obj_from_nginx()
@@ -620,17 +615,20 @@ def update_element_list(releasenote, knife_json, docker_info):
 def update_downloads_url(args, releasenote):
     pkg = args.pkg_name
     downloads = list()
-    job, build = get_upstream_job(args)
-    log.info("Download {} #{} artifact file package-bb.prop".format(job, build))
-    response = requests.get(
-        job_url.format(job, build) + 'artifact/artifacts/package-bb.prop'
-    )
-    if not response.ok:
-        log.error("Get {} #{}'s package-bb.prop failed!, try console log".format(job, build))
-        response = requests.get(job_url.format(job, build) + 'consoleText')
+    if args.download_url:
+        urls = args.download_url
+    else:
+        job, build = get_upstream_job(args)
+        log.info("Download {} #{} artifact file package-bb.prop".format(job, build))
+        response = requests.get(
+            job_url.format(job, build) + 'artifact/artifacts/package-bb.prop'
+        )
         if not response.ok:
-            raise Exception("Can not get build console log!")
-    urls = re.findall(r'(?:hangzhou_|espoo_)[\w ]*(?:=|value )(http[^\n]*)\n', response.text)
+            log.error("Get {} #{}'s package-bb.prop failed!, try console log".format(job, build))
+            response = requests.get(job_url.format(job, build) + 'consoleText')
+            if not response.ok:
+                raise Exception("Can not get build console log!")
+            urls = re.findall(r'(?:hangzhou_|espoo_)[\w ]*(?:=|value )(http[^\n]*)\n', response.text)
     if not urls:
         raise Exception("Can not get package downloads url!")
     for url in urls:
@@ -645,24 +643,30 @@ def update_downloads_url(args, releasenote):
 
 
 def update_release_date(args, releasenote):
-    job, build = get_upstream_job(args)
-    home_page = '{}/job/{}/{}/'.format(jenkins_server, job, build)
-    releasenote['releasenote']['baseline']['homepage'] = home_page
-    response = requests.get(home_page)
-    if not response.ok:
-        raise Exception("Get {} #{}'s html failed!".format(job, build))
-    soup = BeautifulSoup(response.text, 'html.parser')
-    h1 = soup.find('h1', "build-caption page-headline")
-    date_str = re.findall(r'.*\((.*)\).*', h1.get_text())[0]
-    if not date_str:
-        raise Exception("Get date string from {} #{} failed".format(job, build))
-    log.info(date_str)
-    time_zone = date_str.split(' ')[4]
-    date_time = datetime.datetime.strptime(
-        date_str,
-        f'%a %b %d %X {time_zone} %Y'
-    ).strftime('%Y-%m-%d %H:%M:%S')
-    build_date, build_time = date_time.split(' ')
+    if args.release_date:
+        date_time = datetime.datetime.strptime(
+            args.release_date,
+            '%Y-%m-%dT%H:%M:%S.%fZ'
+        )
+    else:
+        job, build = get_upstream_job(args)
+        home_page = '{}/job/{}/{}/'.format(jenkins_server, job, build)
+        releasenote['releasenote']['baseline']['homepage'] = home_page
+        response = requests.get(home_page)
+        if not response.ok:
+            raise Exception("Get {} #{}'s html failed!".format(job, build))
+        soup = BeautifulSoup(response.text, 'html.parser')
+        h1 = soup.find('h1', "build-caption page-headline")
+        date_str = re.findall(r'.*\((.*)\).*', h1.get_text())[0]
+        if not date_str:
+            raise Exception("Get date string from {} #{} failed".format(job, build))
+        log.info(date_str)
+        time_zone = date_str.split(' ')[4]
+        date_time = datetime.datetime.strptime(
+            date_str,
+            f'%a %b %d %X {time_zone} %Y'
+        )
+    build_date, build_time = date_time.strftime('%Y-%m-%d %H:%M:%S').split(' ')
     releasenote['releasenote']['baseline']['releaseDate'] = build_date
     releasenote['releasenote']['baseline']['releaseTime'] = build_time
 
