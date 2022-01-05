@@ -628,7 +628,7 @@ def update_downloads_url(args, releasenote):
             response = requests.get(job_url.format(job, build) + 'consoleText')
             if not response.ok:
                 raise Exception("Can not get build console log!")
-            urls = re.findall(r'(?:hangzhou_|espoo_)[\w ]*(?:=|value )(http[^\n]*)\n', response.text)
+        urls = re.findall(r'(?:hangzhou_|espoo_)[\w ]*(?:=|value )(http[^\n]*)\n', response.text)
     if not urls:
         raise Exception("Can not get package downloads url!")
     for url in urls:
