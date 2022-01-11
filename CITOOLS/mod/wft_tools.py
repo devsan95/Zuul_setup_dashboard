@@ -32,7 +32,7 @@ BUILD_FILTER = "{wft_url}:8091/ALL/api/v1/build.json?" \
                "&view[view_filters_attributes[208462639699611]][column]=deliverer.title" \
                "&view[view_filters_attributes[208462639699611]][operation]=eq" \
                "&view[view_filters_attributes[208462639699611]][value][]=5G_Central&"
-PKG_REGEX_FOR_5G = r"5G|vDUCNF|vCUCNF[0-9,A-Z]*_[0-9]+\.[0-9]+\.[0-9]"
+PKG_REGEX_FOR_5G = r"(5G|vDUCNF|vCUCNF|CUCNF|CUVNF|VDU|pDU)[0-9,A-Z]*_[0-9]+\.[0-9]+\.[0-9]"
 inherit_json = '''{
   "page": "",
   "items": "20",

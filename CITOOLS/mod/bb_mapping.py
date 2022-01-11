@@ -30,7 +30,7 @@ WFT_SEARCH_BUILD = "{}/5G:WMP/api/v1/build.json?" \
     "&view[view_filters_attributes[122019703348590]][value][]=5G_Central" \
     "&view[view_filters_attributes[24216713295283]][column]=version" \
     "&view[view_filters_attributes[24216713295283]][operation]=matches_regexp" \
-    "&view[view_filters_attributes[24216713295283]][value][]=%5E(5G%7CvDU%7CvCU)%5B0-9a-zA-Z%5D*_{}%5Cz&"
+    "&view[view_filters_attributes[24216713295283]][value][]=%5E(5G%7CvDU%7CvCU%7CVDU%7CCUCNF%7CCUVNF%7CpDU)%5B0-9a-zA-Z%5D*_{}%5Cz&"
 HTTP_HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 INTEGRATION_PROJ_REPO = 'MN/5G/COMMON/integration.git'
 
