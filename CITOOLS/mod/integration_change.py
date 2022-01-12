@@ -162,6 +162,11 @@ class IntegrationChange(object):
         topic = firstline_reg.search(msg).groups()[3]
         return topic
 
+    def get_topic_type(self):
+        msg = self.commit_info.get('message')
+        type_title = firstline_reg.search(msg).groups()[2]
+        return type_title.split()[0]
+
     def get_platform_id(self):
         msg = self.commit_info.get('message')
         platform_id = platform_id_reg.search(msg).groups()[0]

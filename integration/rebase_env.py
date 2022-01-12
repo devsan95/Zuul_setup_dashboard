@@ -426,17 +426,8 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         op = RootChange(rest, root_change)
         # do not update topic if env_change_dict contains copmonent in topic
         to_update_topic = True
-        comp_change_list, int_change = op.get_components_changes_by_comments()
-        inte_change = ManageChange(rest, int_change)
-        component_names = [x[0] for x in inte_change.get_all_components()]
-        for env_key in env_change_dict:
-            change_part = env_key
-            if ':' in env_key:
-                change_part = env_key.split(':')[1]
-            if change_part in component_names:
-                print('{} in env_change is not pre-released.')
-                print('No need to update skytrack topic.')
-                to_update_topic = False
+        if op.get_topic_type() == 'feature':
+            to_update_topic = False
         if to_update_topic:
             # replace commit message
             commits = op.get_all_changes_by_comments()
