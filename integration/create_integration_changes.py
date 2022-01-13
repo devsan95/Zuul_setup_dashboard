@@ -458,9 +458,11 @@ class IntegrationChangesCreation(object):
             self.gerrit_rest.publish_edit(node_obj['rest_id'])
 
         for child in graph.successors(node_obj['name']):
+            print("[INFO] create ticket for node {}".format(child))
             try:
                 self.create_ticket_by_node(nodes[child], integration_mode, ext_commit_msg)
             except Exception as e:
+                print("[Error] create ticket for node {} Failed".format(child))
                 print("[Error] create changes failed!Trying to abandon gerrit changes and close jira!")
                 nodes = self.info_index['nodes']
                 if 'jira_key' in self.meta:
@@ -1112,6 +1114,33 @@ class IntegrationChangesCreation(object):
                 self.comp_info_dict[base_load] = comp_info
             return comp_info
 
+    def generate_branch_map(self):
+        self.branch_map = {}
+        for component_infos in self.comp_config['components'].values():
+            for component_info in component_infos:
+                if 'branch_map' in component_info:
+                    self.branch_map[component_info['name']] = component_info['branch_map']
+        print('Branch Mapping')
+        print(self.branch_map)
+
+    def update_node_branch(self, node_obj=None):
+        if node_obj is None:
+            node_obj = self.info_index['root']
+        nodes = self.info_index['nodes']
+        graph = self.info_index['graph']
+        for child in graph.successors(node_obj['name']):
+            sub_node_obj = nodes[child]
+            sub_node_name = sub_node_obj['name']
+            if 'branch' not in sub_node_obj:
+                print('no branch for {}, skip branch update'.format(sub_node_name))
+                continue
+            sub_node_branch = sub_node_obj['branch']
+            print('Find mapping branch for {}'.format(sub_node_obj))
+            if sub_node_name in self.branch_map and sub_node_branch in self.branch_map[sub_node_name]:
+                sub_node_obj['branch'] = self.branch_map[sub_node_name][sub_node_branch]
+                print('update branch for {} to {}'.format(sub_node_name, sub_node_obj['branch']))
+            self.update_node_branch(sub_node_obj)
+
     def run(self, version_name=None, topic_prefix=None, streams=None,
             jira_key=None, feature_id=None, feature_owner=None,
             if_restore=False, integration_mode=None, base_load=None,
@@ -1154,6 +1183,10 @@ class IntegrationChangesCreation(object):
         self.info_index['mn'] = integration_node
         self.info_index['nodes'] = nodes
         self.info_index['graph'] = graph_obj
+
+        # update node branch
+        self.generate_branch_map()
+        self.update_node_branch()
 
         stream_list = list()
         if 'streams' in self.meta and self.meta['streams']:
