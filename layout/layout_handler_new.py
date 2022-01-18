@@ -273,6 +273,8 @@ def list_job_in_projects(projects_section, pipelines):
         for item in joblist:
             if isinstance(item, yaml.comments.CommentedMap):
                 for k, v in list(item.items()):
+                    if v is None:
+                        print("Error in declaration of: ", k)
                     djob = []
                     if k in recjob:
                         djob = recjob[k]
