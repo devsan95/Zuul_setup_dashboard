@@ -124,8 +124,22 @@ class Yocto_Mapping(object):
                 for recipe_key, recipe_value in recipe.items():
                     if comp_name == recipe_value.get('PN') or \
                             comp_name == recipe_value.get('WFT_COMPONENT') or \
-                            comp_name == recipe_key or \
-                            os.path.basename(recipe_key).split('.bb')[0].split('_')[0] == comp_name:
+                            comp_name == recipe_key:
+                        if platform and \
+                                comp_name not in self.platform_dict['integration-{}'.format(platform)]:
+                            continue
+                        if ret_src:
+                            ret_src['recipes'].extend(src['recipes'])
+                        else:
+                            ret_src = copy.deepcopy(src)
+                        ret_recipes.append(recipe_key)
+                        ret_recipe_values.append(recipe_value)
+                        return ret_src, ret_recipes, ret_recipe_values
+        # only for legency knife json format , can be removed later
+        for src in self.src_list:
+            for recipe in src['recipes']:
+                for recipe_key, recipe_value in recipe.items():
+                    if os.path.basename(recipe_key).split('.bb')[0].split('_')[0] == comp_name:
                         if platform and \
                                 comp_name not in self.platform_dict['integration-{}'.format(platform)]:
                             continue
