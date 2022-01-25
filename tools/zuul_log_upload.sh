@@ -26,7 +26,7 @@ fi
 for container_name in "${container_names[@]}"; do
     if [[ x"${container_name}" == x"zuul-server" ]] || \
        [[ x"$container_name" =~ ^xmerger.*.[0-9]*$ ]] || \
-       [[ x"${container_name}" = x"gearman" ]]
+       [[ x"${container_name}" == x"gearman" ]]
     then
         echo "${container_name}"
         docker exec ${container_name} bash -c "/opt/zuul/script/upload_log_to_s3.sh ${HOSTNAME} ${container_name} ${ORG}"
