@@ -894,7 +894,7 @@ def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict):
     sbts_knife_dict['knife_request']['knife_changes'][random_key] = comp_knife_dict
 
 
-def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest):
+def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest, int_src):
     # if component in yocto mapping
     # and it's in config.yaml
     sbts_base = sbts_knife_dict['knife_request']['baseline']
@@ -921,7 +921,7 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
     rest.review_ticket(rest_id, 'Only for create integration package', {'Code-Review': -2})
     update_sbts_comp_change(
         sbts_knife_dict,
-        {'source_repo': 'git://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration.git',
+        {'source_repo': int_src,
          'source_type': 'git',
          'replace_source': 'git://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration.git',
          'replace_commit': rest.get_commit(ticket_id)['commit'],
@@ -990,7 +990,8 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
             if comp_knife_dict and replacing_find:
                 update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
     print('Get SBTS env change: {}'.format(sbts_env_change))
-    update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest)
+    int_srouce = sbts_bb_mapping.get_component_source_by_project('integration')
+    update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest, int_srouce['src_uri'])
     return sbts_knife_dict
 
 
