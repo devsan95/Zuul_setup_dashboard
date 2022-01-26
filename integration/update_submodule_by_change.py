@@ -41,7 +41,7 @@ def clear_change(rest, change_id, submodule_path):
         print('Clear failed, {}'.format(e))
     print('Rebase {}'.format(change_id))
     try:
-        rest.rebase(change_id)
+        retry.retry_func(retry.cfn(rest.rebase, change_id), max_retry=3, interval=3)
     except Exception as e:
         print('Rebase failed, {}'.format(e))
         sys.exit(213)
