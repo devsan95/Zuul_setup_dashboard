@@ -45,6 +45,10 @@ def get_base_parent(rest, base_obj_list, comp, project_name):
 def fixed_base_validator(rest, components, base_dict):
     messages = ['Integration working on fixed base mode']
     print(messages[0])
+    if not base_dict:
+        print('No base package is identied, not able to validator fixed base')
+        messages.append('No base package is identied, not able to validator fixed base')
+        return messages
     print('Start to check components parents')
     base_obj_list = list()
     base_list = list()
