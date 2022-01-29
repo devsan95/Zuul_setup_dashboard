@@ -130,7 +130,11 @@ class GET_COMPONENT_INFO(object):
         # means we do not found matched component in mapping
         if self.base_pkg.startswith('SBTS') or comp_hash is None:
             return ''
-        return self.get_value_from_bitbake_env(comp_name, 'repo_ver')
+        try:
+            return self.get_value_from_bitbake_env(comp_name, 'repo_ver')
+        except Exception:
+            logging.info('Run bitbake -e for %s Failed', comp_name)
+        return ''
 
     def get_value_from_bitbake_env(self, comp_name, env_key):
         value = ''
