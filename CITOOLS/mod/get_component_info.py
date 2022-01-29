@@ -153,4 +153,7 @@ class GET_COMPONENT_INFO(object):
         elif self.only_mapping_file:
             return ''
         else:
-            return self.get_comp_hash_from_dep_file(comp_name)
+            try:
+                return self.get_comp_hash_from_dep_file(comp_name)
+            except Exception:
+                return ''
