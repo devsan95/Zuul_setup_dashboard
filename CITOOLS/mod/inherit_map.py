@@ -5,7 +5,7 @@ from mod import env_changes
 from mod import config_yaml
 
 
-DEFAULT_STREAM_LIST = ['0.990', '0.400', '0.300']
+DEFAULT_STREAM_LIST = ['0.990', '0.300']
 
 
 class Inherit_Map(object):
