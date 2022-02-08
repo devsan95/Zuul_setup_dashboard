@@ -12,7 +12,7 @@ s3_log_dir="s3://zuul-5g/logs/${ORG}/${HOSTNAME}/${container_name}/"
 Log_File="*.log.*"
 
 # Check how many files to upload
-count=$(find ${container_log_dir} -maxdepth 1 -type f -name ${Log_File} | wc -l)
+count=$(find ${container_log_dir} -maxdepth 1 -type f -name "${Log_File}" | wc -l)
 if [[ ${count} > 0 ]]; then
     echo "Uploading log files to S3..."
     s3cmd put --acl-public -v ${container_log_dir}/${Log_File} ${s3_log_dir}
@@ -27,4 +27,4 @@ mkdir -p ${container_log_dir}/old_logs
 # Delete old logs
 rm -rf ${container_log_dir}/old_logs/*
 # Move log files older than 10 day to old_logs directory
-find ${container_log_dir} -maxdepth 1 -type f -name ${Log_File} -mtime +10 -exec mv {} ${container_log_dir}/old_logs/ \;
+find ${container_log_dir} -maxdepth 1 -type f -name "${Log_File}" -mtime +10 -exec mv {} ${container_log_dir}/old_logs/ \;

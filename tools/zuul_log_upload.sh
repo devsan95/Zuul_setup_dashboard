@@ -50,7 +50,7 @@ for container_name in "${container_names[@]}"; do
        [[ x"${container_name}" == x"gearman" ]]
     then
         echo "${container_name}"
-        docker exec ${container_name} bash -c "/opt/zuul/script/upload_log_to_s3.sh ${HOSTNAME} ${container_name} ${ORG}"
+        docker exec ${container_name} bash -c "/opt/script/upload_log_to_s3.sh ${HOSTNAME} ${container_name} ${ORG}"
 
     else
         echo "No need to upload logs for ${container_name} container."
