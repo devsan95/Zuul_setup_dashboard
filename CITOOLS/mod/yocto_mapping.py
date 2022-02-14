@@ -136,6 +136,18 @@ class Yocto_Mapping(object):
                         ret_recipe_values.append(recipe_value)
                         return ret_src, ret_recipes, ret_recipe_values
         # only for legency knife json format , can be removed later
+        if not ret_src:
+            ret_by_recipe_name = self.get_related_by_recipe_name(comp_name, platform)
+            if ret_by_recipe_name:
+                return ret_by_recipe_name
+        if (len(ret_recipes)) > 1:
+            print('***MULTI RECIPES matched***')
+            print(ret_recipes)
+        return ret_src, ret_recipes, ret_recipe_values
+
+    def get_related_by_recipe_name(self, comp_name, platform):
+        # only for legency knife json format , can be removed later
+        ret_list = []
         for src in self.src_list:
             for recipe in src['recipes']:
                 for recipe_key, recipe_value in recipe.items():
@@ -143,17 +155,21 @@ class Yocto_Mapping(object):
                         if platform and \
                                 comp_name not in self.platform_dict['integration-{}'.format(platform)]:
                             continue
-                        if ret_src:
-                            ret_src['recipes'].extend(src['recipes'])
-                        else:
-                            ret_src = copy.deepcopy(src)
-                        ret_recipes.append(recipe_key)
-                        ret_recipe_values.append(recipe_value)
-                        return ret_src, ret_recipes, ret_recipe_values
-        if (len(ret_recipes)) > 1:
-            print('***MULTI RECIPES matched***')
-            print(ret_recipes)
-        return ret_src, ret_recipes, ret_recipe_values
+                        ret_list.append([src, src['recipes'], recipe_value])
+        return self.filter_matched_tuple(ret_list, comp_name)
+
+    def filter_matched_tuple(self, ret_list, comp_name):
+        if len(ret_list) == 0:
+            return None
+        if len(ret_list) == 1:
+            return ret_list[0]
+        for ret_tuple in ret_list:
+            if ret_tuple and ret_tuple[1]:
+                for recipe in ret_tuple[1]:
+                    if recipe.values()[0].get('name') and recipe.values()[0].get('name').lower() == comp_name.lower():
+                        return ret_tuple
+        print('***Match multi src: {} for {} ***'.format(ret_list, comp_name))
+        return None
 
     def get_component_file(self, comp_name, platform=''):
         recipe_files = self.get_component_related(comp_name, platform)[1]
