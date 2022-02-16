@@ -13,7 +13,8 @@ set -x
 # If this script run in cron job then below line is required to load the environment variable.
 . ~/.bash_profile > /dev/null 2>&1
 
-# /opt/zuul/script/upload_log_to_s3.sh script is required and should be available inside docker container
+# This is a utility script which calls the another script /opt/script/upload_log_to_s3.sh.
+# /opt/script/upload_log_to_s3.sh script is required and should be available inside docker container
 # https://gerrit.ext.net.nokia.com/gerrit/gitweb?p=MN/SCMTA/zuul/mn_scripts.git;a=blob;f=tools/upload_log_to_s3.sh;h=fcbf7bc61d7689f3e3a59270737f0509250b3947;hb=refs/heads/master
 
 SCRIPT_FOLDER=$(dirname $(readlink -f "$0"))
