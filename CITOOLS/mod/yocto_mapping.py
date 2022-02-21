@@ -155,7 +155,7 @@ class Yocto_Mapping(object):
                         if platform and \
                                 comp_name not in self.platform_dict['integration-{}'.format(platform)]:
                             continue
-                        ret_list.append([src, src['recipes'], recipe_value])
+                        ret_list.append((src, src['recipes'], [recipe_value]))
         return self.filter_matched_tuple(ret_list, comp_name)
 
     def filter_matched_tuple(self, ret_list, comp_name):
