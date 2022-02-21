@@ -138,7 +138,7 @@ sudo pip install --no-cache-dir \
     gitpython \
     pygerrit2 \
     pymysql==0.10.1 \
-    python-slugify \
+    python-slugify==5.0.0 \
     pyyaml \
     sh
 
