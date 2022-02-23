@@ -86,7 +86,7 @@ def skytrack_detail_api(integration_name,
                         link=None,
                         start_time=None,
                         end_time=None):
-    url = "http://skytrack.dynamic.nsn-net.net:8080/integration/add?pretty"
+    url = "http://10.182.67.237/integration/add"
     package_info = {
         "integration_name": integration_name,
         "product": product,
@@ -107,16 +107,16 @@ def skytrack_detail_api(integration_name,
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
-    print "updating build info in detailed page"
-    print package_info
+    print("updating build info in detailed page")
+    print(package_info)
     for i in range(5):
         print("attempt to register in skytrack database..({}/5)".format(i + 1))
         r = requests.put(url, data=content, headers=headers)
         if r.status_code == 200:
-            print r.text
+            print(r.text)
             break
     if r.status_code != 200:
-        print r.text
+        print(r.text)
         raise Exception("Failed to update build info in detailed page")
 
 
