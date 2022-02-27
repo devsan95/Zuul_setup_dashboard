@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import fire
 import requests
 from xml.etree import ElementTree
@@ -60,6 +61,14 @@ def get_mode_and_base(issue_key, sql_yaml):
     return search_result[0]
 
 
+def get_summary(issue_key, sql_yaml):
+    mysql = mysql_api.init_from_yaml(yaml_path=sql_yaml, server_name='skytrack')
+    mysql.init_database('skytrack')
+    sql = "SELECT summary FROM t_issue WHERE issue_key = '{0}'".format(issue_key)
+    search_result = mysql.executor(sql=sql, output=True)
+    return search_result[0]
+
+
 def get_top_two_releases(releases):
     top_two_releases = list()
     major_version = 0
@@ -103,6 +112,10 @@ def if_create(on_going_cpi_topics, mb_ps_releases, sql_yaml):
                     results[mb_release] = 'update'
                     root_change[mb_release] = get_cpi_root_change(on_going_cpi_topics[cpi_topic],
                                                                   sql_yaml=sql_yaml)
+                    with open('cpi_frozen.pop', 'w+') as f:
+                        f.write(
+                            """issueKey={0}
+oldSubject={1}""".format(on_going_cpi_topics[cpi_topic], get_summary(on_going_cpi_topics[cpi_topic], sql_yaml=sql_yaml)))
                 else:
                     LOG.info('Current on going CPI: {0}'.format(cpi_topic))
                     LOG.info('Latest PS MB release {0}'.format(mb_release))
@@ -224,6 +237,23 @@ BASE_PACKAGE={1}
 INTEGRATION_MODE={2}""".format(issuechange[1], ','.join(base_load_list), mode))
 
 
+def frozen_cpi_status(issue_key, old_subject):
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    cpi_frozen = {
+        "issueKey": issue_key,
+        "oldSubject": old_subject
+    }
+    r = requests.post(
+        'http://10.182.67.237/5GIntegration/saveStatus',
+        headers=headers,
+        data=json.dumps(cpi_frozen)
+    )
+    if r.status_code != 200:
+        LOG.error(r.text)
+        raise Exception("Failed to frozen CPI status")
+    LOG.info('CPI status freezed')
+
+
 def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, baseline=None):
     mb_releases = [baseline] if baseline else filter_mb_ps_from_wft()
     on_going_cpi_topics = get_on_going_cpi_topics(sql_yaml=sql_yaml)
@@ -237,14 +267,18 @@ def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, b
     else:
         LOG.info('will take action for below versions:')
         LOG.info(actions)
-    cpi_topic_handler(cpi_topics=actions, structure_file=structure_file,
-                      streams=streams,
-                      promoted_user_id=promoted_user_id, integration_mode=integration_mode,
-                      root_changes=root_changes)
+    cpi_topic_handler(
+        cpi_topics=actions,
+        structure_file=structure_file,
+        streams=streams,
+        promoted_user_id=promoted_user_id,
+        integration_mode=integration_mode,
+        root_changes=root_changes
+    )
     cpi_auto_rebase_handler(root_changes=root_changes,
                             streams=streams,
                             sql_yaml=sql_yaml)
 
 
 if __name__ == '__main__':
-    fire.Fire(run)
+    fire.Fire()
