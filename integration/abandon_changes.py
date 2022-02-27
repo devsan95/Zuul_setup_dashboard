@@ -10,18 +10,9 @@ import traceback
 import api.file_api
 import api.gerrit_api
 import api.gerrit_rest
-from api import config
-from api.jira_api import JIRAPI
+import skytrack_database_handler
 from api import retry
 from update_submodule_by_change import get_submodule_list_from_comments
-
-CONF = config.ConfigTool()
-CONF.load('jira')
-JIRA_DICT = CONF.get_dict('jira3')
-
-DEFAULT_JIRA_URL = JIRA_DICT['server']
-DEFAULT_USER = JIRA_DICT['user']
-DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def _parse_args():
@@ -83,18 +74,17 @@ def parse_comments(change_id, rest):
     return change_set
 
 
-def abandon_jira(change_no, rest):
+def abandon_topic(change_no, rest, mysql_info):
     origin_msg = retry.retry_func(
         retry.cfn(rest.get_commit, change_no), max_retry=10,
         interval=3)['message']
     msg = " ".join(origin_msg.split("\n"))
     reg = re.compile(r'%JR=(\w+-\d+)')
-    jira_ticket = reg.search(msg).groups()[0]
-    jira_op = JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD, server=DEFAULT_JIRA_URL)
-    jira_op.close_issue(jira_ticket)
+    issue_key = reg.search(msg).groups()[0]
+    skytrack_database_handler.update_ticket_status(issue_key, 'Abandon', mysql_info)
 
 
-def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):
+def _main(change_id, rest_url, rest_user, rest_pwd, auth_type, mysql_info):
     rest = api.gerrit_rest.GerritRestClient(rest_url, rest_user, rest_pwd)
     if auth_type == 'basic':
         rest.change_to_basic_auth()
@@ -102,7 +92,7 @@ def _main(change_id, rest_url, rest_user, rest_pwd, auth_type):
         rest.change_to_digest_auth()
     changes = parse_comments(change_id, rest)
     try:
-        abandon_jira(change_id, rest)
+        abandon_topic(change_id, rest, mysql_info)
     except Exception as e:
         print('Abandon jira failed, because {}'.format(e))
     for change in changes:

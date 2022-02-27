@@ -18,7 +18,6 @@ import ruamel.yaml as yaml
 import urllib3
 from slugify import slugify
 
-import create_jira_ticket
 import gerrit_int_op
 import send_result_email
 import skytrack_database_handler
@@ -28,7 +27,6 @@ from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
 from api import config
-from api import jira_api
 from api import env_repo as get_env_repo
 from mod import utils
 from mod import env_changes
@@ -466,7 +464,7 @@ class IntegrationChangesCreation(object):
                 print("[Error] create changes failed!Trying to abandon gerrit changes and close jira!")
                 nodes = self.info_index['nodes']
                 if 'jira_key' in self.meta:
-                    create_jira_ticket.close(self.meta['jira_key'])
+                    skytrack_database_handler.update_ticket_status(self.meta['jira_key'], 'Closed', self.mysql_info)
                 for node in nodes.values():
                     if 'ticket_id' in node:
                         self.gerrit_rest.abandon_change(node['ticket_id'])
@@ -1150,6 +1148,8 @@ class IntegrationChangesCreation(object):
 
         if comp_config:
             self.comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
+        if mysql_info:
+            self.mysql_info = mysql_info
         if 'jira_key' in self.meta and self.meta['jira_key']:
             feature_id = self.meta['jira_key']
         if 'integration_mode' in self.meta and self.meta['integration_mode']:
@@ -1262,22 +1262,13 @@ class IntegrationChangesCreation(object):
             if not skip_jira:
                 if 'jira' in self.meta:
                     try:
-                        jira_key = create_jira_ticket.run(self.info_index)
+                        jira_key = skytrack_database_handler.add_new_topic(self.info_index, mysql_info)
                         self.meta["jira_key"] = jira_key
                         if open_jira:
-                            create_jira_ticket.open_jira(jira_key)
+                            skytrack_database_handler.update_ticket_status(jira_key, 'Open', mysql_info)
                     except Exception as ex:
                         print('Exception occured while create jira ticket, {}'.format(str(ex)))
                         raise ex
-
-        jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
-                                  server=DEFAULT_JIRA_URL)
-        jira_title = jira_op.get_issue_title(jira_key)
-        jira_assignee = jira_op.get_issue_assignee(jira_key)
-        jira_page_info = {}
-        jira_page_info['assignee'] = str(jira_assignee)
-        jira_page_info['summary'] = jira_title
-        print(jira_page_info)
 
         # handle feature id
         if feature_id:
@@ -1324,14 +1315,14 @@ class IntegrationChangesCreation(object):
                         database_info_path=mysql_info,
                         issue_key=self.meta["jira_key"]
                 ):
-                    print "[WARNING] {0} haven't created in skytrack database".format(self.meta["jira_key"])
-                    print "Will retry in 20s"
+                    print("[WARNING] {0} haven't created in skytrack database".format(self.meta["jira_key"]))
+                    print("Will retry in 20s")
                     time.sleep(20)
                     if retry == 0:
-                        print "[WARNING] retry end, can not update integration mode"
+                        print("[WARNING] retry end, can not update integration mode")
                         break
                     retry -= 1
-                    print "Retry left {0} times".format(retry)
+                    print("Retry left {0} times".format(retry))
                     continue
                 wft_build_list = [wft_tools.get_wft_release_name(build) for build in self.base_load_list]
                 skytrack_database_handler.update_integration_mode(

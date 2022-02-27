@@ -11,9 +11,8 @@ from functools import partial
 
 import skytrack_database_handler
 from api import retry
-from api import gerrit_rest, jira_api
+from api import gerrit_rest
 from api import env_repo as get_env_repo
-from api import config
 from mod import env_changes
 from mod import ecl_changes
 from mod import common_regex
@@ -25,15 +24,6 @@ from mod.integration_change import IntegrationChange
 from difflib import SequenceMatcher
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-
-CONF = config.ConfigTool()
-CONF.load('jira')
-JIRA_DICT = CONF.get_dict('jira3')
-
-DEFAULT_JIRA_URL = JIRA_DICT['server']
-DEFAULT_USER = JIRA_DICT['user']
-DEFAULT_PASSWD = JIRA_DICT['password']
 
 
 def clear_change(rest, change_id, only_clear_env=True):
@@ -434,27 +424,25 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             change_message = partial(change_message_by_env_change, env_change_dict=env_change_dict, rest=rest)
             map(change_message, commits)
             old_str, new_str = change_message(root_change)
-            # replace jira title.
+            # replace topic name.
             try:
                 origin_msg = get_commit_msg(change_no, rest)
                 msg = " ".join(origin_msg.split("\n"))
                 reg = re.compile(r'%JR=(\w+-\d+)')
-                jira_ticket = reg.search(msg).groups()[0]
-                jira_op = jira_api.JIRAPI(user=DEFAULT_USER, passwd=DEFAULT_PASSWD,
-                                          server=DEFAULT_JIRA_URL)
-                jira_title = jira_op.get_issue_title(jira_ticket)
-                if old_str in jira_title:
-                    jira_op.replace_issue_title(jira_ticket, old_str, new_str)
+                issue_key = reg.search(msg).groups()[0]
+                topic_name = skytrack_database_handler.get_topic_name(issue_key, database_info_path)
+                if old_str in topic_name:
+                    skytrack_database_handler.update_topic_name(issue_key, topic_name.replace(old_str, new_str), database_info_path)
                 else:
-                    jira_title_re = common_regex.jira_title_reg.search(jira_title)
-                    if jira_title_re:
-                        jira_op.replace_issue_title(jira_ticket, jira_title_re.groups()[4], new_str)
+                    topic_name_re = common_regex.jira_title_reg.search(topic_name)
+                    if topic_name_re:
+                        skytrack_database_handler.update_topic_name(issue_key, topic_name.replace(topic_name_re.groups()[4], new_str), database_info_path)
             except Exception as e:
-                print('Jira update error')
+                print('Skytrack database update summary error')
             if database_info_path:
                 skytrack_database_handler.update_events(
                     database_info_path=database_info_path,
-                    integration_name=jira_ticket,
+                    integration_name=issue_key,
                     description="Integration Topic Change To {0}".format(new_str),
                     highlight=True
                 )

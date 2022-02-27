@@ -2,6 +2,7 @@ import re
 import time
 import datetime
 import json
+import copy
 import requests
 import fire
 
@@ -338,6 +339,60 @@ def get_env_change(change_no, database_info_path, gerrit_info_path):
     if integration_change:
         return integration_change
     raise Exception("Can't get env ticket!")
+
+
+def get_topic_name(issue_key, database_info_path):
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
+    sql = 'SELECT summary FROM t_issue WHERE issue_key={0};'.format(issue_key)
+    return mydb.executor(sql, output=True)[0][0]
+
+
+def add_new_topic(info_index, database_info_path):
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
+    sql = 'SELECT issue_key FROM t_issue ORDER BY issue_key DESC LIMIT 1;'
+    latest_ticket = mydb.executor(sql, output=True)[0][0]
+    ticket_re = re.compile(r'SCMHGH-(\d*)')
+    issue_key = 'SCMHGH-{0}'.format(str(int(ticket_re.match(latest_ticket).group(1)) + 1))
+    jira_meta = copy.deepcopy(info_index['meta']['jira'])
+    jira_meta['summary'] = jira_meta['summary'].format(
+        title=info_index['meta']['title'],
+        version=info_index['meta'].get('version_name'))
+    values = {
+        'issue_key': issue_key,
+        'status': 'open',
+        'summary': jira_meta['summary'],
+        'assignee': jira_meta['assignee']['name'],
+        'auto_release': 0,
+        'auto_build': 0
+    }
+    mydb.insert_info('t_issue', values)
+    return issue_key
+
+
+def update_ticket_status(issue_key, status, database_info_path):
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
+    mydb.update_info(
+        table='t_issue',
+        replacements={
+            'status': status,
+        },
+        conditions={
+            'issue_key': issue_key
+        }
+    )
+
+
+def update_topic_name(issue_key, topic_name, database_info_path):
+    mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
+    mydb.update_info(
+        table='t_issue',
+        replacements={
+            'summary': topic_name,
+        },
+        conditions={
+            'issue_key': issue_key
+        }
+    )
 
 
 if __name__ == '__main__':
