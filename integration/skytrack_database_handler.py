@@ -343,7 +343,7 @@ def get_env_change(change_no, database_info_path, gerrit_info_path):
 
 def get_topic_name(issue_key, database_info_path):
     mydb = mysql_connector(database_info_path, 'skytrack', 'skytrack')
-    sql = 'SELECT summary FROM t_issue WHERE issue_key={0};'.format(issue_key)
+    sql = 'SELECT summary FROM t_issue WHERE issue_key="{0}";'.format(issue_key)
     return mydb.executor(sql, output=True)[0][0]
 
 

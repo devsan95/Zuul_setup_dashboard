@@ -241,6 +241,7 @@ def update_inherit_changes(rest, change_no, env_change_dict):
     comp_change_list, int_change = op.get_components_changes_by_comments()
     inte_change = ManageChange(rest, int_change)
     build_stream_list = inte_change.get_build_streams()
+    print(build_stream_list)
     inherit_map_obj = inherit_map.Inherit_Map(stream_list=build_stream_list)
     inherit_change_dict = inherit_map_obj.get_inherit_change_by_changedict(
         rest, env_change_dict, change_no, type_filter='in_parent')
@@ -438,6 +439,7 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
                     if topic_name_re:
                         skytrack_database_handler.update_topic_name(issue_key, topic_name.replace(topic_name_re.groups()[4], new_str), database_info_path)
             except Exception as e:
+                print(e)
                 print('Skytrack database update summary error')
             if database_info_path:
                 skytrack_database_handler.update_events(
