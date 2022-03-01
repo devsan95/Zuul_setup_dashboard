@@ -22,6 +22,7 @@ def _parse_args():
     parser.add_argument('rest_user', type=str, help='')
     parser.add_argument('rest_pwd', type=str, help='')
     parser.add_argument('auth_type', type=str, default='digest', help='')
+    parser.add_argument('mysql_info', type=str, help='')
     args = parser.parse_args()
     return vars(args)
 
