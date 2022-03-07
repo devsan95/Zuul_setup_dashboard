@@ -329,6 +329,7 @@ class IntegrationChangesCreation(object):
                 if env_change:
                     local_config_yaml = self.comp_config['config_yaml'][node_obj['repo']]
                     local_yaml_content = ''
+                    all_matched = True
                     try:
                         local_yaml_content = self.gerrit_rest.get_file_content(local_config_yaml, rest_id)
                     except Exception:
@@ -336,7 +337,9 @@ class IntegrationChangesCreation(object):
                     if local_yaml_content:
                         print('update config yaml file {} in: {}'.format(local_config_yaml, node_obj['repo']))
                         local_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=local_yaml_content)
-                        env_file_changes = local_yaml_obj.update_by_env_change(self.get_env_change_dict(env_change))
+                        if not node_obj['repo'].endswith('integration'):
+                            all_matched = False
+                        env_file_changes = local_yaml_obj.update_by_env_change(self.get_env_change_dict(env_change), all_matched)
                         config_yaml_content = yaml.safe_dump(local_yaml_obj.config_yaml, default_flow_style=False)
                         node_obj['add_files'][local_config_yaml] = config_yaml_content
             # update env file
