@@ -14,6 +14,13 @@ import generate_bb_json
 from mod.integration_change import RootChange
 
 
+REST_URL_ADD = 'http://10.182.67.237/5GIntegration/addComponentStatusData'
+JSON_HEADER = {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+}
+
+
 def get_specified_ticket(change_no, database_info_path, gerrit_info_path, ticket_type='root'):
     '''
     get root ticket or get integration tocket.
@@ -104,15 +111,11 @@ def skytrack_detail_api(integration_name,
     if end_time:
         package_info['end_timestamp'] = end_time
     content = json.dumps({"packages": [package_info]})
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
     print("updating build info in detailed page")
     print(package_info)
     for i in range(5):
         print("attempt to register in skytrack database..({}/5)".format(i + 1))
-        r = requests.put(url, data=content, headers=headers)
+        r = requests.put(url, data=content, headers=JSON_HEADER)
         if r.status_code == 200:
             print(r.text)
             break
@@ -210,14 +213,53 @@ def add_integration_tickets(jira_key, change_list, database_info_path, dry_run=F
         print('changes for {0} will be added'.format(jira_key))
         return
     for gerrit_change in change_list:
-        values = {
-            'topic_key': jira_key,
-            '`change`': gerrit_change
-        }
-        mydb.insert_info(
-            table='t_integration_topic',
-            values=values
+        if not mydb.executor(
+                "SELECT * FROM t_integration_topic where `change` = {0} and topic_key = '{1}'".format(
+                    gerrit_change, jira_key),
+                output=True):
+            values = {
+                'topic_key': jira_key,
+                '`change`': gerrit_change
+            }
+            mydb.insert_info(
+                table='t_integration_topic',
+                values=values
+            )
+        if not mydb.executor(
+                'SELECT * FROM t_commit_component where `change` = {0}'.format(
+                    gerrit_change),
+                output=True):
+            add_change_status(gerrit_change)
+        mydb.update_info(
+            table='t_commit_component',
+            replacements={
+                'is_detached': 0
+            },
+            conditions={
+                '`change`': gerrit_change
+            }
         )
+
+
+def add_change_status(change,
+                      stage='check',
+                      start_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                      finish_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                      stage_status=-2,
+                      jobs=None):
+    rest_data = {'change': change,
+                 'stage': stage,
+                 'startTime': start_time,
+                 'finishTime': finish_time,
+                 'stageStatus': stage_status,
+                 'jobs': jobs if jobs else []}
+    print(rest_data)
+    r = requests.post(REST_URL_ADD, data=json.dumps(rest_data), headers=JSON_HEADER)
+    if r.status_code == 200:
+        print(r.text)
+    else:
+        print(r.text)
+        raise Exception('Add change status Failed')
 
 
 def update_qt_result(database_info_path, jira_key, package_name, type_name, result, start_time=None, end_time=None):

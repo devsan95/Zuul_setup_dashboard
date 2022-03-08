@@ -180,7 +180,7 @@ pip install --no-cache-dir \
     pydocstyle \
     pygerrit2 \
     pymysql==0.10.1 \
-    python-slugify \
+    python-slugify==5.0.0 \
     pyyaml \
     sh
 
