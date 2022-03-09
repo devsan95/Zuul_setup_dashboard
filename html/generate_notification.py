@@ -161,7 +161,7 @@ def main(env_type, title, content, author, alert_type, icon, label, label_type,
             if output:
                 commit_msg = u'Update Notification [{}] by [{}]'.format(title, author)
             else:
-                commit_msg = 'Clear Notification by [{}]'.format(author)
+                commit_msg = u'Clear Notification by [{}]'.format(author)
             change_id, ticket_id, rest_id = rest.create_ticket(project, None, branch, commit_msg)
             print("DEBUG_INFO: main: crete ticket finished.")
             print("DEBUG_INFO: main: change_id: {}, ticket_id: {}, rest_id: {}".format(change_id, ticket_id, rest_id))
