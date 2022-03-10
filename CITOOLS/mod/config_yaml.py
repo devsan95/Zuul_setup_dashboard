@@ -177,10 +177,12 @@ class ConfigYaml(object):
             origin_config_yaml = self.origin_config_yaml
         for section_key, section in self.components.items():
             if section_key in origin_config_yaml['components']:
-                if not equal_string_dicts(section, origin_config_yaml['components'][section_key]):
-                    update_dict[section_key] = section
-            else:
-                removed_dict[section_key] = section
+                if equal_string_dicts(section, origin_config_yaml['components'][section_key]):
+                    continue
+            update_dict[section_key] = section
+        for origin_key, origin_section in origin_config_yaml['components'].items():
+            if origin_key not in self.components:
+                removed_dict[origin_key] = origin_section
         return update_dict, removed_dict
 
     def update_changes(self, update_dict, removed_dict=None):
