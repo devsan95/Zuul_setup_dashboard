@@ -112,7 +112,8 @@ class Yocto_Mapping(object):
         for src in self.src_list:
             if 'recipes' not in src:
                 continue
-            if 'src_uri' in src and src['src_uri'] == comp_name:
+            if 'src_uri' in src and \
+                    (src['src_uri'] == comp_name or self.is_src_uri_match(src['src_uri'], comp_name)):
                 if ret_src:
                     ret_src['recipes'].extend(src['recipes'])
                 else:
