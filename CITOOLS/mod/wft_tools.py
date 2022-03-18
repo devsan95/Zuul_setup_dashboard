@@ -13,6 +13,7 @@ from scm_tools.wft.build_content import BuildContent
 
 from api import config
 from api import retry
+from mod import bb_mapping
 
 
 WFT = WftAPI(config_path=os.path.join(config.get_config_path(), 'properties/wft.properties'))
@@ -84,7 +85,7 @@ def get_lasted_success_build(stream):
         'released_with_restrictions',
         'skipped_by_qt'
     ]
-    return get_latest_build_by_state(stream, success_state)
+    return get_latest_build_by_state(stream, success_state, with_yocto_map=True)
 
 
 def get_latest_qt_passed_build(stream, status=None):
@@ -92,7 +93,7 @@ def get_latest_qt_passed_build(stream, status=None):
     return get_latest_build_by_state(stream, release_status)
 
 
-def get_latest_build_by_state(stream, release_status):
+def get_latest_build_by_state(stream, release_status, with_yocto_map=False):
     build_name = ''
     release_date = ''
     build_list = get_build_list(stream)
@@ -101,6 +102,9 @@ def get_latest_build_by_state(stream, release_status):
         build_state = build.find('state').text
         build_wft_name = build.find('baseline').text
         if build_state in release_status and is_central_package(build_wft_name):
+            if with_yocto_map:
+                if not bb_mapping.get_build_bbmapping_id(build_wft_name):
+                    continue
             release_date = build.find('date').text
             build_name = build_wft_name
             break

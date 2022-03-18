@@ -84,26 +84,13 @@ class BB_Mapping(object):
             logging.warn("WFT return %s when search %s", response.status_code, self.package)
             return False
 
-    def get_build_bbmapping_id(self, wft_version):
-        attachement_url = "{}/{}/attachments.json".format(WFT_ATTACHMENT_URL, wft_version)
-        response = requests.get(attachement_url, params={'access_key': WFT_KEY})
-        if response.ok:
-            for attachment in json.loads(response.text):
-                if attachment['attachment_file_name'] == 'bb_mapping.json' or \
-                        attachment['attachment_type'] == 'yocto_mapping':
-                    return attachment['id']
-        else:
-            logging.warn("WFT return %s when get %s attachments", response.status_code, self.package)
-            logging.warn(response)
-        return False
-
     def get_bbmapping_from_wft(self):
         wft_version = self.package
         if not self.package.startswith('SBTS'):
             wft_version = self.search_build_on_wft()
             if not wft_version:
                 raise Exception('Cannot get wft name for {}'.format(self.package))
-        bbmapping_id = self.get_build_bbmapping_id(wft_version)
+        bbmapping_id = get_build_bbmapping_id(wft_version)
         if not bbmapping_id:
             raise Exception('Cannot get bb_mapping id from {}'.format(wft_version))
         response = requests.get(
@@ -137,3 +124,17 @@ class BB_Mapping(object):
 
     def get_integration_targets(self, comp_name):
         return self.parser.get_integration_targets(comp_name)
+
+
+def get_build_bbmapping_id(wft_version):
+    attachement_url = "{}/{}/attachments.json".format(WFT_ATTACHMENT_URL, wft_version)
+    response = requests.get(attachement_url, params={'access_key': WFT_KEY})
+    if response.ok:
+        for attachment in json.loads(response.text):
+            if attachment['attachment_file_name'] == 'bb_mapping.json' or \
+                    attachment['attachment_type'] == 'yocto_mapping':
+                return attachment['id']
+    else:
+        logging.warn("WFT return %s when get %s attachments", response.status_code, wft_version)
+        logging.warn(response)
+    return False
