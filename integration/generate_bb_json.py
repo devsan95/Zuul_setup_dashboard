@@ -889,7 +889,7 @@ def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict, force_update=False
                     knife_change.update(comp_knife_dict)
                 else:
                     print('Duplicated source repo {}'.format(knife_change['source_repo']))
-                    return
+                return
     random_key = randint(0, 999999999999999)
     while random_key in sbts_knife_dict['knife_request']['knife_changes']:
         random_key = randint(0, 999999999999999)
