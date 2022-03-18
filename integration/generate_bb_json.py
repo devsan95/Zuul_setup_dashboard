@@ -881,12 +881,15 @@ def initial_sbts_knife_dict(sbts_base):
     raise Exception('Cannot get module info for {}'.format(sbts_base))
 
 
-def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict):
+def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict, force_update=False):
     for knife_change in sbts_knife_dict['knife_request']['knife_changes'].values():
         if 'source_repo' in knife_change and 'source_repo' in comp_knife_dict:
             if knife_change['source_repo'] == comp_knife_dict['source_repo']:
-                print('Duplicated source repo {}'.format(knife_change['source_repo']))
-                return
+                if force_update:
+                    knife_change.update(comp_knife_dict)
+                else:
+                    print('Duplicated source repo {}'.format(knife_change['source_repo']))
+                    return
     random_key = randint(0, 999999999999999)
     while random_key in sbts_knife_dict['knife_request']['knife_changes']:
         random_key = randint(0, 999999999999999)
@@ -924,7 +927,8 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
          'source_type': 'git',
          'replace_source': 'git://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration.git',
          'replace_commit': rest.get_commit(ticket_id)['commit'],
-         'package_path': ''})
+         'package_path': ''},
+        force_update=True)
 
 
 def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
