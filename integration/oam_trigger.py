@@ -40,7 +40,7 @@ def form_url(change_ids, stream):
     change_ids_url = '_'.join(change_id_slices)
     if stream:
         change_ids_url = '{}_{}'.format(change_ids_url, stream)
-    s3_url = 'http://s3-china-1.eecloud.nsn-net.net/' \
+    s3_url = 'https://s3-china-1.eecloud.nsn-net.net/' \
              '5g-cb/integration/{}/pkg_info'
     url = s3_url.format(change_ids_url)
     return url

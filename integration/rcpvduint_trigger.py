@@ -22,8 +22,8 @@ mail_job = 'vran.mail_notification.CI'
 jenkins_server = utils.JENKINS_URL
 server = utils.get_jenkins_obj_from_nginx()
 download_list = [
-    'http://es-si-s3-z4.eecloud.nsn-net.net/5g-cb/BucketList/index.html?prefix=knife/',
-    'http://s3-china-1.eecloud.nsn-net.net/5g-cb/BucketList/index.html?prefix=knife/'
+    'https://es-si-s3-z4.eecloud.nsn-net.net/5g-cb/BucketList/index.html?prefix=knife/',
+    'https://s3-china-1.eecloud.nsn-net.net/5g-cb/BucketList/index.html?prefix=knife/'
 ]
 filter_str = '''
 {

@@ -59,7 +59,7 @@ class S3Server(object):
             service_name='s3',
             aws_access_key_id=self._s3_access_key,
             aws_secret_access_key=self._s3_secret_key,
-            endpoint_url='http://' + self._s3_server,
+            endpoint_url='https://' + self._s3_server,
         )
         print('Switched to server config [{}]'.format(self._server))
 
