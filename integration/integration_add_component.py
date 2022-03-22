@@ -3,9 +3,11 @@
 
 import sys
 import fire
-import ruamel.yaml as yaml
+import yaml
 import urllib3
 import re
+import yamlordereddictloader
+import ruamel
 from slugify import slugify
 from datetime import datetime
 from api import gerrit_rest
@@ -148,8 +150,8 @@ def add_tmp_file(rest, change_number, files, topic):
 def get_changed_in_global_config_yaml(rest, integration_repo_ticket):
     changed_sections = {}
     change_content = rest.get_file_change('config.yaml', integration_repo_ticket)
-    old_config_yaml = yaml.safe_load(change_content['old'])
-    new_config_yaml = yaml.safe_load(change_content['new'])
+    old_config_yaml = yaml.load(change_content['old'], Loader=yamlordereddictloader.Loader)
+    new_config_yaml = yaml.load(change_content['new'], Loader=yamlordereddictloader.Loader)
     if not new_config_yaml:
         return changed_sections
     for config_key, component_info in new_config_yaml['components'].items():
@@ -177,7 +179,7 @@ def update_component_local_config_yaml(rest, change_number, component, comp_conf
             if local_yaml_content:
                 local_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=local_yaml_content)
                 local_yaml_obj.components.update(changed_section)
-                config_yaml_content = yaml.safe_dump(local_yaml_obj.config_yaml, default_flow_style=False)
+                config_yaml_content = yaml.dump(local_yaml_obj.config_yaml, Dumper=yamlordereddictloader.Dumper)
 
                 rest.add_file_to_change(change_number, local_config_yaml, config_yaml_content)
                 rest.publish_edit(change_number)
@@ -220,8 +222,8 @@ def add_depends_info(rest, comp_change, depends_change, depends_components=None,
 
 
 def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_path, base_commit=None, base_load=None):
-    comp_config = yaml.load(open(component_config),
-                            Loader=yaml.Loader, version='1.1')
+    comp_config = ruamel.yaml.load(open(component_config),
+                                   Loader=ruamel.yaml.Loader, version='1.1')
     comp = {}
     comp['name'] = comp_name
     comp_found = False

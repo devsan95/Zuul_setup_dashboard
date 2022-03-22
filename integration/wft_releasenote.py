@@ -15,6 +15,7 @@ import atexit
 import json
 import datetime
 import pexpect
+import yamlordereddictloader
 from api import log_api
 from api import gerrit_rest
 from bs4 import BeautifulSoup
@@ -490,10 +491,10 @@ def get_config_yaml_change(base_pkg, pkg, integration):
     config_yaml_path = os.path.join(base_path, 'config.yaml')
     integration.checkout(base_pkg)
     with open(config_yaml_path, 'r') as config:
-        base_config_yaml = yaml.safe_load(config)['components']
+        base_config_yaml = yaml.load(config, Loader=yamlordereddictloader.Loader)['components']
     integration.checkout(pkg)
     with open(config_yaml_path, 'r') as config:
-        new_config_yaml = yaml.safe_load(config)['components']
+        new_config_yaml = yaml.load(config, Loader=yamlordereddictloader.Loader)['components']
     for comp in new_config_yaml:
         if new_config_yaml[comp]['version'] != base_config_yaml[comp]['version']:
             comp_name = comp.split(':')[-1]
@@ -673,7 +674,7 @@ def update_release_date(args, releasenote):
 
 def generate_local_releasenote(build_config):
     element_list = list()
-    component_list = yaml.safe_load(build_config)['components']
+    component_list = yaml.load(build_config, Loader=yamlordereddictloader.Loader)['components']
     for component in component_list:
         element_list.append({
             'name': component.split(':')[-1].strip(),

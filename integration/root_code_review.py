@@ -5,6 +5,7 @@ import os
 import json
 import yaml
 import click
+import yamlordereddictloader
 from api import gerrit_rest
 from api import gerrit_api
 from mod import config_yaml
@@ -48,7 +49,8 @@ def get_config_yaml_change(rest, change_no):
     updated_dict = None
     if 'new_diff' in config_yaml_change and config_yaml_change['new_diff']:
         config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
-        updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+        updated_dict, removed_dict = config_yaml_obj.get_changes(
+            yaml.load(config_yaml_change['old'], Loader=yamlordereddictloader.Loader))
     print('[Info] The changed config yaml content: {}'.format(updated_dict))
     return updated_dict
 

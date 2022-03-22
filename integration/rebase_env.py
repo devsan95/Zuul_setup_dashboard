@@ -7,6 +7,7 @@ import subprocess
 import fire
 import yaml
 import urllib3
+import yamlordereddictloader
 from functools import partial
 
 import skytrack_database_handler
@@ -323,7 +324,8 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         try:
             config_yaml_change = rest.get_file_change('config.yaml', change_no)
             config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
-            updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+            updated_dict, removed_dict = config_yaml_obj.get_changes(
+                yaml.load(config_yaml_change['old'], Loader=yamlordereddictloader.Loader))
         except Exception as e:
             print('Cannot find config.yaml for %s', change_no)
             print(str(e))

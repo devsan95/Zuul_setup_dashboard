@@ -6,6 +6,7 @@ import yaml
 import shlex
 import shutil
 import traceback
+import yamlordereddictloader
 from api import env_repo as get_env_repo
 from mod import utils
 from mod import config_yaml
@@ -68,7 +69,7 @@ def create_config_yaml_by_env_change(env_change_dict, rest,
     # update staged infos if exists
     if env_change_dict:
         env_file_changes = config_yaml_obj.update_by_env_change(env_change_dict, all_matched=False)
-    config_yaml_content = yaml.safe_dump(config_yaml_obj.config_yaml, default_flow_style=False)
+    config_yaml_content = yaml.dump(config_yaml_obj.config_yaml, Dumper=yamlordereddictloader.Dumper)
     if config_yaml_content != old_content:
         return {config_yaml_file: config_yaml_content}, env_file_changes
     return {}, env_file_changes
@@ -111,7 +112,7 @@ def create_config_yaml_by_content_change(rest, old_content, new_content,
         if old_key not in new_config_yaml.components:
             print('remove section key {}'.format(old_key))
             final_config_yaml.components.pop(old_key)
-    config_yaml_content = yaml.safe_dump(final_config_yaml.config_yaml, default_flow_style=False)
+    config_yaml_content = yaml.dump(final_config_yaml.config_yaml, Dumper=yamlordereddictloader.Dumper)
     if config_yaml_content != file_content:
         return {config_yaml_file: config_yaml_content}
     return {}
@@ -204,7 +205,8 @@ def get_yaml_change_from_change(rest, change_no, config_yaml_file='config.yaml')
             print('Initial config_yaml_obj')
             config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
             print('Get change from config_yaml_obj')
-            updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+            updated_dict, removed_dict = config_yaml_obj.get_changes(
+                yaml.load(config_yaml_change['old'], Loader=yamlordereddictloader.Loader))
     except Exception as e:
         print('Cannot find config.yaml for %s', change_no)
         print(str(e))

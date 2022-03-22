@@ -2,6 +2,7 @@ import fire
 import yaml
 import logging
 import traceback
+import yamlordereddictloader
 
 import update_depends
 import integration_add_component
@@ -50,7 +51,8 @@ def run(gerrit_info_path, mysql_info_path, change_id, component_config):
     if ('new_diff' in config_yaml_change and config_yaml_change['new_diff']) \
             or ('old_diff' in config_yaml_change and config_yaml_change['old_diff']):
         config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
-        updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+        updated_dict, removed_dict = config_yaml_obj.get_changes(
+            yaml.load(config_yaml_change['old'], Loader=yamlordereddictloader.Loader))
         update_component_config_yaml(
             {},
             rest,

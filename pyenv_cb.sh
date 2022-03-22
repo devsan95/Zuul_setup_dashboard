@@ -157,6 +157,7 @@ fi
 
 cd "$VENV_PATH"
 source "$VENV_PATH"/bin/activate python2
+echo "Run conda update --name base --channel defaults --yes conda"
 conda install -y certifi
 
 pip install --no-cache-dir \
@@ -182,6 +183,7 @@ pip install --no-cache-dir \
     pymysql==0.10.1 \
     python-slugify==5.0.0 \
     pyyaml \
+    yamlordereddictloader \
     sh
 
 pip install --no-cache-dir \

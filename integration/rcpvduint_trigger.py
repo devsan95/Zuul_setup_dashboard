@@ -8,6 +8,7 @@ import argparse
 import requests
 import git
 import subprocess
+import yamlordereddictloader
 from api import gerrit_rest, log_api
 from scm_tools.wft.api import WftAPI
 from mod import utils
@@ -190,7 +191,7 @@ def update_env_config_file(version_dict):
         updated_flist.append('env/env-config.d/ENV')
     # update config.yaml
     with open('config.yaml', 'r') as config:
-        config_yaml = yaml.safe_load(config)
+        config_yaml = yaml.load(config, Loader=yamlordereddictloader.Loader)
     log.info(config_yaml)
     for item in version_dict:
         for project_comp in config_yaml['components']:
@@ -204,7 +205,7 @@ def update_env_config_file(version_dict):
             raise Exception("Can not find {} from config.yaml file!".format(item))
     with open('config.yaml', 'w') as config:
         log.info("start write config.yaml file")
-        yaml.safe_dump(config_yaml, config, default_flow_style=False)
+        yaml.dump(config_yaml, config, Dumper=yamlordereddictloader.Dumper)
     updated_flist.append('config.yaml')
 
     log.info("Finished updating below files: {}.".format(updated_flist))

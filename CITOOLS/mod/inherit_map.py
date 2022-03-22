@@ -1,5 +1,6 @@
 import copy
 import yaml
+import yamlordereddictloader
 from mod import wft_tools
 from mod import env_changes
 from mod import config_yaml
@@ -78,7 +79,8 @@ class Inherit_Map(object):
             if base_load not in self.build_config_dict:
                 base_build_config = {}
                 try:
-                    base_build_config = yaml.safe_load(wft_tools.get_build_config(base_load))
+                    base_build_config = yaml.load(wft_tools.get_build_config(base_load),
+                                                  Loader=yamlordereddictloader.Loader)
                 except Exception:
                     print('Cannot find build_config for {}'.format(base_load))
                 self.build_config_dict[base_load] = base_build_config

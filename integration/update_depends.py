@@ -6,6 +6,7 @@ import yaml
 import logging
 import time
 import git
+import yamlordereddictloader
 
 from api import config
 from api import gerrit_rest
@@ -29,7 +30,7 @@ def update_config_yaml(rest, integration_repo_ticket, interface_infos, config_pa
     config_dict = {"components": {}, "version": 1}
     try:
         config_yaml_content = rest.get_file_content(config_path, integration_repo_ticket)
-        config_dict = yaml.safe_load(config_yaml_content)
+        config_dict = yaml.load(config_yaml_content, Loader=yamlordereddictloader.Loader)
     except Exception:
         logging.warn('Cannot find %s in %s', config_path, integration_repo_ticket)
         return
@@ -48,8 +49,10 @@ def update_config_yaml(rest, integration_repo_ticket, interface_infos, config_pa
             config_dict['components'][component_key].update(compoent_dict)
         else:
             config_dict['components'][component_key] = compoent_dict
-    config_yaml_content = yaml.safe_dump(config_dict, default_flow_style=False,
-                                         encoding='utf-8', allow_unicode=True)
+    config_yaml_content = yaml.dump(config_dict,
+                                    Dumper=yamlordereddictloader.Dumper,
+                                    encoding='utf-8',
+                                    allow_unicode=True)
     rest.add_file_to_change(integration_repo_ticket, config_path, content=config_yaml_content)
     rest.publish_edit(integration_repo_ticket)
 
@@ -124,7 +127,7 @@ def get_integration_repo_ticket(rest, change_id):
 
 def get_interface_sections(rest, integration_repo_ticket, interface_infos):
     change_content = rest.get_file_change('config.yaml', integration_repo_ticket)
-    old_config_yaml = yaml.safe_load(change_content['old'])
+    old_config_yaml = yaml.load(change_content['old'], Loader=yamlordereddictloader.Loader)
     origin_interface_sections = {}
     for config_yaml_key, component_info in old_config_yaml['components'].items():
         config_yaml_comp = config_yaml_key.split(':')[1]
@@ -221,7 +224,7 @@ def commit_and_tag_meta5g(integration, tag_name):
 def is_already_in_config_yaml(rest, root_change, config_path='config.yaml'):
     try:
         config_yaml_content = rest.get_file_content(config_path, root_change)
-        config_dict = yaml.safe_load(config_yaml_content)
+        config_dict = yaml.load(config_yaml_content, Loader=yamlordereddictloader.Loader)
     except Exception:
         logging.warn('Cannot find %s in %s', config_path, root_change)
         return False

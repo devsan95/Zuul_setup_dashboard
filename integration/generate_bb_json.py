@@ -10,10 +10,12 @@ import time
 import shutil
 import traceback
 import datetime
-
 import git
 import fire
 import urllib3
+import yaml
+import yamlordereddictloader
+import ruamel
 from random import randint
 from slugify import slugify
 from api import mysql_api
@@ -31,7 +33,6 @@ import api.gerrit_rest
 import update_depends
 import api.http_api
 import submodule_handle
-import ruamel.yaml as yaml
 
 
 wft = wft_tools.WFT
@@ -320,7 +321,8 @@ def get_env_change_dict(rest, change_id, config_yaml_file='config.yaml'):
         print('Initial config_yaml_obj')
         config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['new'])
         print('Get change from config_yaml_obj')
-        updated_dict, removed_dict = config_yaml_obj.get_changes(yaml.safe_load(config_yaml_change['old']))
+        updated_dict, removed_dict = config_yaml_obj.get_changes(
+            yaml.load(config_yaml_change['old'], Loader=yamlordereddictloader.Loader))
         return updated_dict, removed_dict
     return {}, {}
 
@@ -1010,7 +1012,7 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         gerrit_info_path, zuul_changes, gnb_list_path, db_info_path, comp_config):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.init_cache(1000)
-    comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
+    comp_config = ruamel.yaml.load(open(comp_config), Loader=ruamel.yaml.Loader, version='1.1')
     project_branch = parse_zuul_changes(zuul_changes)
 
     # path

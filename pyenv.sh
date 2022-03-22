@@ -189,6 +189,7 @@ pip install --no-cache-dir \
     pymysql==0.10.1 \
     python-slugify \
     pyyaml \
+    yamlordereddictloader \
     sh
 
 pip install --no-cache-dir \

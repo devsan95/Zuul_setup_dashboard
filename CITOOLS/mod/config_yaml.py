@@ -1,6 +1,7 @@
 import os
 import copy
 import yaml
+import yamlordereddictloader
 
 from mod import wft_tools
 
@@ -24,16 +25,16 @@ class ConfigYaml(object):
     def update_yaml_data(self):
         if self.config_yaml_file:
             with open(self.config_yaml_file, 'r') as fhandler_r:
-                self.config_yaml = yaml.safe_load(fhandler_r.read())
+                self.config_yaml = yaml.load(fhandler_r.read(), Loader=yamlordereddictloader.Loader)
         elif self.config_yaml_content:
-            self.config_yaml = yaml.safe_load(self.config_yaml_content)
+            self.config_yaml = yaml.load(self.config_yaml_content, Loader=yamlordereddictloader.Loader)
         self.origin_config_yaml = copy.deepcopy(self.config_yaml)
         if self.local_config_file:
             with open(self.local_config_file, 'r') as fhandler_r:
-                self.local_config_yaml = yaml.safe_load(fhandler_r.read())
+                self.local_config_yaml = yaml.load(fhandler_r.read(), Loader=yamlordereddictloader.Loader)
             self.config_yaml.update(self.local_config_yaml)
         elif self.local_config_content:
-            self.local_config_yaml = yaml.safe_load(self.local_config_content)
+            self.local_config_yaml = yaml.load(self.local_config_content, Loader=yamlordereddictloader.Loader)
             self.config_yaml.update(self.local_config_yaml)
         self.components = self.config_yaml['components']
 
@@ -65,7 +66,7 @@ class ConfigYaml(object):
         return None
 
     def update_by_local_config(self, local_config_file):
-        local_config_yaml = yaml.safe_load(local_config_file)
+        local_config_yaml = yaml.load(local_config_file, Loader=yamlordereddictloader.Loader)
         self.config_yaml.update(local_config_yaml)
         self.components = self.config_yaml['components']
 
@@ -119,10 +120,10 @@ class ConfigYaml(object):
                 if section_key in copy_of_local_components:
                     copy_of_local_components[section_key] = value
             with open(self.local_config_file, 'w') as fhandler_w:
-                fhandler_w.write(yaml.safe_dump(copy_of_local_config))
+                fhandler_w.write(yaml.dump(copy_of_local_config, Dumper=yamlordereddictloader.Dumper))
         with open(self.config_yaml_file, 'w') as fhandler_w:
             if update_all_to_origin:
-                fhandler_w.write(yaml.safe_dump(self.config_yaml))
+                fhandler_w.write(yaml.dump(self.config_yaml, Dumper=yamlordereddictloader.Dumper))
                 return
             copy_of_config_yaml = copy.deepcopy(self.origin_config_yaml)
             copy_of_config_components = copy_of_config_yaml['components']
@@ -130,7 +131,7 @@ class ConfigYaml(object):
                 if not self.local_config_yaml or \
                         section_key not in self.local_config_yaml['components']:
                     copy_of_config_components[section_key] = value
-            fhandler_w.write(yaml.safe_dump(copy_of_config_yaml))
+            fhandler_w.write(yaml.dump(copy_of_config_yaml, Dumper=yamlordereddictloader.Dumper))
 
     def update_by_env_change(self, env_change_dict, all_matched=True):
         # used to restore changes to env file

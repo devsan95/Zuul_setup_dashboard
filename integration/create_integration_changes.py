@@ -14,7 +14,9 @@ from datetime import datetime
 
 import click
 import networkx as nx
-import ruamel.yaml as yaml
+import yaml
+import yamlordereddictloader
+import ruamel
 import urllib3
 from slugify import slugify
 
@@ -58,8 +60,8 @@ root_change_url = 'https://gerrit.ext.net.nokia.com/gerrit/#/c/'
 
 
 def load_structure(path):
-    structure_obj = yaml.load(open(path),
-                              Loader=yaml.Loader, version='1.1')
+    structure_obj = ruamel.yaml.load(open(path),
+                                     Loader=ruamel.yaml.Loader, version='1.1')
     return structure_obj
 
 
@@ -340,7 +342,8 @@ class IntegrationChangesCreation(object):
                         if not node_obj['repo'].endswith('integration'):
                             all_matched = False
                         env_file_changes = local_yaml_obj.update_by_env_change(self.get_env_change_dict(env_change), all_matched)
-                        config_yaml_content = yaml.safe_dump(local_yaml_obj.config_yaml, default_flow_style=False)
+                        config_yaml_content = yaml.dump(local_yaml_obj.config_yaml,
+                                                        Dumper=yamlordereddictloader.Dumper)
                         node_obj['add_files'][local_config_yaml] = config_yaml_content
             # update env file
             if 'type' in node_obj and node_obj['type'] == 'root' and node_obj['repo'] in env_repo:
@@ -1150,7 +1153,7 @@ class IntegrationChangesCreation(object):
             open_jira=False, skip_jira=False):
 
         if comp_config:
-            self.comp_config = yaml.load(open(comp_config), Loader=yaml.Loader, version='1.1')
+            self.comp_config = ruamel.yaml.load(open(comp_config), Loader=ruamel.yaml.Loader, version='1.1')
         if mysql_info:
             self.mysql_info = mysql_info
         if 'jira_key' in self.meta and self.meta['jira_key']:
