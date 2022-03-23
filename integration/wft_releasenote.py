@@ -513,7 +513,7 @@ def check_integration_change(pkg, base_pkg, integration, knife_json):
 
 
 def get_component_version(knife_json, component, parse=True):
-    ver_fields = ['repo_ver', 'bb_ver', 'version', 'PV', 'BIN_VER', 'SVNREV', 'WFT_NAME', "commit"]
+    ver_fields = ['repo_ver', 'bb_ver', 'version', 'PV', 'BIN_VER', 'SVNREV', 'WFT_NAME', "commit", "GITREV", "REVISION"]
     version = None
     if parse:
         for ver_field in ver_fields:
