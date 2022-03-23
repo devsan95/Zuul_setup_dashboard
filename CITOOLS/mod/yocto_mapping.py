@@ -64,7 +64,6 @@ class Yocto_Mapping(object):
         if not self.depend_dict:
             print("No depended dict")
             return
-        print("Get depended dict: {}".format(self.depend_dict))
         platform_dict = {}
         for component in self.depend_dict:
             if component.startswith('integration-'):

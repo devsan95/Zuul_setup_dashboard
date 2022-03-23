@@ -60,7 +60,6 @@ class Origin_Mapping(object):
     def generate_platform_dict(self):
         logging.info("Start parse bb_mapping file")
         self.get_depended_dict()
-        logging.debug("Get depended dict: %s", self.depend_dict)
         platform_dict = {}
         for component in self.depend_dict:
             if component.startswith('integration-'):
