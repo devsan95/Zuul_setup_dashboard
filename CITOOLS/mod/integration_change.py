@@ -23,6 +23,7 @@ int_project_reg = re.compile(r'project: (.*)')
 ecl_branch_reg = re.compile(r'ecl_branch: (.*)')
 ecl_int_branch_reg = re.compile(r'ecl_int_branch: (.*)')
 int_branch_reg = re.compile(r'int_branch: (.*)')
+integration_type_reg = re.compile(r'integration_type: (.*)')
 ric_reg = re.compile(r'  - RIC <([^<>]*)> <([^<>]*)>(?: <(\d*)>)?(?: <t:([^<>]*)>)?')
 depends_reg = re.compile(r'  - Project:<(?P<name>.*)> Change:<(?P<change_no>.*)> Type:<(?P<type>.*)>')
 depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$", re.MULTILINE | re.IGNORECASE)
@@ -276,6 +277,13 @@ class RootChange(IntegrationChange):
     def get_int_branch(self):
         msg = self.commit_info.get('message')
         m = int_branch_reg.search(msg)
+        if m:
+            return m.groups()[0]
+        return None
+
+    def get_integration_type(self):
+        msg = self.commit_info.get('message')
+        m = integration_type_reg.search(msg)
         if m:
             return m.groups()[0]
         return None

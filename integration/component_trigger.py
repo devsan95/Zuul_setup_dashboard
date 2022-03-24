@@ -6,29 +6,11 @@ import re
 import sys
 import requests
 from api import gerrit_rest
-from api import env_repo as get_env_repo
-from mod import config_yaml
 from mod import integration_change
 from mod import wft_tools
 from integration_add_component import get_base_load
 
 GERRT_SERVICE_URL = "ssh://gerrit.ext.net.nokia.com:29418/"
-
-
-def get_ps_version(rest, root_change, env_file_path):
-    change_files = rest.get_file_list(root_change)
-    if env_file_path in change_files:
-        if not env_file_path:
-            config_yaml_change = rest.get_file_change('config.yaml', root_change)
-            old_config_yaml = config_yaml.ConfigYaml(config_yaml_content=config_yaml_change['old'])
-            updated_changes = old_config_yaml.get_changes(config_yaml_change['new'])[0]
-            if 'PS:PS' in updated_changes:
-                return updated_changes['PS:PS']['version']
-        else:
-            for line in rest.get_file_change(env_file_path, root_change)['new_diff'].split('\n'):
-                if 'ENV_PS_REL' in line:
-                    return line.split('=')[-1]
-    return ''
 
 
 def service_remote_trigger(data):
@@ -93,17 +75,14 @@ def main(gerrit_info_path, change_id, branch, pipeline):
     if not root_change_no:
         raise Exception("Can not get root ticket")
     env_repo, env_version = get_repo_and_version(rest, root_change_no)
-    env_info = get_env_repo.get_env_repo_info(rest, root_change_no)
-    env_repo_info = env_info[0]
-    print env_repo_info
-    ps_version = get_ps_version(root_change=root_change_no, rest=rest, env_file_path=env_info[1])
+
     component_list = get_component_list(change_list)
     print "[INFO] env repo: {0}".format(env_repo)
     integration_mode = int_change_obj.get_integration_mode()
+    print('[INFO] integration_mode:{}'.format(integration_mode))
     change_name = int_change_obj.get_change_name()
-    print('integration_mode:{}'.format(integration_mode))
+    root_change = integration_change.RootChange(rest, root_change_no)
     if integration_mode == 'FIXED_BASE':
-        root_change = integration_change.RootChange(rest, root_change_no)
         inte_change_no = root_change.get_components_changes_by_comments()[1]
         base_load = get_base_load(rest, inte_change_no, with_sbts=False)
         base_load = wft_tools.get_wft_release_name(base_load)
@@ -114,23 +93,18 @@ def main(gerrit_info_path, change_id, branch, pipeline):
                 component_baseline = build['version']
     else:
         component_baseline = 'head'
-    data = {'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_HASH_REVIEW': git_hash_review, 'COMPONENT_BASELINE': component_baseline}
-    ps_prompt = ''
+    integration_type = root_change.get_integration_type()
+    data = {'ENV_REPO': env_repo, 'ENV_VERSION': env_version, 'PIPELINE': pipeline, 'BRANCH': branch, 'GIT_HASH_REVIEW': git_hash_review, 'COMPONENT_BASELINE': component_baseline, 'INTEGRATION_TYPE': integration_type}
+
     for component in component_list:
         if component in ['vl1-hi']:
             data = dict([('variables[{}]'.format(key), value) for key, value in data.items()])
             data.update({'ref': branch})
-        else:
-            if not ps_version:
-                print "[INFO] No PS changes for {}, skip component trigger".format(component)
-                continue
-            ps_prompt = 'with PS version {} '.format(ps_version)
-            data.update({'PS_VERSION': ps_version})
         component_extend_data = get_component_extend_data(component)
         data = dict(data.items() + component_extend_data.items())
         print('data:\n{}'.format(data))
         service_remote_trigger(data)
-        print "[INFO] Triggered component {} {}integration successfully".format(component, ps_prompt)
+        print "[INFO] Triggered component {} in {} integration successfully".format(component, integration_type)
 
 
 if __name__ == '__main__':
