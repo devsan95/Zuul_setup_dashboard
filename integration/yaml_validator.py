@@ -5,6 +5,7 @@
 import fire
 import re
 import os
+import yaml
 import json
 from create_ticket import check_graph_cycling, load_structure, create_graph
 from jsonschema import validate
@@ -34,6 +35,14 @@ def traverse(path):
         raise Exception("[Error] no yaml file existed to validate!")
 
 
+def validate_file_config(yaml_file):
+    with open(yaml_file, 'r') as stream:
+        try:
+            return yaml.load(stream)
+        except yaml.YAMLError as exception:
+            EXCEPTION_LIST.append("Yaml file {} validated failed and fail reason is: {}".format(yaml_file, exception.message))
+
+
 def validate_file(file_path, schema):
     structure_obj = load_structure(file_path)
     json_schema = json.load(open(schema))
@@ -52,14 +61,20 @@ def main(yaml_path, schema_path, gerrit_info_path=None, change_no=None, check_al
         yaml_list = traverse(yaml_path)
     else:
         yaml_list = []
+        config_yaml_list = []
         rest = gerrit_rest.init_from_yaml(gerrit_info_path)
         flist = rest.get_file_list(change_no)
         for f in flist:
             if ".yaml" in f and "/" not in f:
                 yaml_list.append(os.path.join(yaml_path, f))
+            if re.match(r"config/.*\.yaml", f):
+                config_yaml_list.append(os.path.join(yaml_path, f))
     for yaml_file in yaml_list:
         if os.path.exists(yaml_file):
             validate_file(yaml_file, schema_path)
+    for yaml_file in config_yaml_list:
+        print("[Info] Starting validate yaml file: {}.".format(yaml_file))
+        validate_file_config(yaml_file)
 
     if EXCEPTION_LIST:
         raise Exception("[Error] Yaml validated failed, reasons as below: {}".format(EXCEPTION_LIST))
