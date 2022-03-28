@@ -140,6 +140,7 @@ sudo pip install --no-cache-dir \
     pymysql==0.10.1 \
     python-slugify==5.0.0 \
     pyyaml \
+    yamlordereddictloader \
     sh
 
 sudo pip install --no-cache-dir \
