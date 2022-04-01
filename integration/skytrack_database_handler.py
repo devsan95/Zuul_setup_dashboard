@@ -239,6 +239,7 @@ def add_integration_tickets(jira_key, change_list, database_info_path, dry_run=F
                 '`change`': gerrit_change
             }
         )
+        time.sleep(2)
 
 
 def add_change_status(change,
