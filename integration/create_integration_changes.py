@@ -215,18 +215,21 @@ class IntegrationChangesCreation(object):
     def update_meta(self, update_dict):
         collection_api.dict_merge(self.meta, update_dict)
 
+    def get_root_branch(self):
+        for node in self.info_index['structure']:
+            if 'type' in node and 'root' in node['type']:
+                return node['branch']
+        return None
+
     def check_coam_integration(self):
         coam_components = list()
         pit_impacted_components = self.comp_config['pit_impacted']
-        branch = None
         for node in self.info_index['structure']:
-            if 'type' in node and 'root' in node['type']:
-                branch = node['branch']
             if node['name'] in pit_impacted_components:
                 coam_components.append(node['name'])
         if len(coam_components) > 1:
             self.info_index['structure'].append({
-                'branch': branch,
+                'branch': self.get_root_branch(),
                 'name': 'integration_coam',
                 'type': 'integration_coam',
                 'repo': 'MN/SCMTA/zuul/inte_mn_coam',
@@ -297,6 +300,15 @@ class IntegrationChangesCreation(object):
                 )
             except Exception as ex:
                 print('Comment ticket failed, {}'.format(str(ex)))
+
+    def get_yaml_object(self):
+        message = '{}: fake change'.format(self.info_index['meta']['title'])
+        ticket_id = self.gerrit_rest.create_ticket(
+            'MN/5G/COMMON/integration', None, self.get_root_branch(), message)[1]
+        yaml_obj = config_yaml.ConfigYaml(
+            config_yaml_content=self.gerrit_rest.get_file_content('config.yaml', ticket_id))
+        self.gerrit_rest.abandon_change(ticket_id)
+        return yaml_obj
 
     def create_ticket_by_node(self, node_obj, integration_mode, ext_commit_msg=None):
         nodes = self.info_index['nodes']
@@ -1091,14 +1103,16 @@ class IntegrationChangesCreation(object):
         if 'streams' in self.meta and self.meta['streams']:
             stream_list = [x for x in self.meta['streams'].split(',') if x]
         print('Stream list: {}'.format(stream_list))
-        inherit_map_obj = inherit_map.Inherit_Map(stream_list=stream_list)
+        inherit_map_obj = inherit_map.Inherit_Map(
+            stream_list=stream_list, extra_components=self.get_yaml_object().components.keys())
         if 'yaml_entry' in self.meta and self.meta['yaml_entry']:
             yaml_change_list = list()
             for entry in self.meta['yaml_entry']:
                 if entry['name'] == 'Feature_ID':
                     continue
                 yaml_change_list.extend(
-                    self.get_inherit_change(entry['name'], entry['value'], inherit_map_obj)
+                    self.get_inherit_change(
+                        entry['name'], entry['value'], inherit_map_obj)
                 )
             if yaml_change_list:
                 return self.generate_env_change(yaml_change_list), yaml_change_list

@@ -11,12 +11,13 @@ DEFAULT_STREAM_LIST = ['0.990', '0.400', '0.300']
 
 class Inherit_Map(object):
 
-    def __init__(self, base_loads=None, stream_list=None):
+    def __init__(self, base_loads=None, stream_list=None, extra_components=None):
         self.stream_list = stream_list
         self.base_loads = self.get_base_loads(base_loads)
         self.inherit_dict = {}
         self.inherit_comps = {}
         self.build_config_dict = {}
+        self.extra_components = extra_components
 
     def get_base_loads(self, base_loads):
         if base_loads:
@@ -92,6 +93,8 @@ class Inherit_Map(object):
         for build_config in self.build_config_dict.values():
             if 'components' in build_config:
                 component_list.extend(build_config['components'].keys())
+        if self.extra_components:
+            component_list.extend(self.extra_components)
         return component_list
 
     def is_component_staged(self, component):
@@ -165,14 +168,35 @@ class Inherit_Map(object):
                 sub_comps.append(sub_comp)
         return sub_comps
 
+    def order_comp_with_count(self, parent_count_dict):
+        value_key_pairs = ((value, key) for (key, value) in parent_count_dict.items())
+        return [x[1] for x in sorted(value_key_pairs, reverse=True)]
+
     def get_inherit_parent_component(self, build, sub_component):
         inherit_dict = self.get_inherit_dict(build)
+        parent_count_dict = {}
+        base_subbuild_list = wft_tools.get_subbuilds(build)
         for sub_comp, parent_comp in inherit_dict.items():
-            if sub_comp == sub_component:
-                base_subbuild_list = wft_tools.get_subbuilds(build)
-                for subbuild in base_subbuild_list:
-                    wft_comp_name = '{}:{}'.format(subbuild['project'], subbuild['sc'])
-                    if wft_comp_name == parent_comp:
+            if parent_comp not in parent_count_dict:
+                parent_count_dict[parent_comp] = 0
+            parent_count_dict[parent_comp] += 1
+        if sub_component in inherit_dict:
+            for subbuild in base_subbuild_list:
+                wft_comp_name = '{}:{}'.format(subbuild['project'], subbuild['sc'])
+                if wft_comp_name == inherit_dict[sub_component]:
+                    return subbuild
+        if sub_component not in self.extra_components:
+            print("Canot find {} directly in inherit_dict".format(sub_component))
+            return None
+        print("Try to find {} in parent components".format(sub_component))
+        for parent_comp in self.order_comp_with_count(parent_count_dict):
+            print("Try to find from {}".format(parent_comp))
+            for subbuild in base_subbuild_list:
+                wft_comp_name = '{}:{}'.format(subbuild['project'], subbuild['sc'])
+                if wft_comp_name == parent_comp and 'sub_build_baseline' in subbuild:
+                    parent_inherit_dict = self.get_inherit_dict(subbuild['sub_build_baseline'])
+                    print('Parent inherit_dict for {}'.format(subbuild['sub_build_baseline']))
+                    if sub_component in parent_inherit_dict.values():
                         return subbuild
         print("Canot find matched parent component for {}".format(sub_component))
         return None
