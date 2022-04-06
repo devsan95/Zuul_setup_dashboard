@@ -185,9 +185,10 @@ class Inherit_Map(object):
                 wft_comp_name = '{}:{}'.format(subbuild['project'], subbuild['sc'])
                 if wft_comp_name == inherit_dict[sub_component]:
                     return subbuild
-        if sub_component not in self.extra_components:
-            print("Canot find {} directly in inherit_dict".format(sub_component))
-            return None
+        if self.extra_components:
+            if sub_component not in self.extra_components:
+                print("Canot find {} directly in inherit_dict".format(sub_component))
+                return None
         print("Try to find {} in parent components".format(sub_component))
         for parent_comp in self.order_comp_with_count(parent_count_dict):
             print("Try to find from {}".format(parent_comp))
