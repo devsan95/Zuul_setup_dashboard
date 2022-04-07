@@ -933,7 +933,7 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
         force_update=True)
 
 
-def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
+def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dict, removed_dict):
     sbts_base = None
     base_stream_map = stream_json
     if 'SBTS' not in ','.join(stream_json.keys()):
@@ -948,7 +948,6 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, change_id, project_dict):
     sbts_knife_dict = initial_sbts_knife_dict(sbts_base)
     print('sbts_knife_dict:')
     print(sbts_knife_dict)
-    updated_dict, removed_dict = get_env_change_dict(rest, change_id)
     # get bb_mapping for SBTS load
     sbts_bb_mapping = bb_mapping.BB_Mapping(sbts_base).parser
     # sbts_env_change will contains version change for sbts
@@ -1008,6 +1007,40 @@ def get_revision_from_dict(replace_dict):
     return None
 
 
+def filter_knife_dict_by_staged_change(staged_list, combined_knife_dict, build_stream_dict):
+    bb_mapping_dict = {}
+    for stream, stream_base in build_stream_dict.items():
+        bb_mapping_dict[stream] = bb_mapping.BB_Mapping(stream_base, no_platform=True)
+    for stream in build_stream_dict:
+        stream_knife_dict = combined_knife_dict[stream] if stream in combined_knife_dict else combined_knife_dict['all']
+        stream_knife_dict_copy = copy.deepcopy(stream_knife_dict)
+        filter_component_by_locations(stream_knife_dict_copy, bb_mapping_dict[stream], staged_list)
+        if len(stream_knife_dict_copy) < len(stream_knife_dict):
+            combined_knife_dict[stream] = stream_knife_dict_copy
+
+
+def filter_component_by_locations(stream_knife_dict_copy, bb_mapping_obj, location_list):
+    pop_list = list()
+    for component in stream_knife_dict_copy:
+        matched_files = bb_mapping_obj.get_component_files(component)
+        if not matched_files:
+            continue
+        all_in_location = True
+        for matched_file in matched_files:
+            matched_file_in_location = False
+            for location_folder in location_list:
+                if matched_file.startswith(location_folder):
+                    matched_file_in_location = True
+                    break
+            if not matched_file_in_location:
+                all_in_location = False
+                break
+        if all_in_location:
+            pop_list.append(component)
+    for pop_component in pop_list:
+        stream_knife_dict_copy.pop(pop_component)
+
+
 def run(zuul_url, zuul_ref, output_path, change_id,
         gerrit_info_path, zuul_changes, gnb_list_path, db_info_path, comp_config):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
@@ -1065,6 +1098,12 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         {'all': interfaces_dict},
         ex_comment_dict,
         comment_dict], abandoned_changes)
+
+    updated_dict, removed_dict = get_env_change_dict(rest, change_id)
+    staged_list = [x_dict['location'] for x, x_dict in updated_dict.items() if x_dict['type'] == 'staged']
+    staged_list.extend([y_dict['location'] for y, y_dict in removed_dict.items() if y_dict['type'] == 'staged'])
+    filter_knife_dict_by_staged_change(staged_list, combined_knife_dict, build_stream_dict)
+
     save_json_file(knife_path,
                    [combined_knife_dict],
                    override=True)
@@ -1078,8 +1117,9 @@ def run(zuul_url, zuul_ref, output_path, change_id,
                        combined_knife_dict,
                        build_stream_dict,
                        rest,
-                       change_id,
-                       project_dict)],
+                       project_dict,
+                       updated_dict,
+                       removed_dict)],
                    override=True)
     # email list
     reviews_json = rest.get_reviewer(change_id)
