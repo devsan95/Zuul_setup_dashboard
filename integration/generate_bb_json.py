@@ -935,6 +935,7 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
 
 def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dict, removed_dict):
     sbts_base = None
+    origin_knife_dict = {}
     base_stream_map = stream_json
     if 'SBTS' not in ','.join(stream_json.keys()):
         print('No SBTS branch for this topic')
@@ -942,6 +943,8 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
     for stream, stream_base in base_stream_map.items():
         if stream.startswith('SBTS'):
             sbts_base = stream_base
+            if stream in knife_dict:
+                origin_knife_dict[stream] = knife_dict[stream]
     if not sbts_base:
         print('No SBTS branch for this topic')
         return {}
@@ -952,7 +955,9 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
     sbts_bb_mapping = bb_mapping.BB_Mapping(sbts_base).parser
     # sbts_env_change will contains version change for sbts
     sbts_env_change = {}
-    for target_dict in knife_dict.values():
+    if not origin_knife_dict:
+        origin_knife_dict = knife_dict
+    for target_dict in origin_knife_dict.values():
         for component_name, replace_dict in target_dict.items():
             source = {}
             if component_name in project_dict:
