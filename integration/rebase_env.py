@@ -243,7 +243,10 @@ def update_inherit_changes(rest, change_no, env_change_dict):
     inte_change = ManageChange(rest, int_change)
     build_stream_list = inte_change.get_build_streams()
     print(build_stream_list)
-    inherit_map_obj = inherit_map.Inherit_Map(stream_list=build_stream_list)
+    yaml_obj = config_yaml.ConfigYaml(
+        config_yaml_content=rest.get_file_content('config.yaml', change_no))
+    inherit_map_obj = inherit_map.Inherit_Map(
+        stream_list=build_stream_list, extra_components=yaml_obj.components.keys())
     inherit_change_dict = inherit_map_obj.get_inherit_change_by_changedict(
         rest, env_change_dict, change_no, type_filter='in_parent')
     inherit_change_dict.update(env_change_dict)
