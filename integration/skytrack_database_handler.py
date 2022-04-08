@@ -96,7 +96,7 @@ def skytrack_detail_api(integration_name,
                         end_time=None):
     url = "http://10.182.67.237/integration/add"
     package_info = {
-        "integration_name": integration_name,
+        "integration_name": str(integration_name),
         "product": product,
         "package_name": package_name,
         "mini_branch": mini_branch,
