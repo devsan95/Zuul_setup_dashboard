@@ -81,8 +81,8 @@ def get_job_timestamp(job_name, build_number):
     start_timestamp = build.get_timestamp()
     duration = build.get_duration()
     end_timestamp = start_timestamp + duration
-    return int(time.mktime(start_timestamp.timetuple())) * 1000, int(
-        time.mktime(end_timestamp.timetuple())) * 1000
+    return int(time.mktime(start_timestamp.timetuple())), int(
+        time.mktime(end_timestamp.timetuple()))
 
 
 def skytrack_detail_api(integration_name,
