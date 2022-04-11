@@ -811,58 +811,6 @@ def save_data_in_zuul_db(knife_path, db_info_path):
     save_data(knife_path, zuul_db)
 
 
-def get_isar_version(comp, comp_dict):
-    oam_dir = ''
-    if comp == 'coam-parameters':
-        oam_dir = 'COAM_ARTIFACTORY_DIRECTORY'
-    elif comp == 'cuoam-parameters':
-        oam_dir = 'CUOAM_ARTIFACTORY_DIRECTORY'
-    else:
-        raise Exception("[Error] The function does not support the input param!")
-    ecl_link = ''
-    if oam_dir in comp_dict and 'BIN_VER' in comp_dict:
-        ecl_link = 'http://artifactory-espoo1.int.net.nokia.com/artifactory/mnp5g-oam-bin-rel-local/' \
-                   + comp_dict[oam_dir] + '/' + comp_dict['BIN_VER'] + '/ecl.txt'
-    else:
-        print("[Error] Missing mandatory fields in OAM comments!")
-        return None, None
-    if ecl_link:
-        ecl_file = os.path.join(os.getcwd(), 'ecl.txt')
-        try:
-            api.http_api.download(ecl_link, ecl_file)
-        except Exception as e:
-            print("An exception %s occurred, msg: %s" % (type(e), str(e)))
-            traceback.print_exc()
-            return None, None
-        with open(ecl_file, 'r') as f:
-            f_content = f.read()
-    if f_content:
-        isar_reg = re.compile(r'ECL_ISAR_XML=\/isource\/svnroot\/BTS_I_ISAR_XML\/(.*)@([\d]*)')
-        content = "\n".join(f_content.splitlines())
-        reg_search_result = isar_reg.search(content)
-        isar_branch = reg_search_result.groups()[0] if reg_search_result else None
-        isar_version = reg_search_result.groups()[1] if reg_search_result else 'HEAD'
-        print("[Info] ISAR version get from ecl.txt is {0}@{1}".format(isar_branch, isar_version))
-        return isar_branch, isar_version
-    else:
-        print("[Error] Failed to get isar from ecl.txt {}".format(ecl_link))
-        return None, None
-
-
-def add_isar(comment_dict):
-    if not comment_dict or comment_dict == {}:
-        print("[Info] Empty comment_dict, no need to parse!")
-        return
-    for key, value in comment_dict.items():
-        for comp, comp_value in value.items():
-            if comp == 'coam-parameters' or comp == 'cuoam-parameters':
-                isar_branch, isar_version = get_isar_version(comp, comp_value)
-                if isar_branch:
-                    isar_dict = {"SVNBRANCH": isar_branch, "SVNREV": isar_version}
-                    value['isarxml'] = isar_dict
-                    break
-
-
 def initial_sbts_knife_dict(sbts_base):
     sbts_knife_dict = copy.deepcopy(SBTS_KNIFE_TEMPLATE)
     sbts_knife_dict['knife_request']['baseline'] = sbts_base
@@ -1084,13 +1032,6 @@ def run(zuul_url, zuul_ref, output_path, change_id,
         ex_dict_value.update(interfaces_dict)
     for comment_value in comment_dict.values():
         comment_value.update(interfaces_dict)
-
-    # add isar_xml in knife json
-    inte_change = integration_change.IntegrationChange(rest, change_id)
-    feature_id = inte_change.get_feature_id()
-    if feature_id and 'NIDD' in feature_id:
-        add_isar(ex_comment_dict)
-        add_isar(comment_dict)
 
     stream_json = parse_comments_base(change_id, rest)
     build_stream_dict = get_build_stream_base(change_id, rest, comp_config, stream_json)
