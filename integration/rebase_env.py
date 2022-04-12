@@ -69,41 +69,17 @@ def find_new_version_by_distance(old_version, env_change_dict):
     return ret_version
 
 
-def change_message_by_env_change(change_no, env_change_dict, rest):
+def change_message_by_env_change(change_no, rest, to_replace):
     try:
         origin_msg = get_commit_msg(change_no, rest)
         msg = " ".join(origin_msg.split("\n"))
-        version_reg = re.compile(r'Version Keyword: <(.*)>')
-        version_entry_search = version_reg.search(origin_msg)
-        version_entry = version_entry_search.groups()[0] if version_entry_search else None
         reg = common_regex.int_firstline_reg
         to_be_replaced = reg.search(msg).groups()[1]
         to_be_replaced_string = '<{0}>'.format(to_be_replaced)
         to_be_replace_fifi = common_regex.fifi_reg.search(origin_msg).groups()[0]
         gnb_first_line = common_regex.gnb_firstline_reg.search(msg)
-        pattern = re.sub(r"\d+", r"\d+", to_be_replaced)
-        reg = re.compile(r"({})".format(pattern.encode("utf-8")))
+        to_replace_string = '<{0}>'.format(to_replace.strip())
 
-        to_replace = ''
-        if version_entry:
-            for key, value in env_change_dict.items():
-                if version_entry == key:
-                    to_replace = env_changes.get_version_from_change_value(value)
-                    break
-        else:
-            for key, value in env_change_dict.items():
-                version = env_changes.get_version_from_change_value(value)
-                if not version:
-                    continue
-                result = reg.search(version)
-                if result and not to_replace.strip():
-                    to_replace = result.groups()[0]
-                if not to_replace.strip():
-                    to_replace = find_new_version_by_distance(
-                        to_be_replaced, env_change_dict)
-            if not to_replace.strip():
-                raise Exception('Cannot find new version')
-        to_replace_string = '<{0}>'.format(to_replace)
         if to_be_replaced_string == to_replace_string:
             return to_be_replaced, to_replace
         print(u"replace |{}| with |{}|...".format(to_be_replaced_string, to_replace_string))
@@ -140,15 +116,21 @@ def get_current_ps(rest, change_no):
     return current_ps
 
 
-def get_current_ps_from_config_yaml(rest, change_no, config_yaml_file='config.yaml'):
-    current_ps = None
+def get_root_config_yaml(rest, change_no, config_yaml_file='config.yaml'):
     try:
-        print('Getting PS version from {}...'.format(config_yaml_file))
         config_yaml_content = rest.get_file_content(config_yaml_file, change_no)
-        config_yaml_obj = config_yaml.ConfigYaml(config_yaml_content=config_yaml_content)
-        current_ps = config_yaml_obj.get_section_value('PS:PS', 'version')
+        return config_yaml.ConfigYaml(config_yaml_content=config_yaml_content)
     except Exception:
         print('Cannot find {} in {}'.format(config_yaml_file, change_no))
+    return None
+
+
+def get_current_ps_from_config_yaml(rest, change_no, config_yaml_file='config.yaml'):
+    current_ps = None
+    print('Getting PS version from {}...'.format(config_yaml_file))
+    config_yaml_obj = get_root_config_yaml(rest, change_no, config_yaml_file)
+    if config_yaml_obj:
+        current_ps = config_yaml_obj.get_section_value('PS:PS', 'version')
     return current_ps
 
 
@@ -277,6 +259,28 @@ def get_combined_env_changes(origin_env_change, new_env_change_dict):
     return combine_env_dict
 
 
+def get_new_topic_from_env_change(rest, env_change_dict, change_no, comp_config):
+    config_yaml_obj = get_root_config_yaml(rest, change_no)
+    int_change_obj = IntegrationChange(rest, change_no)
+    platform_id = int_change_obj.get_platform_id()
+    topic_key = None
+    for project_values in comp_config['project'].values():
+        for topic in project_values['type']:
+            if 'platform' not in topic:
+                continue
+            if topic['platform'] == platform_id and 'topic_key' in topic:
+                topic_key = topic['topic_key']
+    if not topic_key:
+        print('Cannot find topic_key for {}'.format(platform_id))
+        print('It may be abnormal topic and should not be updated')
+        return None
+    for env_change_key, env_change_value in env_change_dict.items():
+        section_key, section = config_yaml_obj.get_env_change_section(env_change_key)
+        if section_key == topic_key and env_change_value:
+            return env_changes.get_version_from_change_value(env_change_value)
+    return None
+
+
 def run(gerrit_info_path, change_no, comp_config, change_info=None, database_info_path=None):
     commit_msg_update = False
     env_change = change_info
@@ -321,6 +325,7 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             print(str(e))
     combine_env_dict = {}
     updated_dict, removed_dict = None, None
+
     if 'new_diff' in origin_env_change and origin_env_change['new_diff']:
         combine_env_dict = env_change_dict
         # get origin config.yaml change
@@ -424,10 +429,15 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
         to_update_topic = True
         if op.get_topic_type() == 'feature':
             to_update_topic = False
+        new_topic = None
+        if to_update_topic:
+            new_topic = get_new_topic_from_env_change(rest, env_change_dict, change_no, comp_config_dict)
+        if not new_topic:
+            to_update_topic = False
         if to_update_topic:
             # replace commit message
             commits = op.get_all_changes_by_comments()
-            change_message = partial(change_message_by_env_change, env_change_dict=env_change_dict, rest=rest)
+            change_message = partial(change_message_by_env_change, rest=rest, to_replace=new_topic)
             map(change_message, commits)
             old_str, new_str = change_message(root_change)
             # replace topic name.
