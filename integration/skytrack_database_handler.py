@@ -225,11 +225,11 @@ def add_integration_tickets(jira_key, change_list, database_info_path, dry_run=F
                 table='t_integration_topic',
                 values=values
             )
-        if not mydb.executor(
-                'SELECT * FROM t_commit_component where `change` = {0}'.format(
-                    gerrit_change),
-                output=True):
-            add_change_status(gerrit_change)
+        # if not mydb.executor(
+        #         'SELECT * FROM t_commit_component where `change` = {0}'.format(
+        #             gerrit_change),
+        #         output=True):
+        #     add_change_status(gerrit_change)
         mydb.update_info(
             table='t_commit_component',
             replacements={
