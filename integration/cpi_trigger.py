@@ -66,7 +66,8 @@ def get_summary(issue_key, sql_yaml):
     mysql.init_database('skytrack')
     sql = "SELECT summary FROM t_issue WHERE issue_key = '{0}'".format(issue_key)
     search_result = mysql.executor(sql=sql, output=True)
-    return search_result[0]
+    freezed_topic = mysql.executor(sql="SELECT issue_key FROM t_cpi_component_status_history WHERE subject='{0}'".format(str(search_result[0][0])), output=True)
+    return str(search_result[0][0]) if not freezed_topic else 'ignore'
 
 
 def get_top_two_releases(releases):
@@ -243,15 +244,18 @@ def frozen_cpi_status(issue_key, old_subject):
         "issueKey": issue_key,
         "oldSubject": old_subject
     }
-    r = requests.post(
-        'http://10.182.67.237/5GIntegration/saveStatus',
-        headers=headers,
-        data=json.dumps(cpi_frozen)
-    )
-    if r.status_code != 200:
-        LOG.error(r.text)
-        raise Exception("Failed to frozen CPI status")
-    LOG.info('CPI status freezed')
+    if old_subject != 'ignore':
+        r = requests.post(
+            'http://10.182.67.237/5GIntegration/saveStatus',
+            headers=headers,
+            data=json.dumps(cpi_frozen)
+        )
+        if r.status_code != 200:
+            LOG.error(r.text)
+            raise Exception("Failed to frozen CPI status")
+        LOG.info('CPI status freezed')
+    else:
+        LOG.info('Old CPI topic already be freezed, ignore!!!')
 
 
 def run(structure_file, streams, promoted_user_id, integration_mode, sql_yaml, baseline=None):
