@@ -70,18 +70,19 @@ def parse_oam_changes(rest, change_id, gitlab_info_path):
 
 def run(zuul_url, zuul_ref, change_id,
         gerrit_info_path, zuul_changes, gitlab_info_path, dry_run=True):
-    rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
-    rest.init_cache(1000)
-    project_branch = parse_zuul_changes(zuul_changes)
-    description, rest_id = get_description(rest, change_id)
-    knife_config = parse_config(rest, change_id)
-    ric_dict, ex_dict, abandoned_changes, proj_dict = parse_ric_list(
-        rest, description, zuul_url, zuul_ref, project_branch,
-        knife_config)
-    for change in ex_dict:
-        commit = parse_oam_changes(rest, change, gitlab_info_path)
-        if commit:
-            update_oam_comments(rest, ex_dict[change][0], change, commit, dry_run)
+    print('BOAM GITLAB is abandoned.. ignore this execution')
+    # rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
+    # rest.init_cache(1000)
+    # project_branch = parse_zuul_changes(zuul_changes)
+    # description, rest_id = get_description(rest, change_id)
+    # knife_config = parse_config(rest, change_id)
+    # ric_dict, ex_dict, abandoned_changes, proj_dict = parse_ric_list(
+    #     rest, description, zuul_url, zuul_ref, project_branch,
+    #     knife_config)
+    # for change in ex_dict:
+    #     commit = parse_oam_changes(rest, change, gitlab_info_path)
+    #     if commit:
+    #         update_oam_comments(rest, ex_dict[change][0], change, commit, dry_run)
 
 
 if __name__ == '__main__':
