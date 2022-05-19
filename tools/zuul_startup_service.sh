@@ -46,6 +46,10 @@ function main(){
       do
            startup $container_name
       done
+      #test if zuul status page is reachable
+      echo "..........................."
+      echo "<font color='black'><b>..................................................</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
+      check_zuul_server_running_status
     
     elif [ x"$(hostname)" == x"eslinb33.emea.nsn-net.net" ]; then
       for container_name in "${container_names_5G_eslinb33[@]}";
@@ -64,31 +68,42 @@ function main(){
       do
           startup $container_name
       done
-
+      #test if zuul status page is reachable
+      echo "..........................."
+      echo "<font color='black'><b>..................................................</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
+      check_zuul_server_running_status
+    
     elif [ x"$(hostname)" == x"eslinb47.emea.nsn-net.net" ]; then
       for container_name in "${container_names_RF_eslinb47[@]}";
       do
           startup $container_name
       done
-
+      #test if zuul status page is reachable
+      echo "..........................."
+      echo "<font color='black'><b>..................................................</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
+      check_zuul_server_running_status
+    
     elif [ x"$(hostname)" == x"zuul-timi-dev2.novalocal" ]; then
     
       for container_name in "${container_names_TIMI_DEV_QA[@]}";
       do
           startup $container_name
       done
+      #test if zuul status page is reachable
+      echo "..........................."
+      echo "<font color='black'><b>..................................................</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
+      check_zuul_server_running_status
+    
     fi
+
   elif [ x"$DOCKER_STATUS" == x"INACTIVE" ]; then
     echo "Docker service is INACTIVE"
     echo "Docker multiple start attempts failed. Please call IT support <br/>" >> ${SHELL_FOLDER}/$(hostname).log
     echo "Docker: <font color='red'><b> INACTIVE </b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
 
    fi
-    #test if zuul status page is reachable
-    echo "..........................."
-    echo "<font color='black'><b>..................................................</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
-    check_zuul_server_running_status
-    # send information email
+  
+  # send information email
   source $(dirname ${SHELL_FOLDER})/pyenv.sh
   python ${SHELL_FOLDER}/zuul_notification_email.py -r ${SHELL_FOLDER}/$(hostname).log
 }
@@ -194,6 +209,7 @@ function check_zuul_server_running_status() {
     echo "Check zuul server running status." >> ${SHELL_FOLDER}/$(hostname).log
     if wget http://127.0.0.1/status.json; then
       echo "Status.json check: <font color='green'><b>AVAILABLE</b></font><br/>" >> ${SHELL_FOLDER}/$(hostname).log
+      rm status.json*
     else
       echo "Status.json check: <font color='red'><b>FAILED</b></font><br/>. Can't find status.json<br/>" >> ${SHELL_FOLDER}/$(hostname).log
     fi

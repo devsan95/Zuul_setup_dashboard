@@ -23,7 +23,7 @@ sys.path.append(SCRIPT_DIR)
 class mail(object):
     from_addr = "zuul.support@nokia-sbell.com"
 
-    def __init__(self, subject, content, attachment=None, subtype='plain', to_addrs="I_5G_ZUUL@internal.nsn.com"):
+    def __init__(self, subject, content, attachment=None, subtype='plain', to_addrs="I_EXT_MN_CDS_BTSSCM_ZUUL_SUPPORT@internal.nsn.com"):
         ''' get data to send the mail
         @param subject: str, subject for mail, title
         @param content: str, content of the mail
