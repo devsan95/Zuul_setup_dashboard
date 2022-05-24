@@ -24,6 +24,13 @@ CONTAINER_STATUS=""
 PROGRESS_STATUS="NORMAL"
 SHELL_FOLDER=$(dirname $(readlink -f "$0"))
 
+function create_symbolic_link(){
+  echo "Creating symbolic link for cAdvisor"
+  mount -o remount,rw '/sys/fs/cgroup/'
+  ln -s /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup/cpuacct,cpu
+  mount -o remount,ro '/sys/fs/cgroup/'
+}
+
 
 # check what knid of zuul service on this linsee server , get it and recover it
 function main(){
@@ -47,6 +54,8 @@ function main(){
         check_and_start_docker_container "$container_name"
       fi
     elif [ x"$container_name" == x"jenkins-prod" ]; then
+        check_and_start_docker_container "$container_name"
+    elif [ x"$container_name" == x"cadvisor" ]; then
         check_and_start_docker_container "$container_name"
     fi
   done
@@ -202,4 +211,5 @@ function check_zuul_server_running_status() {
     fi
 }
 
+create_symbolic_link
 main

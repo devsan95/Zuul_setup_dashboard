@@ -21,13 +21,19 @@ DOCKER_STATUS=""
 DOCKER_START_ATTEMPTS=0
 
 # Update list with proper containers to be started and the correct order
-container_names_5G_eslinb40=("gearman" "zuul-server")
-container_names_5G_eslinb33=("mysql" "merger-0" "merger-1")
-container_names_5G_eslinb34=("mysql" "jenkins_prod_new" "merger_eslinb34_1" "merger_eslinb34_2" "nginx")
-container_names_SRAN_eslinb49=("mysql" "gearman" "merger_1" "zuul-server-lte" "nginx")
-container_names_RF_eslinb47=("mysql" "gearman" "merger_1" "merger_3" "zuul-server")
-container_names_TIMI_DEV_QA=("mysql" "gearman" "zuul-merger" "merger_1" "zuul-server" )
+container_names_5G_eslinb40=("gearman" "zuul-server" "cadvisor")
+container_names_5G_eslinb33=("mysql" "merger-0" "merger-1" "cadvisor")
+container_names_5G_eslinb34=("mysql" "jenkins_prod_new" "merger_eslinb34_1" "merger_eslinb34_2" "nginx" "cadvisor")
+container_names_SRAN_eslinb49=("mysql" "gearman" "merger_1" "zuul-server-lte" "nginx" "cadvisor")
+container_names_RF_eslinb47=("mysql" "gearman" "merger_1" "merger_3" "zuul-server" "cadvisor")
+container_names_TIMI_DEV_QA=("mysql" "gearman" "zuul-merger" "merger_1" "zuul-server" "cadvisor")
 
+function create_symbolic_link(){
+  echo "Creating symbolic link for cAdvisor"
+  mount -o remount,rw '/sys/fs/cgroup/'
+  ln -s /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup/cpuacct,cpu
+  mount -o remount,ro '/sys/fs/cgroup/'
+}
 
 function main(){
   # get server hostname
@@ -242,4 +248,5 @@ function check_docker_process() {
   fi
 }
 
+create_symbolic_link
 main
