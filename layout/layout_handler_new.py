@@ -62,6 +62,7 @@ def flatten(list_):
 
     list_out = yaml.comments.CommentedSeq()
     flatten_recursive(list_, list_out)
+    list_out = sorted(set(list_out))
     return list_out
 
 
