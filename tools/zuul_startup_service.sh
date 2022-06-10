@@ -22,10 +22,10 @@ DOCKER_START_ATTEMPTS=0
 
 # Update list with proper containers to be started and the correct order
 container_names_5G_eslinb40=("gearman" "zuul-server" "cadvisor")
-container_names_5G_eslinb33=("mysql" "merger-0" "merger-1" "cadvisor")
-container_names_5G_eslinb34=("mysql" "jenkins_prod_new" "merger_eslinb34_1" "merger_eslinb34_2" "nginx" "cadvisor")
-container_names_SRAN_eslinb49=("mysql" "gearman" "merger_1" "zuul-server-lte" "nginx" "cadvisor")
-container_names_RF_eslinb47=("mysql" "gearman" "merger_1" "merger_3" "zuul-server" "cadvisor")
+container_names_5G_eslinb33=("mysql" "merger-1" "merger-2" "cadvisor")
+container_names_5G_eslinb34=("mysql" "jenkins_prod_new" "merger-1" "merger-2" "nginx" "cadvisor")
+container_names_SRAN_eslinb49=("mysql" "gearman" "merger-1" "zuul-server-lte" "nginx" "cadvisor")
+container_names_RF_eslinb47=("mysql" "gearman" "merger-1" "merger-2" "zuul-server" "cadvisor")
 container_names_TIMI_DEV_QA=("mysql" "gearman" "zuul-merger" "merger_1" "zuul-server" "cadvisor")
 
 function create_symbolic_link(){
