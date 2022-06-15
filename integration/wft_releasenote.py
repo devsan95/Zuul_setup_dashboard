@@ -439,7 +439,7 @@ def sync_wft_name(knife_json, docker_info):
             for child_prosess in child_prosess_list:
                 if child_prosess.is_alive():
                     child_prosess.terminate()
-            cleanup_and_exit()
+            cleanup_and_exit(exit_code=213)
         log.info(wft_info)
         knife_json_wft[wft_info['wft']] = knife_json[wft_info['knife']]
     return knife_json_wft
@@ -819,7 +819,7 @@ def create_wft_branch(branch):
     log.info("New branch {} is created on WFT".format(branch))
 
 
-def cleanup_and_exit(signum=None, frame=None):
+def cleanup_and_exit(signum=None, frame=None, exit_code=0):
     if signum:
         log.info("{}: capture signal {}".format(os.getpid(), signum))
     work_dir = os.path.join(os.environ["WORKSPACE"], "integration_{}".format(os.getpid()))
@@ -834,7 +834,7 @@ def cleanup_and_exit(signum=None, frame=None):
         log.info("{}: cleanup work dir: {}".format(os.getpid(), work_dir))
         sh.rm('-rf', work_dir)
     log.info("{}: clean up successfully.".format(os.getpid()))
-    sys.exit(0)
+    sys.exit(exit_code)
 
 
 def main():
