@@ -44,7 +44,7 @@ git checkout FETCH_HEAD",
 }
 docker_repo = "mnp5gcb-docker-repo-local.artifactory-espoo1.int.net.nokia.com"
 docker_auth = {"HttpHeaders": {"User-Agent": "Docker-Client/18.03.1-ce (linux)"}}
-docker_auth["auths"] = {docker_repo: {"auth": os.environ["ARTIFACTORY_API_AUTH"]}}
+docker_auth["auths"] = {docker_repo: {"auth": os.environ["ARTIFACTORY_API_AUTH_ESPOO"]}}
 releasenote_file = os.path.join(os.environ["WORKSPACE"], "relnote.json")
 filter_str = '''
 {
