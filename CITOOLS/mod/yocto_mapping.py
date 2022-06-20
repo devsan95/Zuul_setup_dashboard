@@ -106,9 +106,6 @@ class Yocto_Mapping(object):
 
     def get_component_related(self, comp_name, platform=''):
         ret_list = []
-        ret_src = {}
-        ret_recipes = []
-        ret_recipe_values = []
         for src in self.src_list:
             if 'recipes' not in src:
                 continue
@@ -135,6 +132,13 @@ class Yocto_Mapping(object):
             filtered_tuple = self.filter_matched_tuple(ret_list, comp_name)
             if filtered_tuple:
                 return filtered_tuple[0], filtered_tuple[1], filtered_tuple[2]
+        return_tuple = self.reformat_return_list(ret_list)
+        return return_tuple[0], return_tuple[1], return_tuple[2]
+
+    def reformat_return_list(self, ret_list):
+        ret_src = {}
+        ret_recipes = []
+        ret_recipe_values = []
         for src, recipe_dicts in ret_list:
             if ret_src:
                 ret_src['recipes'].extend(src['recipes'])
@@ -143,7 +147,7 @@ class Yocto_Mapping(object):
             for recipe_dict in recipe_dicts:
                 ret_recipes.extend(recipe_dict.keys())
                 ret_recipe_values.extend(recipe_dict.values())
-        return ret_src, ret_recipes, ret_recipe_values
+        return (ret_src, ret_recipes, ret_recipe_values)
 
     def get_related_by_recipe_name(self, comp_name, platform):
         # only for legency knife json format , can be removed later
@@ -162,7 +166,7 @@ class Yocto_Mapping(object):
         if len(ret_list) == 0:
             return None
         if len(ret_list) == 1:
-            return ret_list[0]
+            return self.reformat_return_list(ret_list)
         for ret_tuple in ret_list:
             if ret_tuple and ret_tuple[1]:
                 for recipe in ret_tuple[1]:
