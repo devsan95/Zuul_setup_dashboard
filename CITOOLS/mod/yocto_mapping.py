@@ -105,6 +105,7 @@ class Yocto_Mapping(object):
         return False
 
     def get_component_related(self, comp_name, platform=''):
+        ret_list = []
         ret_src = {}
         ret_recipes = []
         ret_recipe_values = []
@@ -113,13 +114,7 @@ class Yocto_Mapping(object):
                 continue
             if 'src_uri' in src and \
                     (src['src_uri'] == comp_name or self.is_src_uri_match(src['src_uri'], comp_name)):
-                if ret_src:
-                    ret_src['recipes'].extend(src['recipes'])
-                else:
-                    ret_src = copy.deepcopy(src)
-                for recipe_dict in src['recipes']:
-                    ret_recipes.extend(recipe_dict.keys())
-                    ret_recipe_values.append(recipe_dict.values())
+                ret_list.append((copy.deepcopy(src), src['recipes']))
             for recipe in src['recipes']:
                 for recipe_key, recipe_value in recipe.items():
                     if comp_name == recipe_value.get('PN') or \
@@ -128,21 +123,26 @@ class Yocto_Mapping(object):
                         if platform and \
                                 comp_name not in self.platform_dict['integration-{}'.format(platform)]:
                             continue
-                        if ret_src:
-                            ret_src['recipes'].extend(src['recipes'])
-                        else:
-                            ret_src = copy.deepcopy(src)
-                        ret_recipes.append(recipe_key)
-                        ret_recipe_values.append(recipe_value)
-                        return ret_src, ret_recipes, ret_recipe_values
+                        ret_list.append((copy.deepcopy(src), [{recipe_key: recipe_value}]))
         # only for legency knife json format , can be removed later
-        if not ret_src:
+        if not ret_list:
             ret_by_recipe_name = self.get_related_by_recipe_name(comp_name, platform)
             if ret_by_recipe_name:
-                return ret_by_recipe_name
-        if (len(ret_recipes)) > 1:
+                return ret_by_recipe_name[0], ret_by_recipe_name[1], ret_by_recipe_name[2]
+        if (len(ret_list)) > 1:
             print('***MULTI RECIPES matched***')
-            print(ret_recipes)
+            print(ret_list)
+            filtered_tuple = self.filter_matched_tuple(ret_list, comp_name)
+            if filtered_tuple:
+                return filtered_tuple[0], filtered_tuple[1], filtered_tuple[2]
+        for src, recipe_dicts in ret_list:
+            if ret_src:
+                ret_src['recipes'].extend(src['recipes'])
+            else:
+                ret_src = src
+            for recipe_dict in recipe_dicts:
+                ret_recipes.extend(recipe_dict.keys())
+                ret_recipe_values.extend(recipe_dict.values())
         return ret_src, ret_recipes, ret_recipe_values
 
     def get_related_by_recipe_name(self, comp_name, platform):
@@ -155,7 +155,7 @@ class Yocto_Mapping(object):
                         if platform and \
                                 comp_name not in self.platform_dict['integration-{}'.format(platform)]:
                             continue
-                        ret_list.append((src, src['recipes'], [recipe_value]))
+                        ret_list.append((src, src['recipes']))
         return self.filter_matched_tuple(ret_list, comp_name)
 
     def filter_matched_tuple(self, ret_list, comp_name):
@@ -167,7 +167,7 @@ class Yocto_Mapping(object):
             if ret_tuple and ret_tuple[1]:
                 for recipe in ret_tuple[1]:
                     if recipe.values()[0].get('name') and recipe.values()[0].get('name').lower() == comp_name.lower():
-                        return ret_tuple
+                        return (ret_tuple[0], recipe.keys(), recipe.values())
         print('***Match multi src: {} for {} ***'.format(ret_list, comp_name))
         return None
 
