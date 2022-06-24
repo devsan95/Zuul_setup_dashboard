@@ -262,9 +262,10 @@ def rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
         comp_change,
         config_yaml_file=local_config_yaml,
         config_yaml_updated_dict=updated_dict,
-        config_yaml_removed_dict=removed_dict)[0][local_config_yaml]
-    rest.add_file_to_change(comp_change, local_config_yaml, config_yaml_content)
-    rest.publish_edit(comp_change)
+        config_yaml_removed_dict=removed_dict)[0].get(local_config_yaml)
+    if config_yaml_content:
+        rest.add_file_to_change(comp_change, local_config_yaml, config_yaml_content)
+        rest.publish_edit(comp_change)
     return rebase_result
 
 
