@@ -99,7 +99,6 @@ class Yocto_Mapping(object):
         return None
 
     def is_src_uri_match(self, src_uri1, src_uri2):
-        print('Compare {} and {}'.format(src_uri1, src_uri2))
         if src_uri1.endswith(src_uri2) or src_uri1.endswith('{}.git'.format(src_uri2)):
             return True
         return False
