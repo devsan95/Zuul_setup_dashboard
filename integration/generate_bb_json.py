@@ -823,7 +823,10 @@ def initial_sbts_knife_dict(sbts_base):
     git_sbts = git.Git(sbts_work_dir)
     git_sbts.init()
     git_sbts.fetch(utils.INTEGRATION_URL, base_repo_info['branch'])
-    git_sbts.checkout(base_repo_info['revision'], 'branch-config.json')
+    git_sbts.checkout(base_repo_info['revision'])
+    sbts_submodules = git_sbts.submodule('status')
+    if 'meta-cbconfig' in sbts_submodules:
+        git_sbts.submodule('update', '--init', 'meta-cbconfig')
     with open(branch_config_file, 'r') as fr:
         branch_config_dict = json.load(fr)
         sbts_knife_dict['knife_request']['module'] = branch_config_dict['modules'][0]['LTE_MODULE']
