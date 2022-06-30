@@ -19,6 +19,7 @@ from mod import env_changes
 
 def get_base_parent(rest, base_obj_list, comp, project_name):
     base_parent = list()
+    find_none = False
     for base_obj in base_obj_list:
         comp_hash = ''
         if comp == 'integration':
@@ -38,7 +39,11 @@ def get_base_parent(rest, base_obj_list, comp, project_name):
                 tag_hash = g.ls_remote("--tags", repo_url, comp_hash)
                 comp_hash = tag_hash.split('\t')[0]
             base_parent.append(comp_hash)
+        if comp_hash is None:
+            find_none = True
     print("{}'s base parent hash: {}".format(comp, base_parent))
+    if not base_parent and find_none:
+        return None
     return base_parent
 
 
@@ -73,6 +78,9 @@ def fixed_base_validator(rest, components, base_dict):
             continue
         if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
             base_parent_list = get_base_parent(rest, base_obj_list, component[0], component[1])
+            if base_parent_list is None:
+                print("change {}[{}] not in base packages {}".format(component[2], component[0], base_list))
+                continue
             if parent not in base_parent_list:
                 if len(base_obj_list) == 1 and \
                         base_obj_list[0].base_pkg.startswith('SBTS') and \

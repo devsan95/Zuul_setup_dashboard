@@ -128,7 +128,9 @@ class GET_COMPONENT_INFO(object):
             return comp_hash
         # comp_hash is None
         # means we do not found matched component in mapping
-        if self.base_pkg.startswith('SBTS') or comp_hash is None:
+        if comp_hash is None:
+            return None
+        if self.base_pkg.startswith('SBTS'):
             return ''
         try:
             return self.get_value_from_bitbake_env(comp_name, 'repo_ver')
