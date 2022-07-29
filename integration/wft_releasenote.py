@@ -15,6 +15,7 @@ import atexit
 import json
 import datetime
 import pexpect
+import traceback
 import yamlordereddictloader
 from api import log_api
 from api import gerrit_rest
@@ -135,7 +136,7 @@ create_branch_template = {
 
 
 class bitbake_terminal(object):
-    timeout = 300
+    timeout = 900
     expect_str = b' \\x1b\[0m\$ '
 
     def __init__(self, docker_info):
@@ -400,7 +401,8 @@ def process_wft_name(docker_info, task_queue, done_queue):
         try:
             wft_name = bitbake.e(component)
         except Exception:
-            log.error("{}: bitbake -e command error, exit!")
+            log.error("{}: bitbake -e command error, exit!".format(component))
+            traceback.print_exc()
             bitbake.close()
             cleanup_and_exit()
         if wft_name:
@@ -432,7 +434,7 @@ def sync_wft_name(knife_json, docker_info):
         child_prosess_list.append(child_prosess)
     for _ in range(len(knife_json)):
         try:
-            wft_info = done_queue.get(timeout=600)
+            wft_info = done_queue.get(timeout=1800)
         except Exception:
             log.error("Get wft_info dict form done_queue timeout, exit!")
             time.sleep(5)
