@@ -43,6 +43,9 @@ def get_ps_change(rest, flist, change_no):
 
 def get_trs_with_ps(ps_ver):
     custom_filter = 'custom_filter[branch_for_names][]=5G_CPI&' \
+                    'custom_filter[baseline_regexp]=1&' \
+                    'custom_filter[baseline]=FTM&' \
+                    'custom_filter[sorting_field]=date&' \
                     'custom_filter[sorting_direction]=desc'
     build_list = wft_tools.get_build_list_from_custom_filter(custom_filter)
     root = ET.fromstring(build_list)
