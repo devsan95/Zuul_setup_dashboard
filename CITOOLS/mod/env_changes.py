@@ -245,8 +245,12 @@ def rebase_config_yaml_in_component(rest, comp_change, local_config_yaml,
                                    updated_dict, removed_dict)
     delete_edit(rest, comp_change)
     print('Restor local_config_yaml: {}'.format(local_config_yaml))
-    rest.restore_file_to_change(comp_change, local_config_yaml)
-    rest.publish_edit(comp_change)
+    try:
+        rest.restore_file_to_change(comp_change, local_config_yaml)
+        rest.publish_edit(comp_change)
+    except Exception as e:
+        print('Rstore Failed ...')
+        print(e)
     try:
         print('Try rebase ...')
         if rebase_version == 'HEAD':
