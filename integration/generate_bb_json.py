@@ -163,6 +163,9 @@ def parse_ric_list(rest, subject, zuul_url,
                         'will be added in knife json'.format(project))
                     need_change = True
             if need_change:
+                if project == 'MN/5G/CB/meta-cbconfig':
+                    ret_dict['Common:META_CBCONFIG'] = {'commit': rest.get_commit(change_no)['commit']}
+                    continue
                 if project == 'MN/5G/COMMON/integration':
                     ret_dict['integration'] = {'repo_ver': rest.get_commit(change_no)['commit']}
                     continue
@@ -947,6 +950,8 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
                     if version_key in replace_dict:
                         sbts_env_change[component_name] = replace_dict[version_key]
                         break
+            if component_name == 'Common:META_CBCONFIG':
+                updated_dict[component_name] = replace_dict
             if comp_knife_dict and replacing_find:
                 update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
     print('Get SBTS env change: {}'.format(sbts_env_change))
