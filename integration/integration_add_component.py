@@ -36,13 +36,13 @@ def parse_root_change(rest, root_change):
     return root
 
 
-def generate_commit_message(comp, root, base_commit):
+def generate_commit_message(comp, root, base_commit, comp_branch):
     msg_list = []
     if 'MN/5G/NB/gnb' in comp['repo']:
         if 'without-zuul-rebase' in root['zuul_rebase']:
-            msg_list.append('[none] [NOREBASE] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
+            msg_list.append('[none] [NOREBASE] {} {} {}'.format(comp['name'], root['feature_id'], comp_branch))
         else:
-            msg_list.append('[none] {} {} {}'.format(comp['name'], root['feature_id'], root['branch']))
+            msg_list.append('[none] {} {} {}'.format(comp['name'], root['feature_id'], comp_branch))
     msg_list.append(' ')
     msg_list.append('<{}> on <{}> of <{}> topic <{}>'.format(comp['name'], root['feature_id'], root['branch'], root['topic']))
     msg_list.append('Platform ID: <{}>'.format(root['platform_id']))
@@ -66,10 +66,10 @@ def generate_commit_message(comp, root, base_commit):
     return '\n'.join(msg_list)
 
 
-def create_comp_change(rest, comp, base_commit, base_change, root):
-    commit_message = generate_commit_message(comp, root, base_commit)
+def create_comp_change(rest, comp, base_commit, base_change, root, comp_branch):
+    commit_message = generate_commit_message(comp, root, base_commit, comp_branch)
     change_id, ticket_id, rest_id = rest.create_ticket(
-        comp['repo'], None, root['branch'], commit_message, base_change=base_change
+        comp['repo'], None, comp_branch, commit_message, base_change=base_change
     )
     return ticket_id
 
@@ -93,21 +93,21 @@ def get_base_load(rest, manager_change, with_sbts=False):
     return base_load
 
 
-def get_base_commit(rest, comp, root, base_load):
+def get_base_commit(rest, comp, root, base_load, comp_branch):
     int_mode = root['zuul_rebase']
     commit_hash = None
     base_commit = None
     base_change = None
     if 'with-zuul-rebase' in int_mode:
         print('[Info] Integration mode is Head mode')
-        commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
+        commit_info = rest.get_latest_commit_from_branch(comp['repo'], comp_branch)
         commit_hash = commit_info['revision']
     elif 'without-zuul-rebase' in int_mode:
         if not base_load:
             base_load = get_base_load(rest, root['manager_change'])
         get_comp_info = get_component_info.GET_COMPONENT_INFO(base_load)
         if 'MN/SCMTA/zuul/inte_ric' in comp['repo']:
-            commit_info = rest.get_latest_commit_from_branch(comp['repo'], root['branch'])
+            commit_info = rest.get_latest_commit_from_branch(comp['repo'], comp_branch)
             commit_hash = commit_info['revision']
             if isinstance(comp['ric'], str):
                 comp['ric'] = comp['ric'].split(',')
@@ -231,10 +231,13 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     comp['files'] = []
     depends_components = comp_config['depends_components']
     components = parse_integration_config_yaml.get_component_list(comp_config)
+    branch_map = {}
     for component in components:
         if not comp_name == component['name']:
             continue
         comp_found = True
+        if 'branch_map' in component:
+            branch_map = component['branch_map']
         if 'ric' in component and component['ric']:
             comp['ric'] = component['ric'].split(",")
         if 'files' in component and component['files']:
@@ -267,11 +270,14 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
 
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root = parse_root_change(rest, root_change)
+    comp_branch = root['branch']
+    if comp_branch in branch_map:
+        comp_branch = branch_map[comp_branch]
     list_obj = inte_change.ManageChange(rest, root['manager_change'])
     component_list = list_obj.get_all_components()
 
     if not base_commit:
-        base_commit, base_change = get_base_commit(rest, comp, root, base_load=base_load)
+        base_commit, base_change = get_base_commit(rest, comp, root, base_load, comp_branch)
     parent_commit = None
     if comp['repo'] == 'MN/SCMTA/zuul/inte_ric':
         parent_commit = check_external_change(rest, root_change)
@@ -283,7 +289,7 @@ def main(root_change, comp_name, component_config, gerrit_info_path, mysql_info_
     if comp_name in comp_list:
         raise Exception("component {} has been already added before".format(comp_name))
 
-    comp_change_number = create_comp_change(rest, comp, base_commit, base_change, root)
+    comp_change_number = create_comp_change(rest, comp, base_commit, base_change, root, comp_branch)
     print("[Info] The new add component change number is: {}".format(comp_change_number))
 
     if 'files' in comp and comp['files']:
