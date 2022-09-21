@@ -48,10 +48,9 @@ fi
 for container_name in "${container_names[@]}"; do
     if [[ x"${container_name}" =~ ^xzuul-server.*$ ]] || \
        [[ x"$container_name" =~ ^xmerger.*.[0-9]*$ ]] || \
-       [[ x"${container_name}" == x"gearman" ]]
-    then
+       [[ x"${container_name}" == x"gearman" ]] ; then
         echo "${container_name}"
-        docker exec ${container_name} bash -c "/opt/script/upload_log_to_s3.sh ${HOSTNAME} ${container_name} ${ORG}"
+        docker exec ${container_name} bash -c "/opt/script/upload_log_to_s3.sh ${HOSTNAME} ${container_name} ${ORG} ${container_log_dir}"
 
     else
         echo "No need to upload logs for ${container_name} container."

@@ -5,8 +5,8 @@ set -xe
 HOSTNAME=$1
 container_name=$2
 ORG=$3
+container_log_dir=$4
 
-container_log_dir="/ephemeral/log/zuul"
 s3_log_dir="s3://zuul-5g/logs/${ORG}/${HOSTNAME}/${container_name}/"
 #s3_log_dir="s3://zuul-5g/logs/zuul/Deepak/${ORG}/${HOSTNAME}/${container_name}/"
 Log_File="*.log.*"
