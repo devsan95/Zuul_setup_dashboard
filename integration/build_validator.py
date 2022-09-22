@@ -112,7 +112,7 @@ def fixed_base_validator(rest, components, base_dict):
 
     parent_mismatch = dict()
     for repo, parents in repo_dict.items():
-        if len(parents) > 1:
+        if len(parents) > 1 and repo != 'MN/SCMTA/zuul/inte_ric':
             parent_mismatch[repo] = repo_dict[repo]
     if parent_mismatch or parent_hash_mismatch:
         messages.append('Build Pre-check Failed')
