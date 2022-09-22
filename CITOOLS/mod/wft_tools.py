@@ -259,6 +259,21 @@ def get_ps(baseline):
     return build_content.get_ps()
 
 
+def get_poject_and_component(wft_name):
+    build_content = ''
+    time.sleep(5)
+    try:
+        build_content = retry.retry_func(retry.cfn(WFT.get_build_content, wft_name), max_retry=5, interval=5)
+    except Exception:
+        print('Cannot get build_content for {}'.format(wft_name))
+    if not build_content:
+        return None, None
+    tree = ET.fromstring(build_content)
+    component = tree.find('component').text
+    project = tree.find('project').text
+    return project, component
+
+
 def get_staged_from_wft(wft_name, component=None, project=None):
     build_content = ''
     time.sleep(2)

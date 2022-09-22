@@ -62,6 +62,7 @@ SBTS_KNIFE_TEMPLATE = {
             "version_number": "99",
             "customer_knife_source": "",
             "knife_changes": {},
+            "yaml_changes": {},
             "needed_results_mask": 2048
         },
     "access_key": wft_tools.WFT.key
@@ -838,18 +839,23 @@ def initial_sbts_knife_dict(sbts_base):
 
 
 def update_sbts_comp_change(sbts_knife_dict, comp_knife_dict, force_update=False):
-    for knife_change in sbts_knife_dict['knife_request']['knife_changes'].values():
-        if 'source_repo' in knife_change and 'source_repo' in comp_knife_dict:
-            if knife_change['source_repo'] == comp_knife_dict['source_repo']:
+    key_name = 'source_repo'
+    change_part = 'knife_changes'
+    if 'source_component' in comp_knife_dict:
+        key_name = 'source_component'
+        change_part = 'yaml_changes'
+    for knife_change in sbts_knife_dict['knife_request'][change_part].values():
+        if key_name in knife_change and key_name in comp_knife_dict:
+            if knife_change[key_name] == comp_knife_dict[key_name]:
                 if force_update:
                     knife_change.update(comp_knife_dict)
                 else:
-                    print('Duplicated source repo {}'.format(knife_change['source_repo']))
+                    print('Duplicated source repo {}'.format(knife_change[key_name]))
                 return
     random_key = randint(0, 999999999999999)
-    while random_key in sbts_knife_dict['knife_request']['knife_changes']:
+    while random_key in sbts_knife_dict['knife_request'][change_part]:
         random_key = randint(0, 999999999999999)
-    sbts_knife_dict['knife_request']['knife_changes'][random_key] = comp_knife_dict
+    sbts_knife_dict['knife_request'][change_part][random_key] = comp_knife_dict
 
 
 def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest, int_src):
@@ -948,10 +954,25 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
             if source and not replacing_find:
                 for version_key in ['bb_ver', 'version', 'WFT_NAME', 'PV']:
                     if version_key in replace_dict:
-                        sbts_env_change[component_name] = replace_dict[version_key]
-                        break
+                        staged_dict = wft_tools.get_staged_from_wft(replace_dict[version_key])
+                        if staged_dict:
+                            proj_name, comp_name = wft_tools.get_poject_and_component(replace_dict[version_key])
+                            source_component = "{}:{}".format(proj_name, comp_name)
+                            comp_knife_dict = {}
+                            comp_knife_dict['source_component'] = source_component
+                            if 'commit' in staged_dict:
+                                comp_knife_dict['replace_commit'] = staged_dict['commit']
+                            if 'version' in staged_dict:
+                                comp_knife_dict['replace_version'] = staged_dict['version']
+                            replacing_find = True
+                            break
+                        else:
+                            sbts_env_change[component_name] = replace_dict[version_key]
+                            break
             if component_name == 'Common:META_CBCONFIG':
-                updated_dict[component_name] = replace_dict
+                comp_knife_dict['source_component'] = 'Common:META_CBCONFIG'
+                comp_knife_dict['replace_commit'] = replace_dict['commit']
+                replacing_find = True
             if comp_knife_dict and replacing_find:
                 update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
     print('Get SBTS env change: {}'.format(sbts_env_change))
