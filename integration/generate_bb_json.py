@@ -165,7 +165,9 @@ def parse_ric_list(rest, subject, zuul_url,
                     need_change = True
             if need_change:
                 if project == 'MN/5G/CB/meta-cbconfig':
-                    ret_dict['Common:META_CBCONFIG'] = {'commit': rest.get_commit(change_no)['commit']}
+                    ret_dict['Common:META_CBCONFIG'] = {
+                        'commit': rest.get_commit(change_no)['commit'],
+                        'version': 'change_from_{}'.format(change_no)}
                     continue
                 if project == 'MN/5G/COMMON/integration':
                     ret_dict['integration'] = {'repo_ver': rest.get_commit(change_no)['commit']}
@@ -954,17 +956,20 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
             if source and not replacing_find:
                 for version_key in ['bb_ver', 'version', 'WFT_NAME', 'PV']:
                     if version_key in replace_dict:
-                        staged_dict = wft_tools.get_staged_from_wft(replace_dict[version_key])
+                        find_version = replace_dict[version_key]
+                        staged_dict = wft_tools.get_staged_from_wft(find_version)
                         if staged_dict:
-                            proj_name, comp_name = wft_tools.get_poject_and_component(replace_dict[version_key])
+                            proj_name, comp_name = wft_tools.get_poject_and_component(find_version)
                             source_component = "{}:{}".format(proj_name, comp_name)
                             comp_knife_dict = {}
                             comp_knife_dict['source_component'] = source_component
                             if 'commit' in staged_dict:
                                 comp_knife_dict['replace_commit'] = staged_dict['commit']
-                            if 'version' in staged_dict:
-                                comp_knife_dict['replace_version'] = staged_dict['version']
+                            comp_knife_dict['replace_version'] = trs_to_bytes_string(find_version)
                             replacing_find = True
+                            updated_dict[source_component] = {'version': trs_to_bytes_string(find_version)}
+                            for staged_key, staged_value in staged_dict.items():
+                                updated_dict[source_component][staged_key] = trs_to_bytes_string(staged_value)
                             break
                         else:
                             sbts_env_change[component_name] = replace_dict[version_key]
@@ -972,6 +977,7 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
             if component_name == 'Common:META_CBCONFIG':
                 comp_knife_dict['source_component'] = 'Common:META_CBCONFIG'
                 comp_knife_dict['replace_commit'] = replace_dict['commit']
+                comp_knife_dict['replace_version'] = replace_dict['version']
                 replacing_find = True
             if comp_knife_dict and replacing_find:
                 update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
@@ -1113,6 +1119,14 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     # store zuul_ref in zuul database
     # if zuul_ref:
     #    save_data_in_zuul_db(knife_path, db_info_path)
+
+
+def trs_to_bytes_string(value):
+    if isinstance(value, str):
+        return value.encode('utf-8')
+    if isinstance(value, bytes):
+        return value
+    return str(value).encode('utf-8')
 
 
 if __name__ == '__main__':
