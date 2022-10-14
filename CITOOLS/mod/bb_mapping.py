@@ -6,6 +6,7 @@ from six.moves import configparser
 from api import config
 from mod import origin_mapping
 from mod import yocto_mapping
+from mod import wft_tools
 
 # in ci-scripsts this will be get from ENV
 WFT_CONFIG_FILE = os.path.join(config.get_config_path(), 'properties/wft.properties')
@@ -15,23 +16,6 @@ WFT_URL = WFT_CONFIG.get('wft', 'url')
 WFT_KEY = WFT_CONFIG.get('wft', 'key')
 WFT_API_URL = "{}:8091".format(WFT_URL)
 WFT_ATTACHMENT_URL = "{}:8091/api/v1/5G:WMP/5G_Central/builds".format(WFT_URL)
-WFT_SEARCH_BUILD = "{}/5G:WMP/api/v1/build.json?" \
-    "access_key={}&view[items]=50&view[sorting_field]=created_at" \
-    "&view[sorting_direction]=DESC&view[columns[][id]]=deliverer.project.full_path" \
-    "&view[columns[][id]]=deliverer.title&view[columns[][id]]=version" \
-    "&view[columns[][id]]=branch.title&view[columns[][id]]=state" \
-    "&view[columns[][id]]=planned_delivery_date&view[columns[][id]]=common_links" \
-    "&view[columns[][id]]=compare_link" \
-    "&view[view_filters_attributes[128671826645388]][column]=deliverer.project.full_path" \
-    "&view[view_filters_attributes[128671826645388]][operation]=eq" \
-    "&view[view_filters_attributes[128671826645388]][value][]=5G%3AWMP" \
-    "&view[view_filters_attributes[122019703348590]][column]=deliverer.title" \
-    "&view[view_filters_attributes[122019703348590]][operation]=eq" \
-    "&view[view_filters_attributes[122019703348590]][value][]=5G_Central" \
-    "&view[view_filters_attributes[24216713295283]][column]=version" \
-    "&view[view_filters_attributes[24216713295283]][operation]=matches_regexp" \
-    "&view[view_filters_attributes[24216713295283]][value][]=%5E(5G%7CvDU%7CvCU%7CVDU%7CCUCNF%7CCUVNF%7CpDU)%5B0-9a-zA-Z%5D*_{}%5Cz&"
-HTTP_HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 INTEGRATION_PROJ_REPO = 'MN/5G/COMMON/integration.git'
 
 
@@ -63,33 +47,13 @@ class BB_Mapping(object):
             with open(self.mapping_file, 'r') as fr:
                 return json.load(fr)
 
-    def search_build_on_wft(self):
-        response = requests.get(
-            WFT_SEARCH_BUILD.format(WFT_API_URL, WFT_KEY, self.package),
-            headers=HTTP_HEADERS
-        )
-        if response.ok:
-            try:
-                build_list = json.loads(response.text)['items']
-            except Exception:
-                logging.warn("Can not find build %s on WFT", self.package)
-                return False
-            if len(build_list) == 1:
-                logging.info('Get build list : %s', build_list)
-                return build_list[0]["version"]
-            else:
-                logging.warn("Multiple builds are found on WFT for %s", self.package)
-                return False
-        else:
-            logging.warn("WFT return %s when search %s", response.status_code, self.package)
-            return False
-
     def get_bbmapping_from_wft(self):
         wft_version = self.package
         if not self.package.startswith('SBTS'):
-            wft_version = self.search_build_on_wft()
-            if not wft_version:
-                raise Exception('Cannot get wft name for {}'.format(self.package))
+            version_part = self.package.split('_')[-1]
+            stream_name = wft_tools.get_stream_name(version_part)
+            wft_version = stream_name + '_' + version_part
+            print('WFT version is {0}'.format(wft_version))
         bbmapping_id = get_build_bbmapping_id(wft_version)
         if not bbmapping_id:
             raise Exception('Cannot get bb_mapping id from {}'.format(wft_version))

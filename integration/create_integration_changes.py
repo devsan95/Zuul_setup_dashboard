@@ -29,6 +29,7 @@ from api import gerrit_api
 from api import gerrit_rest
 from api import job_tool
 from api import config
+from api import retry
 from api import env_repo as get_env_repo
 from mod import utils
 from mod import env_changes
@@ -471,7 +472,10 @@ class IntegrationChangesCreation(object):
                     s_list.append([path, node_obj['ticket_id']])
 
         if need_publish:
-            self.gerrit_rest.publish_edit(node_obj['rest_id'])
+            retry.retry_func(
+                retry.cfn(self.gerrit_rest.publish_edit, node_obj['rest_id']),
+                max_retry=5, interval=3
+            )
 
         for child in graph.successors(node_obj['name']):
             print("[INFO] create ticket for node {}".format(child))
@@ -1045,7 +1049,10 @@ class IntegrationChangesCreation(object):
                         except Exception as e:
                             print(e)
                         self.gerrit_rest.change_commit_msg_to_edit(node['ticket_id'], new_msg)
-                        self.gerrit_rest.publish_edit(node['ticket_id'])
+                        retry.retry_func(
+                            retry.cfn(self.gerrit_rest.publish_edit, node['ticket_id']),
+                            max_retry=5, interval=3
+                        )
 
     def get_inherit_change(self, component, version, inherit_map_obj):
         print('Get inherit change for {}:{}'.format(component, version))
@@ -1193,7 +1200,7 @@ class IntegrationChangesCreation(object):
         if feature_owner and feature_owner != 'anonymous' and not self.meta['jira']['assignee']:
             self.meta['jira']['assignee'] = {'name': feature_owner}
 
-        self.check_coam_integration()
+        # self.check_coam_integration()
 
         # create graph
         root_node, integration_node, nodes, graph_obj = create_graph(self.info_index)
@@ -1308,7 +1315,7 @@ class IntegrationChangesCreation(object):
         self.label_all_tickets()
         self.update_oam_description()
         comp_change_list = [node['ticket_id'] for node in self.info_index['nodes'].values() if node.get('type') != 'auto_submodule']
-        if 'interface info:' in ext_commit_msg:
+        if ext_commit_msg and 'interface info:' in ext_commit_msg:
             update_interfaces_refs(rest=self.gerrit_rest,
                                    comp_change_list=comp_change_list,
                                    comp_name=re.search(r'comp_name:\W+(.*)', ext_commit_msg).group(1),
@@ -1323,13 +1330,12 @@ class IntegrationChangesCreation(object):
         if base_comp:
             self.update_base_depends(base_comp)
         self.print_result()
-        send_result_email.run(self.info_index)
         if mysql_info:
             skytrack_database_handler.add_integration_tickets(
                 jira_key=self.meta["jira_key"],
                 change_list=comp_change_list,
                 database_info_path=mysql_info)
-            retry = 5
+            retry_time = 5
             while True:
                 if not skytrack_database_handler.if_issue_exist(
                         database_info_path=mysql_info,
@@ -1338,11 +1344,11 @@ class IntegrationChangesCreation(object):
                     print("[WARNING] {0} haven't created in skytrack database".format(self.meta["jira_key"]))
                     print("Will retry in 20s")
                     time.sleep(20)
-                    if retry == 0:
+                    if retry_time == 0:
                         print("[WARNING] retry end, can not update integration mode")
                         break
-                    retry -= 1
-                    print("Retry left {0} times".format(retry))
+                    retry_time -= 1
+                    print("Retry left {0} times".format(retry_time))
                     continue
                 wft_build_list = [wft_tools.get_wft_release_name(build) for build in self.base_load_list]
                 skytrack_database_handler.update_integration_mode(
@@ -1363,6 +1369,7 @@ class IntegrationChangesCreation(object):
             self.gerrit_rest.review_ticket(node['rest_id'], 'BUILD_URL:{}'.format(os.getenv('BUILD_URL')))
             if node is not root_node:
                 self.gerrit_rest.review_ticket(node['rest_id'], 'Root change: {}'.format(self.gerrit_rest.get_change_address(root_change)))
+        send_result_email.run(self.info_index)
 
 
 @click.group()

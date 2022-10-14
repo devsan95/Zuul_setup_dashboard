@@ -3,36 +3,11 @@ import re
 import logging
 import traceback
 
-from six.moves import configparser
 from mod import integration_repo
 from mod import utils
 from mod import bb_mapping
-from api import config
 
 logging.basicConfig(level=logging.INFO)
-WFT_CONFIG_FILE = os.path.join(config.get_config_path(), 'properties/wft.properties')
-WFT_CONFIG = configparser.ConfigParser()
-WFT_CONFIG.read(WFT_CONFIG_FILE)
-WFT_URL = WFT_CONFIG.get('wft', 'url')
-WFT_KEY = WFT_CONFIG.get('wft', 'key')
-WFT_ATTACHMENT_URL = "{}:8091/api/v1/5G:WMP/5G_Central/builds".format(WFT_URL)
-WFT_SEARCH_BUILD = "{}:8091/5G:WMP/api/v1/build.json?" \
-    "access_key={}&view[items]=50&view[sorting_field]=created_at" \
-    "&view[sorting_direction]=DESC&view[columns[][id]]=deliverer.project.full_path" \
-    "&view[columns[][id]]=deliverer.title&view[columns[][id]]=version" \
-    "&view[columns[][id]]=branch.title&view[columns[][id]]=state" \
-    "&view[columns[][id]]=planned_delivery_date&view[columns[][id]]=common_links" \
-    "&view[columns[][id]]=compare_link" \
-    "&view[view_filters_attributes[128671826645388]][column]=deliverer.project.full_path" \
-    "&view[view_filters_attributes[128671826645388]][operation]=eq" \
-    "&view[view_filters_attributes[128671826645388]][value][]=5G%3AWMP" \
-    "&view[view_filters_attributes[122019703348590]][column]=deliverer.title" \
-    "&view[view_filters_attributes[122019703348590]][operation]=eq" \
-    "&view[view_filters_attributes[122019703348590]][value][]=5G_Central" \
-    "&view[view_filters_attributes[24216713295283]][column]=version" \
-    "&view[view_filters_attributes[24216713295283]][operation]=matches_regexp" \
-    "&view[view_filters_attributes[24216713295283]][value][]=%5CA5G%5B0-9a-zA-Z%5D*_{}%5Cz&"
-HTTP_HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 REVISION_KEYS = ['revision', 'rev', 'pv']
 
 
