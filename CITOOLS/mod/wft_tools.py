@@ -31,8 +31,8 @@ BUILD_FILTER = "{wft_url}:8091/ALL/api/v1/build.json?" \
                "&view[view_filters_attributes[438525425682223]][value][]={version}" \
                "&view[view_filters_attributes[208462639699611]][column]=deliverer.title" \
                "&view[view_filters_attributes[208462639699611]][operation]=eq" \
-               "&view[view_filters_attributes[208462639699611]][value][]=5G_Central&"
-PKG_REGEX_FOR_5G = r"(5G|vDUCNF|vCUCNF|CUCNF|CUVNF|VDU|pDU)[0-9,A-Z]*_[0-9]+\.[0-9]+\.[0-9]"
+               "&view[view_filters_attributes[208462639699611]][value][]=CI_CRAN&"
+PKG_REGEX_FOR_5G = r"(5G|vDUCNF|vCUCNF|CUCNF|CUVNF|VDU|pDU)[0-9,A-Z]+_[0-9]+\.[0-9]+\.[0-9]"
 inherit_json = '''{
   "page": "",
   "items": "20",
@@ -145,7 +145,7 @@ def get_stream_name(version):
 
 
 def get_repository_info(package):
-    rs = WFT.get_build_content(package)
+    rs = WFT.get_build_content(get_wft_release_name(package))
     tree = ET.fromstring(rs)
     repository_info = {}
     for key_name in ['url', 'branch', 'revision', 'type']:

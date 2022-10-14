@@ -142,6 +142,19 @@ def get_file_content(file_path):
         return fr.read()
 
 
+def file_to_dict(file_path, skip_quote=True):
+    data = dict()
+    for line in get_file_content(file_path).splitlines():
+        m = re.match(r'(\S+)\s*=\s*(\S+)', line)
+        if m:
+            key = m.group(1)
+            value = m.group(2)
+            if skip_quote:
+                value = value.lstrip('"').rstrip('"')
+            data[key] = value
+    return data
+
+
 def get_integration_branch(work_dir):
     g_repo = git.Git(work_dir)
     branch_data = g_repo.branch('--contains', 'HEAD', '-a')

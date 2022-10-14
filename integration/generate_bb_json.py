@@ -18,6 +18,8 @@ import yamlordereddictloader
 import ruamel
 from random import randint
 from slugify import slugify
+from xml.dom import minidom
+import xml.etree.ElementTree as ET
 from api import mysql_api
 from mod import utils
 from mod import integration_change
@@ -35,6 +37,9 @@ import api.http_api
 import submodule_handle
 
 
+ROOT_FILE_FOLDER = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KNIFE_CONFIG_TEMPLATE = os.path.join(
+    ROOT_FILE_FOLDER, 'CICONF/template/knife_config.xml')
 wft = wft_tools.WFT
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 MAIL_REGEX = r'^[^@]+@(nokia|nokia-sbell|internal\.nsn|groups\.nokia)\.com'
@@ -819,8 +824,8 @@ def save_data_in_zuul_db(knife_path, db_info_path):
 
 def initial_sbts_knife_dict(sbts_base):
     sbts_knife_dict = copy.deepcopy(SBTS_KNIFE_TEMPLATE)
-    sbts_knife_dict['knife_request']['baseline'] = sbts_base
-    sbts_work_dir = os.path.join(os.getcwd(), 'sbts_integration')
+    sbts_knife_dict['knife_request']['baseline'] = wft_tools.get_wft_release_name(sbts_base)
+    sbts_work_dir = os.path.join(os.getcwd(), '{}_integration'.format(sbts_base))
     branch_config_file = os.path.join(sbts_work_dir, 'branch-config.json')
     if os.path.exists(sbts_work_dir):
         shutil.rmtree(sbts_work_dir)
@@ -897,95 +902,97 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
 
 
 def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dict, removed_dict):
-    sbts_base = None
     origin_knife_dict = {}
     base_stream_map = stream_json
-    if 'SBTS' not in ','.join(stream_json.keys()):
-        print('No SBTS branch for this topic')
-        return {}
     for stream, stream_base in base_stream_map.items():
-        if stream.startswith('SBTS'):
-            sbts_base = stream_base
-            if stream in knife_dict:
-                origin_knife_dict[stream] = knife_dict[stream]
-    if not sbts_base:
-        print('No SBTS branch for this topic')
-        return {}
-    sbts_knife_dict = initial_sbts_knife_dict(sbts_base)
-    print('sbts_knife_dict:')
-    print(sbts_knife_dict)
-    # get bb_mapping for SBTS load
-    sbts_bb_mapping = bb_mapping.BB_Mapping(sbts_base).parser
+        if stream in knife_dict:
+            origin_knife_dict[stream] = knife_dict[stream]
     # sbts_env_change will contains version change for sbts
     sbts_env_change = {}
+    stream_knife_dict = {}
+    stream_bb_mapping = {}
+    for stream, stream_base in base_stream_map.items():
+        stream_knife_dict[stream] = initial_sbts_knife_dict(stream_base)
+        stream_bb_mapping[stream] = bb_mapping.BB_Mapping(stream_base).parser
     if not origin_knife_dict:
         origin_knife_dict = knife_dict
     for target_dict in origin_knife_dict.values():
-        for component_name, replace_dict in target_dict.items():
-            source = {}
-            if component_name in project_dict:
-                print('Try to get component dict by project: {}'.format(project_dict[component_name]))
-                source = sbts_bb_mapping.get_component_source_by_project(project_dict[component_name])
-            if not source:
-                print('Try to get component dict by name: {}'.format(component_name))
-                source = sbts_bb_mapping.get_component_source(component_name)
-            comp_knife_dict = {}
-            replacing_find = False
-            if source and 'src_uri' in source and source['src_uri']:
-                comp_knife_dict['source_repo'] = source['src_uri']
-                comp_knife_dict['source_type'] = source['src_uri_type']
-                comp_knife_dict['replace_source'] = ''
-                if 'repo_url' in replace_dict and replace_dict['repo_url']:
-                    comp_knife_dict['replace_source'] = replace_dict['repo_url']
-                    if 'protocol' in replace_dict:
-                        comp_knife_dict['replace_source'] = '{};protocol={}'.format(
-                            replace_dict['repo_url'], replace_dict['protocol'])
-                        replacing_find = True
-                elif 'SRC_URI' in replace_dict and replace_dict['SRC_URI']:
-                    comp_knife_dict['replace_source'] = replace_dict['SRC_URI'].split(';')[0]
+        for stream, stream_base in base_stream_map.items():
+            gen_change_from_knife_dict(target_dict,
+                                       stream_knife_dict[stream],
+                                       project_dict,
+                                       stream_bb_mapping[stream],
+                                       updated_dict,
+                                       sbts_env_change)
+    for stream, stream_base in base_stream_map.items():
+        print('Get SBTS env change: {}'.format(sbts_env_change))
+        int_srouce = stream_bb_mapping[stream].get_component_source_by_project('integration')
+        update_sbts_integration(stream_knife_dict[stream], updated_dict, removed_dict, sbts_env_change, rest, int_srouce['src_uri'])
+    return stream_knife_dict
+
+
+def gen_change_from_knife_dict(target_dict, sbts_knife_dict, project_dict, sbts_bb_mapping, updated_dict, sbts_env_change):
+    for component_name, replace_dict in target_dict.items():
+        source = {}
+        if component_name in project_dict:
+            print('Try to get component dict by project: {}'.format(project_dict[component_name]))
+            source = sbts_bb_mapping.get_component_source_by_project(project_dict[component_name])
+        if not source:
+            print('Try to get component dict by name: {}'.format(component_name))
+            source = sbts_bb_mapping.get_component_source(component_name)
+        comp_knife_dict = {}
+        replacing_find = False
+        if source and 'src_uri' in source and source['src_uri']:
+            comp_knife_dict['source_repo'] = source['src_uri']
+            comp_knife_dict['source_type'] = source['src_uri_type']
+            comp_knife_dict['replace_source'] = ''
+            if 'repo_url' in replace_dict and replace_dict['repo_url']:
+                comp_knife_dict['replace_source'] = replace_dict['repo_url']
+                if 'protocol' in replace_dict:
+                    comp_knife_dict['replace_source'] = '{};protocol={}'.format(
+                        replace_dict['repo_url'], replace_dict['protocol'])
                     replacing_find = True
-                replace_commit = get_revision_from_dict(replace_dict)
-                if replace_commit:
-                    comp_knife_dict['replace_commit'] = replace_commit
-                    if not comp_knife_dict['replace_source']:
-                        comp_knife_dict['replace_source'] = comp_knife_dict['source_repo']
-                    replacing_find = True
-                comp_knife_dict['package_path'] = ''
-                if 'package_path' in replace_dict and replace_dict['package_path']:
-                    comp_knife_dict['package_path'] = replace_dict['package_path']
-                    replacing_find = True
-            if source and not replacing_find:
-                for version_key in ['bb_ver', 'version', 'WFT_NAME', 'PV']:
-                    if version_key in replace_dict:
-                        find_version = replace_dict[version_key]
-                        staged_dict = wft_tools.get_staged_from_wft(find_version)
-                        if staged_dict:
-                            proj_name, comp_name = wft_tools.get_poject_and_component(find_version)
-                            source_component = "{}:{}".format(proj_name, comp_name)
-                            comp_knife_dict = {}
-                            comp_knife_dict['source_component'] = source_component
-                            if 'commit' in staged_dict:
-                                comp_knife_dict['replace_commit'] = staged_dict['commit']
-                            comp_knife_dict['replace_version'] = trs_to_bytes_string(find_version)
-                            replacing_find = True
-                            updated_dict[source_component] = {'version': trs_to_bytes_string(find_version)}
-                            for staged_key, staged_value in staged_dict.items():
-                                updated_dict[source_component][staged_key] = trs_to_bytes_string(staged_value)
-                            break
-                        else:
-                            sbts_env_change[component_name] = replace_dict[version_key]
-                            break
-            if component_name == 'Common:META_CBCONFIG':
-                comp_knife_dict['source_component'] = 'Common:META_CBCONFIG'
-                comp_knife_dict['replace_commit'] = replace_dict['commit']
-                comp_knife_dict['replace_version'] = replace_dict['version']
+            elif 'SRC_URI' in replace_dict and replace_dict['SRC_URI']:
+                comp_knife_dict['replace_source'] = replace_dict['SRC_URI'].split(';')[0]
                 replacing_find = True
-            if comp_knife_dict and replacing_find:
-                update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
-    print('Get SBTS env change: {}'.format(sbts_env_change))
-    int_srouce = sbts_bb_mapping.get_component_source_by_project('integration')
-    update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_env_change, rest, int_srouce['src_uri'])
-    return sbts_knife_dict
+            replace_commit = get_revision_from_dict(replace_dict)
+            if replace_commit:
+                comp_knife_dict['replace_commit'] = replace_commit
+                if not comp_knife_dict['replace_source']:
+                    comp_knife_dict['replace_source'] = comp_knife_dict['source_repo']
+                replacing_find = True
+            comp_knife_dict['package_path'] = ''
+            if 'package_path' in replace_dict and replace_dict['package_path']:
+                comp_knife_dict['package_path'] = replace_dict['package_path']
+                replacing_find = True
+        if source and not replacing_find:
+            for version_key in ['bb_ver', 'version', 'WFT_NAME', 'PV']:
+                if version_key in replace_dict:
+                    find_version = replace_dict[version_key]
+                    staged_dict = wft_tools.get_staged_from_wft(find_version)
+                    if staged_dict:
+                        proj_name, comp_name = wft_tools.get_poject_and_component(find_version)
+                        source_component = "{}:{}".format(proj_name, comp_name)
+                        comp_knife_dict = {}
+                        comp_knife_dict['source_component'] = source_component
+                        if 'commit' in staged_dict:
+                            comp_knife_dict['replace_commit'] = staged_dict['commit']
+                        comp_knife_dict['replace_version'] = trs_to_bytes_string(find_version)
+                        replacing_find = True
+                        updated_dict[source_component] = {'version': trs_to_bytes_string(find_version)}
+                        for staged_key, staged_value in staged_dict.items():
+                            updated_dict[source_component][staged_key] = trs_to_bytes_string(staged_value)
+                        break
+                    else:
+                        sbts_env_change[component_name] = replace_dict[version_key]
+                        break
+        if component_name == 'Common:META_CBCONFIG':
+            comp_knife_dict['source_component'] = 'Common:META_CBCONFIG'
+            comp_knife_dict['replace_commit'] = replace_dict['commit']
+            comp_knife_dict['replace_version'] = replace_dict['version']
+            replacing_find = True
+        if comp_knife_dict and replacing_find:
+            update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
 
 
 def get_revision_from_dict(replace_dict):
@@ -1039,7 +1046,6 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     # path
     knife_path = os.path.join(output_path, 'knife.json')
-    sbts_knife_path = os.path.join(output_path, 'sbts_knife.json')
     base_path = os.path.join(output_path, 'base.json')
     reviews_path = os.path.join(output_path, 'reviewers.json')
 
@@ -1094,15 +1100,13 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     save_json_file(base_path, stream_json)
 
     # sbts knife json
-    save_json_file(sbts_knife_path,
-                   [gen_sbts_knife_dict(
-                       combined_knife_dict,
-                       build_stream_dict,
-                       rest,
-                       project_dict,
-                       updated_dict,
-                       removed_dict)],
-                   override=True)
+    stream_knife_dict = gen_sbts_knife_dict(
+        combined_knife_dict, build_stream_dict, rest, project_dict, updated_dict, removed_dict)
+    for stream in stream_knife_dict:
+        sbts_knife_path = os.path.join(output_path, '{}_knife.json'.format(stream))
+        knife_config_path = os.path.join(output_path, '{}_config.xml'.format(stream))
+        save_json_file(sbts_knife_path, [stream_knife_dict[stream]], override=True)
+        save_to_config_xml(stream_knife_dict[stream]['knife_request'], knife_config_path)
     # email list
     reviews_json = rest.get_reviewer(change_id)
     reviews_mail_list = [x['email'] for x in reviews_json if 'email' in x]
@@ -1120,6 +1124,50 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     # store zuul_ref in zuul database
     # if zuul_ref:
     #    save_data_in_zuul_db(knife_path, db_info_path)
+
+
+def save_to_config_xml(wft_knife_data, output_path):
+    with open(KNIFE_CONFIG_TEMPLATE, 'r') as fr:
+        knife_config = fr.read()
+        knife_config = knife_config.replace('@knife_id@', os.environ.get('BUILD_NUMBER'))
+        knife_config = knife_config.replace('@baseline@', wft_knife_data['baseline'])
+        knife_config = knife_config.replace('@module@', wft_knife_data['module'])
+        repository_info = wft_tools.get_repository_info(wft_knife_data['baseline'])
+        knife_config = knife_config.replace('@repository_branch@', repository_info['branch'])
+        knife_config = knife_config.replace('@repository_revision@', repository_info['revision'])
+        root = update_knife_config_changes(knife_config, wft_knife_data)
+        xmlstr = minidom.parseString(ET.tostring(root)).toprettyxml(indent="  ")
+        api.file_api.save_file(xmlstr, output_path, False)
+
+
+def update_knife_config_changes(knife_config, wft_knife_data):
+    root = ET.fromstring(knife_config)
+    changes_node = root.find('changes')
+    for knife_change in wft_knife_data['knife_changes'].values():
+        child = ET.SubElement(changes_node, "change")
+        child_source_repo = ET.SubElement(child, 'source_repo')
+        child_source_repo.text = knife_change['source_repo']
+        child_dir = ET.SubElement(child, 'dir')
+        child_dir.text = knife_change['package_path']
+        child_force_knife_dir = ET.SubElement(child, 'force_knife_dir')
+        child_force_knife_dir.text = 'no'
+        child_srcuri = ET.SubElement(child, 'srcuri')
+        child_srcuri.set('type', knife_change['source_type'])
+        child_srcuri_repo = ET.SubElement(child_srcuri, 'repo')
+        child_srcuri_repo.text = knife_change['replace_source']
+        child_srcuri_rev = ET.SubElement(child_srcuri, 'rev')
+        child_srcuri_rev.text = knife_change['replace_commit']
+    for yaml_change in wft_knife_data['yaml_changes'].values():
+        child = ET.SubElement(changes_node, "change")
+        child_source_component = ET.SubElement(child, 'source_component')
+        child_source_component.text = yaml_change['source_component']
+        child_srcuri = ET.SubElement(child, 'srcuri')
+        child_srcuri.set('type', 'component')
+        child_srcuri_version = ET.SubElement(child_srcuri, 'version')
+        child_srcuri_version.text = yaml_change['replace_version']
+        child_srcuri_commit = ET.SubElement(child_srcuri, 'commit')
+        child_srcuri_commit.text = yaml_change['replace_commit']
+    return root
 
 
 def trs_to_bytes_string(value):

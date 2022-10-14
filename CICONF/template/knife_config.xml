@@ -1,0 +1,26 @@
+<knife id="@knife_id@">
+  <knife_id>@knife_id@</knife_id>
+  <state></state>
+  <server>http://production.cb.scm.nsn-rdnet.net:80</server>
+  <requestor>CentralBuild-Team_5G</requestor>
+  <requestor_mail>i_5g_cb_scm@internal.nsn.com</requestor_mail>
+  <purpose>debug</purpose>
+  <info/>
+  <dir/>
+  <force_dir>yes</force_dir>
+  <baseline>@baseline@</baseline>
+  <diff> </diff>
+  <needed_results> </needed_results>
+  <config> </config>
+  <module>@module@</module>
+  <lte790>true</lte790>
+  <customer_knife>false</customer_knife>
+  <build_system>yocto</build_system>
+  <repository_url>ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration</repository_url>
+  <repository_branch>@repository_branch@</repository_branch>
+  <repository_type>git</repository_type>
+  <repository_revision>@repository_revision@</repository_revision>
+  <yocto>true</yocto>
+  <changes>
+  </changes>
+</knife>

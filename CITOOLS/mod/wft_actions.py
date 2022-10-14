@@ -1,13 +1,19 @@
+import configparser
 import json
 import os
 import re
 import requests
+from api import config
 from api import log_api
 from api import wft_api
 from datetime import datetime
 
-WFT_API_URL = os.environ['WFT_API_URL']
-WFT_KEY = os.environ['WFT_KEY']
+WFT_CONFIG_FILE = os.path.join(config.get_config_path(), 'properties/wft.properties')
+WFT_CONFIG = configparser.ConfigParser()
+WFT_CONFIG.read(WFT_CONFIG_FILE)
+WFT_URL = WFT_CONFIG.get('wft', 'url')
+WFT_KEY = WFT_CONFIG.get('wft', 'key')
+WFT_API_URL = "{}:8091".format(WFT_URL)
 log = log_api.get_console_logger("WFT actions")
 WFTAUTH = wft_api.WftAuth(WFT_KEY)
 
@@ -58,17 +64,37 @@ class WFTUtils(object):
                 'subbuilds': subbuilds}
 
     @staticmethod
-    def get_next_version(version, sub_version=None):
+    def get_next_version(version, sub_version=None, int_method=None):
+        integration_table = {'PSINT': '9000', 'RCPINT': '9100', 'FEINT': '9200', 'NIDDINT': '9501'}
         # eg, sub_version is "201221" in SBTS00_ECL_SACK_BASE_9000_201221_000008
-        if sub_version:
-            short_version = str(sub_version)
+        if 'SBTS' in version:
+            # change int method
+            [prod_name, bti, major_version, minor_version] = version.rsplit('_', 3)
+            # SBTS Logic fo
+            if sub_version:
+                short_version = str(sub_version)
+            else:
+                short_version = datetime.strftime(datetime.now(), '%y%m%d')
+            release_id = (int(minor_version) + 1) if short_version == major_version else 1
+            new_bti = integration_table[int_method] if (int_method and int_method in integration_table) else bti
+            new_version = "{0}_{1}_{2}_{3:06d}".format(prod_name, new_bti, short_version, release_id)
+            # log.info("New build increment version: {}".format(new_version))
+            return new_version
         else:
-            short_version = datetime.strftime(datetime.now(), '%y%m%d')
-        units = version.rsplit('_', 2)
-        release_id = (int(units[2]) + 1) if short_version == units[1] else 1
-        new_version = "{0}_{1}_{2:06d}".format(units[0], short_version, release_id)
-        log.info("New build increment version: {}".format(new_version))
-        return new_version
+            # vDU/vCU logic
+            if '-' in version:
+                [base_name, increase_number] = version.split('-', 1)
+                return "{}-{}".format(base_name, int(increase_number) + 1)
+            else:
+                [prod_name, build_name] = version.split('_', 1)
+                [bid, build_number] = build_name.split('.', 1)
+                if not int_method:
+                    bid = 0
+                elif int_method in integration_table:
+                    bid = integration_table[int_method]
+                return "{prod_name}_{bid}.{build_number}-1".format(prod_name=prod_name,
+                                                                   bid=bid,
+                                                                   build_number=build_number)
 
     @staticmethod
     def set_note(version, note):
@@ -194,6 +220,119 @@ class BuildIncrement(object):
                 return candidate_build
         raise Exception('Not find matched regex {} in {}'.format(name_regex, candidate_builds))
 
+    def __update_increment__(self, project, component, version, repo_url, repo_branch, repo_repository_revision, repo_type, note):
+        uri = "{}/api/v1/{}/{}/builds/{}.json".format(WFT_API_URL, project, component, version)
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        # payload
+        payload = {
+            "build": {"repository_url": repo_url,
+                      "repository_branch": repo_branch,
+                      "repository_type": repo_type,
+                      "repository_revision": repo_repository_revision,
+                      "important_note": note}
+        }
+        log.info("modify build with following info:")
+        log.info(json.dumps(payload, sort_keys=True, indent=4))
+        payload.update({"access_key": WFT_KEY})
+        try:
+            response = requests.patch(
+                uri,
+                headers=headers,
+                json=payload,
+                verify=False
+            )
+            if not response.ok:
+                raise Exception("failed when post new increment to WFT")
+        except Exception as ex:
+            print("failed Code: {}".format(response.status_code))
+            print(ex)
+            return None
+        else:
+            return True
+
+    def int_increment(self, repository={}):
+        # Determine the next build name
+        base_build_detail = WFTUtils.get_build_detail(self.base_build)
+        base_build_project = base_build_detail["project"]
+        base_build_component = base_build_detail["component"]
+        build_configurations = wft_api.WftBaselineConfigurations.get_baseline_configurations(
+            project=base_build_project,
+            component=base_build_component,
+            version=self.base_build,
+            wftauth=WFTAUTH
+        )
+        if "_" in self.wft_branch:
+            [prod_name, increase_method] = self.wft_branch.split("_", 1)
+        else:
+            raise Exception("Your branch should be XXXX_XXINT but {}".format(self.wft_branch))
+        new_version = WFTUtils.get_next_version(version=self.base_build, int_method=increase_method)
+        # Will update the increment number if the target build is existed
+        all_existed_builds = WFTUtils.get_branch_builds(
+            self.wft_branch,
+            project=base_build_project,
+            component=base_build_component)
+        for build in all_existed_builds:
+            if bool(re.search(r"v[DC]UCNF[0-9R]*", prod_name)):
+                [new_version_base_name, new_version_increase_number] = new_version.split("-", 1)
+                if new_version_base_name in build['baseline'] and "-" in build['baseline'] and \
+                        int(build['baseline'].split("-", 1)[1]) >= int(new_version_increase_number):
+                    new_version = WFTUtils.get_next_version(build['baseline'])
+                    log.info("There is {}-{} existed, use {} instead".format(new_version_base_name,
+                                                                             new_version_increase_number,
+                                                                             new_version))
+            else:
+                if new_version is build['baseline']:
+                    new_version = WFTUtils.get_next_version(new_version)
+        # Create send head:
+        uri = "{}/api/v1/{}/{}/builds/{}/increment.json".format(
+            WFT_API_URL, base_build_project, base_build_component, new_version
+        )
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        # payload
+        payload = {
+            "parent_version": base_build_detail["baseline"],
+            "parent_project": base_build_detail["project"],
+            "parent_component": base_build_detail["component"],
+            "branch": self.wft_branch,
+            "branch_for": self.wft_branch,
+            "repository_url": repository["repository_url"],
+            "increment": self.get_diff(base_build_detail["subbuilds"], self.changed),
+            "check_before_freeze": "false",
+            "xml_releasenote_id": build_configurations.get_xml_releasenote_id(),
+            "release_setting_id": build_configurations.get_release_setting_id(),
+            "release_note_template_id": build_configurations.get_release_note_template_id(),
+            "release_note_template_version_id": build_configurations.get_release_note_template_version_id()
+        }
+        try:
+            log.info("creating build with following info:")
+            log.info(json.dumps(payload, sort_keys=True, indent=4))
+            payload.update({"access_key": WFT_KEY})
+            response = requests.post(
+                uri,
+                headers=headers,
+                json=payload,
+                verify=False
+            )
+            # wft will report a 500 error when create a new build, need to cover this issue
+            # if not response.ok:
+            #     raise Exception("failed when post new increment to WFT")
+        except Exception as ex:
+            print("failed Code: {}". format(response.status_code))
+            print(ex)
+            return None
+        else:
+            self.__update_increment__(base_build_project,
+                                      base_build_component,
+                                      new_version,
+                                      repository["repository_url"],
+                                      repository["repository_branch"],
+                                      repository["repository_revision"],
+                                      repository["repository_type"],
+                                      "")
+            new_wft_link = "https://wft.int.net.nokia.com/{}/{}/builds/{}".format(base_build_project, base_build_component, new_version)
+            log.info("Successfuly create a build: {} , refer: {}".format(new_version, new_wft_link))
+            return new_version, new_wft_link
+
     def run(self, psint_cycle=None, name_regex='.*'):
         base_build_project = None
         base_build_component = None
@@ -205,5 +344,4 @@ class BuildIncrement(object):
         latest_build = self.filter_candidate_builds(candidate_builds, name_regex)
         if not self.base_build:
             self.base_build = latest_build['baseline']
-
         return self.send_inc_request(latest_build, psint_cycle)
