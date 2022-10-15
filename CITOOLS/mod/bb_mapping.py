@@ -54,7 +54,7 @@ class BB_Mapping(object):
             stream_name = wft_tools.get_stream_name(version_part)
             wft_version = stream_name + '_' + version_part
             print('WFT version is {0}'.format(wft_version))
-        bbmapping_id = get_build_bbmapping_id(wft_version)
+        bbmapping_id = wft_tools.get_build_bbmapping_id(wft_version)
         if not bbmapping_id:
             raise Exception('Cannot get bb_mapping id from {}'.format(wft_version))
         response = requests.get(
@@ -88,17 +88,3 @@ class BB_Mapping(object):
 
     def get_integration_targets(self, comp_name):
         return self.parser.get_integration_targets(comp_name)
-
-
-def get_build_bbmapping_id(wft_version):
-    attachement_url = "{}/{}/attachments.json".format(WFT_ATTACHMENT_URL, wft_version)
-    response = requests.get(attachement_url, params={'access_key': WFT_KEY})
-    if response.ok:
-        for attachment in json.loads(response.text):
-            if attachment['attachment_file_name'] == 'bb_mapping.json' or \
-                    attachment['attachment_type'] == 'yocto_mapping':
-                return attachment['id']
-    else:
-        logging.warn("WFT return %s when get %s attachments", response.status_code, wft_version)
-        logging.warn(response)
-    return False

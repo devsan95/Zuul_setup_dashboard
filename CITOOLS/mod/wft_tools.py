@@ -13,7 +13,6 @@ from scm_tools.wft.build_content import BuildContent
 
 from api import config
 from api import retry
-from mod import bb_mapping
 
 
 WFT = WftAPI(config_path=os.path.join(config.get_config_path(), 'properties/wft.properties'))
@@ -103,7 +102,7 @@ def get_latest_build_by_state(stream, release_status, with_yocto_map=False):
         build_wft_name = build.find('baseline').text
         if build_state in release_status and is_central_package(build_wft_name):
             if with_yocto_map:
-                if not bb_mapping.get_build_bbmapping_id(build_wft_name):
+                if not get_build_bbmapping_id(build_wft_name):
                     continue
             release_date = build.find('date').text
             build_name = build_wft_name
@@ -357,3 +356,17 @@ def get_subbuilds(build):
     if not response.ok:
         return []
     return json.loads(response.text)['items'][0]['build_deliverers']
+
+
+def get_build_bbmapping_id(wft_version):
+    attachement_url = "{}:8091/api/v1/5G:WMP/5G_Central/builds/{}/attachments.json".format(WFT.url, wft_version)
+    response = requests.get(attachement_url, params={'access_key': WFT.key})
+    if response.ok:
+        for attachment in json.loads(response.text):
+            if attachment['attachment_file_name'] == 'bb_mapping.json' or \
+                    attachment['attachment_type'] == 'yocto_mapping':
+                return attachment['id']
+    else:
+        print("WFT return %s when get %s attachments", response.status_code, wft_version)
+        print(response)
+    return False
