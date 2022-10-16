@@ -370,3 +370,11 @@ def get_build_bbmapping_id(wft_version):
         print("WFT return %s when get %s attachments", response.status_code, wft_version)
         print(response)
     return False
+
+
+def get_subbuild_version(wft_name, subbuild, component='', project='', ):
+    sub_builds = get_subuild_from_wft(wft_name=wft_name, component=component, project=project)
+    for sub_build in sub_builds:
+        if sub_build['component'] == subbuild:
+            return sub_build['version']
+    return None

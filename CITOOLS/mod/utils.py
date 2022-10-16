@@ -13,6 +13,53 @@ INTEGRATION_URL = 'ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration
 JENKINS_URL = 'http://production-5g.cb.scm.nsn-rdnet.net:80'
 
 
+class BasePkgHandler(object):
+
+    def __init__(self, branch=''):
+        self.integration_dir = os.path.join(os.getcwd(), 'Integration_for_tags')
+        self.branch = branch
+        self._prepare_workspace()
+
+    def _prepare_workspace(self):
+        if os.path.exists(self.integration_dir):
+            self.g = git.Git(self.integration_dir)
+            if self.g.remote('get-url', 'origin') == INTEGRATION_URL:
+                self.g.fetch('--tags')
+            else:
+                shutil.rmtree(self.integration_dir)
+        else:
+            git.Repo.clone_from(INTEGRATION_URL, self.integration_dir)
+        self.g = git.Git(self.integration_dir)
+        if self.branch:
+            self.g.fetch('origin', self.branch)
+
+    def push_base_tag(self, base_pkg):
+        self.g.checkout(base_pkg)
+        self.push_merged_change(base_pkg)
+
+    def push_merged_change(self, base_pkg):
+        if not self.branch:
+            self.branch = get_integration_branch(self.integration_dir)
+        try:
+            print('Base tag: {} add to gerrit'.format(base_pkg))
+            g = git.Git(self.integration_dir)
+            g.push('origin', '{}:refs/for/{}%merged'.format(base_pkg, self.branch))
+        except Exception:
+            traceback.print_exc()
+            print('Tag {} may already exists'.format(base_pkg))
+            print('Please ignore above error, \
+                it will not cause the job build failed! \
+                The build is moving on....')
+
+    def get_ecl_sack_base_commit(self, ecl_sack_base, max_count=50):
+        repo = git.Repo(self.integration_dir)
+        commits = repo.iter_commits(self.branch, max_count=max_count)
+        for commit in commits:
+            if ecl_sack_base in commit.message:
+                return str(commit)
+        return None
+
+
 def classiy_objs(obj_list, typ_key):
     new_dict = {}
     for obj in obj_list:
@@ -93,38 +140,6 @@ def find_files_by_regex(file_path, regex_str='*', path_regex=''):
 def get_file_content(file_path):
     with open(file_path, 'r') as fr:
         return fr.read()
-
-
-def push_base_tag(base_pkg, branch=''):
-    integration_dir = os.path.join(os.getcwd(), 'Integration_for_tags')
-    if os.path.exists(integration_dir):
-        g = git.Git(integration_dir)
-        if g.remote('get-url', 'origin') == INTEGRATION_URL:
-            g.fetch('--tags')
-        else:
-            shutil.rmtree(integration_dir)
-    else:
-        git.Repo.clone_from(INTEGRATION_URL, integration_dir)
-    g = git.Git(integration_dir)
-    if branch:
-        g.fetch('origin', branch)
-    g.checkout(base_pkg)
-    push_merged_change(integration_dir, base_pkg, branch=branch)
-
-
-def push_merged_change(integration_dir, base_pkg, branch=''):
-    if not branch:
-        branch = get_integration_branch(integration_dir)
-    try:
-        print('Base tag: {} add to gerrit'.format(base_pkg))
-        g = git.Git(integration_dir)
-        g.push('origin', '{}:refs/for/{}%merged'.format(base_pkg, branch))
-    except Exception:
-        traceback.print_exc()
-        print('Tag {} may already exists'.format(base_pkg))
-        print('Please ignore above error, \
-               it will not cause the job build failed! \
-               The build is moving on....')
 
 
 def get_integration_branch(work_dir):

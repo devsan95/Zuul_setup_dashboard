@@ -169,6 +169,7 @@ class IntegrationChangesCreation(object):
     def __init__(self, yaml_path, gerrit_path, zuul_user, zuul_key):
         self.change_info = None
         self.base_load_list = list()
+        self.selected_base_load = None
         self.info_index = None
         self.meta = None
         self.structure = None
@@ -810,6 +811,17 @@ class IntegrationChangesCreation(object):
                         commit_hash = self.base_commits_info.get(r)
                         if commit_hash:
                             break
+        if 'type' in node_obj and node_obj['type'] == 'root':
+            base_pkg_obj = utils.BasePkgHandler(branch)
+            if 'Fixed_base' in integration_mode:
+                wft_version = wft_tools.get_wft_release_name(self.selected_base_load)
+                ecl_sack_base = wft_tools.get_subbuild_version(wft_version, 'ECL_SACK_BASE')
+                ecl_sack_base_commit = base_pkg_obj.get_ecl_sack_base_commit(ecl_sack_base)
+                if not ecl_sack_base_commit:
+                    print('[WARNING] Can not get ecl_sack_base commit in integration repo for {0}'.format(ecl_sack_base))
+                else:
+                    commit_hash = ecl_sack_base_commit
+            base_pkg_obj.push_base_tag(commit_hash)
         print('[Info] Get commit_hash [{}] for component [{}]'.format(commit_hash, node_obj['name']))
         commit = ''
         if commit_hash:
@@ -895,7 +907,7 @@ class IntegrationChangesCreation(object):
             return get_component_info.GET_COMPONENT_INFO(sbts_load)
         return None
 
-    def parse_base_load(self, base_load):
+    def parse_base_load(self, base_load, branch):
         base_commits = {}
         get_comp_info = self.get_comp_info_obj(base_load)
         sbts_bb_mapping = self.get_sbts_bb_mapping()
@@ -911,7 +923,7 @@ class IntegrationChangesCreation(object):
                     print("[Info] Base commit for env is: {}".format(com_ver))
                     continue
             if 'MN/5G/COMMON/integration' in node['repo']:
-                base_commits['integration'] = self.gerrit_rest.get_tag('MN/5G/COMMON/integration', base_load)['object']
+                base_commits['integration'] = self.gerrit_rest.get_latest_commit_from_branch('MN/5G/COMMON/integration', branch)
                 continue
             if 'type' in node and 'integration' in node['type']:
                 continue
@@ -1236,11 +1248,12 @@ class IntegrationChangesCreation(object):
                     base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
             else:
                 base_load, self.base_load_list = wft_tools.get_latest_qt_load(self.meta['streams'])
-            utils.push_base_tag(base_load)
+            # utils.push_base_tag(base_load)
             print('Base load list: {}'.format(self.base_load_list))
             if '_' in base_load:
                 base_load = base_load.split('_')[-1]
-            base_commits = self.parse_base_load(base_load)
+            self.selected_base_load = base_load
+            base_commits = self.parse_base_load(self.selected_base_load, self.info_index['root']['branch'])
             if base_commits:
                 self.base_commits_info = base_commits
 
@@ -1251,7 +1264,7 @@ class IntegrationChangesCreation(object):
             self.base_load_list.append(sbts_load)
 
         # insert integration mode to changes
-        self.insert_integration_mode(integration_mode, base_load, base_commits)
+        self.insert_integration_mode(integration_mode, self.selected_base_load, base_commits)
 
         # restore
         self.meta['backup_topic'] = None

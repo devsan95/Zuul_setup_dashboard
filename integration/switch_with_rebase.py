@@ -113,13 +113,21 @@ def update_base_commit(rest, comp_change, comp_change_obj, comp_hash):
         rest.publish_edit(comp_change)
 
 
-def _get_component_hash(rest, base_package, comp_names, get_comp_info):
+def _get_component_hash(base_package, comp_names, get_comp_info, branch):
     print('Try to get hash for {}'.format(comp_names))
     comp_hash = ''
     try:
         if 'integration' in comp_names:
             if not base_package.startswith('SBTS'):
-                comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_package)['object']
+                base_pkg_obj = utils.BasePkgHandler(branch=branch)
+                wft_version = wft_tools.get_wft_release_name(base_package.split('_')[-1])
+                ecl_sack_base = wft_tools.get_subbuild_version(wft_version, 'ECL_SACK_BASE')
+                ecl_sack_base_commit = base_pkg_obj.get_ecl_sack_base_commit(ecl_sack_base)
+                if not ecl_sack_base_commit:
+                    print('[WARNING] Can not get ecl_sack_base commit in integration repo for {0}'.format(ecl_sack_base))
+                else:
+                    comp_hash = ecl_sack_base_commit
+                    base_pkg_obj.push_base_tag(comp_hash)
         else:
             for sub_comp_name in comp_names:
                 comp_hash = get_comp_info.get_comp_hash(sub_comp_name)
@@ -132,17 +140,15 @@ def _get_component_hash(rest, base_package, comp_names, get_comp_info):
     return comp_hash
 
 
-def get_component_hash(rest, base_package, extra_bases, comp_names, get_comp_info):
-    comp_hash = _get_component_hash(rest, base_package, comp_names, get_comp_info)
+def get_component_hash(base_package, extra_bases, comp_names, get_comp_info, branch):
+    comp_hash = _get_component_hash(base_package, comp_names, get_comp_info, branch)
     if not comp_hash:
         print('Try get hash for {}'.format(comp_names))
         print('Try get hash from {}'.format(extra_bases))
         for extra_base in extra_bases:
             extra_base_get_comp_info = get_comp_info_obj(extra_base)
-            comp_hash = _get_component_hash(rest, extra_base, comp_names, extra_base_get_comp_info)
+            comp_hash = _get_component_hash(extra_base, comp_names, extra_base_get_comp_info)
             if comp_hash:
-                if 'integration' in comp_names:
-                    utils.push_base_tag(extra_base)
                 print('Try get hash from {} is {}'.format(extra_bases, comp_hash))
                 break
     return comp_hash
@@ -177,8 +183,8 @@ def rebase_by_load(rest, change_no, base_package,
         comp_name_with_change = '{} {}'.format(change_name, comp_change)
         comp_hash = 'HEAD'
         if base_package != 'HEAD':
-            comp_hash = get_component_hash(rest, base_package, extra_bases,
-                                           comp_names, get_comp_info)
+            comp_hash = get_component_hash(base_package, extra_bases,
+                                           comp_names, get_comp_info, branch)
             if not comp_hash:
                 rebase_skipped[comp_name_with_change] = 'No source component in packages: {},{}'.format(
                     base_package, extra_bases)
@@ -418,8 +424,6 @@ def switch_with_rebase_mod(root_change, rest,
             print('Last base_package is {}'.format(base_package))
             base_list.remove(base_package)
             extra_bases = base_list
-        if 'SBTS' not in base_package:
-            utils.push_base_tag(base_package)
         rebase_result = rebase_by_load(rest, root_change, base_package,
                                        gitlab_info_path=gitlab_info_path,
                                        mail_list=mail_list,
