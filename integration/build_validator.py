@@ -17,7 +17,7 @@ from mod import integration_change
 from mod import env_changes
 
 
-def get_base_parent(rest, base_obj_list, comp, project_name):
+def get_base_parent(base_obj_list, comp, project_name):
     base_parent = list()
     find_none = False
     for base_obj in base_obj_list:
@@ -27,7 +27,7 @@ def get_base_parent(rest, base_obj_list, comp, project_name):
                 base_repo_info = wft_tools.get_repository_info(base_obj.base_pkg)
                 comp_hash = base_repo_info['revision']
             else:
-                comp_hash = rest.get_tag('MN/5G/COMMON/integration', base_obj.base_pkg)['object']
+                comp_hash = wft_tools.get_repository_info(base_obj.base_pkg)
         else:
             comp_hash = base_obj.get_comp_hash(comp)
         if comp_hash:
@@ -77,7 +77,7 @@ def fixed_base_validator(rest, components, base_dict):
         if component[2] in match_change_list:
             continue
         if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
-            base_parent_list = get_base_parent(rest, base_obj_list, component[0], component[1])
+            base_parent_list = get_base_parent(base_obj_list, component[0], component[1])
             if base_parent_list is None:
                 print("change {}[{}] not in base packages {}".format(component[2], component[0], base_list))
                 continue
