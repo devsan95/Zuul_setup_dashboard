@@ -15,23 +15,18 @@ JENKINS_URL = 'http://production-5g.cb.scm.nsn-rdnet.net:80'
 
 class BasePkgHandler(object):
 
-    def __init__(self, branch=''):
-        self.integration_dir = os.path.join(os.getcwd(), 'Integration_for_tags')
+    def __init__(self, branch='master'):
+        self.integration_dir = os.path.join(os.getcwd(), 'Integration_quick_{}'.format(branch))
         self.branch = branch
         self._prepare_workspace()
 
     def _prepare_workspace(self):
         if os.path.exists(self.integration_dir):
-            self.g = git.Git(self.integration_dir)
-            if self.g.remote('get-url', 'origin') == INTEGRATION_URL:
-                self.g.fetch('--tags')
-            else:
-                shutil.rmtree(self.integration_dir)
-        else:
-            git.Repo.clone_from(INTEGRATION_URL, self.integration_dir)
+            shutil.rmtree(self.integration_dir)
+        git.Repo.clone_from(INTEGRATION_URL, self.integration_dir, branch=self.branch)
         self.g = git.Git(self.integration_dir)
         if self.branch:
-            self.g.fetch('origin', self.branch)
+            self.g.fetch(INTEGRATION_URL, self.branch)
 
     def push_base_tag(self, base_pkg):
         self.g.checkout(base_pkg)
@@ -51,10 +46,12 @@ class BasePkgHandler(object):
                 it will not cause the job build failed! \
                 The build is moving on....')
 
-    def get_ecl_sack_base_commit(self, ecl_sack_base, max_count=50):
+    def get_ecl_sack_base_commit(self, ecl_sack_base, max_count=500):
         repo = git.Repo(self.integration_dir)
         commits = repo.iter_commits(self.branch, max_count=max_count)
         for commit in commits:
+            print('ZHY TEST')
+            print(commit.message)
             if ecl_sack_base in commit.message:
                 return str(commit)
         return None

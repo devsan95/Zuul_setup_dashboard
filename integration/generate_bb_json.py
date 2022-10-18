@@ -873,6 +873,7 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
     base_repo_info = wft_tools.get_repository_info(sbts_base)
     sbts_base_commit = base_repo_info['revision']
     base_pkg_obj = utils.BasePkgHandler(branch=base_repo_info['branch'])
+    print('Push merged commit {}'.format(sbts_base_commit))
     base_pkg_obj.push_base_tag(sbts_base_commit)
     change_id, ticket_id, rest_id = rest.create_ticket(
         'MN/5G/COMMON/integration',
