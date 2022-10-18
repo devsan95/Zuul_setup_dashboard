@@ -73,18 +73,13 @@ def fixed_base_validator(rest, components, base_dict):
         print('match_change_list: {}'.format(match_change_list))
         if component[2] in match_change_list:
             continue
-        if component[3] == 'component' or component[0] == 'integration' and base_obj_list:
+        if component[3] == 'component' and base_obj_list:
             base_parent_list = get_base_parent(base_obj_list, component[0], component[1])
             if base_parent_list is None:
                 print("change {}[{}] not in base packages {}".format(component[2], component[0], base_list))
                 continue
             if parent not in base_parent_list:
-                if len(base_obj_list) == 1 and \
-                        base_obj_list[0].base_pkg.startswith('SBTS') and \
-                        component[0] == 'integration':
-                    match_change_list.append(component[2])
-                else:
-                    mismatch_dict[component[2]] = (component, parent, base_parent_list)
+                mismatch_dict[component[2]] = (component, parent, base_parent_list)
             else:
                 match_change_list.append(component[2])
                 print("remove change {} from parent_hash_mismatch".format(component[2]))
