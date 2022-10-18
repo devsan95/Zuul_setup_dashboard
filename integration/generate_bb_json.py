@@ -1038,7 +1038,7 @@ def filter_component_by_locations(stream_knife_dict_copy, bb_mapping_obj, locati
 
 
 def run(zuul_url, zuul_ref, output_path, change_id,
-        gerrit_info_path, zuul_changes, gnb_list_path, db_info_path, comp_config):
+        gerrit_info_path, zuul_changes, gnb_list_path, db_info_path, comp_config, only_knife_json=False):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.init_cache(1000)
     comp_config = ruamel.yaml.load(open(comp_config), Loader=ruamel.yaml.Loader, version='1.1')
@@ -1098,6 +1098,8 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     # stream base json
     save_json_file(base_path, stream_json)
+    if only_knife_json:
+        return
 
     # sbts knife json
     stream_knife_dict = gen_sbts_knife_dict(

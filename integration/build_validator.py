@@ -247,7 +247,8 @@ def get_build_information(change_id, gerrit_info_path, gitlab_info_path, output_
         zuul_changes='',
         gnb_list_path=gnb_list_path,
         db_info_path=db_info_path,
-        comp_config=comp_config
+        comp_config=comp_config,
+        only_knife_json=True
     )
     knife_path = os.path.join(output_path, 'knife.json')
     base_path = os.path.join(output_path, 'base.json')
