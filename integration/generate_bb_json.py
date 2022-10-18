@@ -1158,18 +1158,21 @@ def update_knife_config_changes(knife_config, wft_knife_data):
         child_srcuri.set('type', knife_change['source_type'])
         child_srcuri_repo = ET.SubElement(child_srcuri, 'repo')
         child_srcuri_repo.text = knife_change['replace_source']
-        child_srcuri_rev = ET.SubElement(child_srcuri, 'rev')
-        child_srcuri_rev.text = knife_change['replace_commit']
+        if 'replace_commit' in knife_change:
+            child_srcuri_rev = ET.SubElement(child_srcuri, 'rev')
+            child_srcuri_rev.text = knife_change['replace_commit']
     for yaml_change in wft_knife_data['yaml_changes'].values():
         child = ET.SubElement(changes_node, "change")
         child_source_component = ET.SubElement(child, 'source_component')
         child_source_component.text = yaml_change['source_component']
         child_srcuri = ET.SubElement(child, 'srcuri')
         child_srcuri.set('type', 'component')
-        child_srcuri_version = ET.SubElement(child_srcuri, 'version')
-        child_srcuri_version.text = yaml_change['replace_version']
-        child_srcuri_commit = ET.SubElement(child_srcuri, 'commit')
-        child_srcuri_commit.text = yaml_change['replace_commit']
+        if 'replace_version' in yaml_change:
+            child_srcuri_version = ET.SubElement(child_srcuri, 'version')
+            child_srcuri_version.text = yaml_change['replace_version']
+        if 'replace_commit' in yaml_change:
+            child_srcuri_commit = ET.SubElement(child_srcuri, 'commit')
+            child_srcuri_commit.text = yaml_change['replace_commit']
     return root
 
 
