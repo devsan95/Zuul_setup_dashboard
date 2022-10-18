@@ -25,6 +25,8 @@ def get_base_parent(base_obj_list, comp, project_name):
         if comp == 'integration':
             base_repo_info = wft_tools.get_repository_info(base_obj.base_pkg)
             comp_hash = base_repo_info['revision']
+        else:
+            comp_hash = base_obj.get_comp_hash(comp)
         if comp_hash:
             if '=' in comp_hash:
                 comp_hash = comp_hash.split('=')[1]
