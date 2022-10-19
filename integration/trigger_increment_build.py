@@ -18,7 +18,10 @@ PRODUCTION_TYPES = ['SBTS', 'vDUCNF', 'vCUCNF']
 
 
 def get_wft_int_branch(topic_type, baseline):
-    intbranch_end = BRANCH_MAP.get(topic_type)
+    intbranch_end = 'FEINT'
+    for key_name in BRANCH_MAP:
+        if topic_type.startswith(key_name):
+            intbranch_end = BRANCH_MAP.get(key_name)
     if not intbranch_end:
         raise Exception('topic type {} not in map {}'.format(topic_type, BRANCH_MAP))
     product_type = re.sub(r'[0-9]*$', '', baseline.split('_')[0])
