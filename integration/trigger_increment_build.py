@@ -51,7 +51,7 @@ def update_build_info(database_info_path, wft_name, wft_link, jira_key, stream):
         package_name=wft_name,
         mini_branch=stream,
         type_name='Integration Build',
-        status=1,
+        status=0,
         link=wft_link,
         start_time=now_time,
         end_time=now_time
