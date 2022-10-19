@@ -44,7 +44,7 @@ def get_changed_info(knife_change_file):
 
 
 def update_build_info(database_info_path, wft_name, wft_link, jira_key, stream):
-    now_time = int(time.time()) * 1000
+    now_time = int(time.time())
     skytrack_database_handler.skytrack_detail_api(
         integration_name=jira_key,
         product='5G',
