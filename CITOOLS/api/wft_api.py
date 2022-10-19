@@ -293,3 +293,132 @@ class WftBaselineConfigurations(object):
             'repository_revision': self.get_element('repository_revision'),
             'repository_type': self.get_element('repository_type')
         }
+
+
+class WftObjBuild(object):
+    def __init__(self):
+        self.credential = None
+        self.project = None,
+        self.component = None,
+        self.build = None
+        self.wft_url = "https://wft.int.net.nokia.com"
+        self.cached_details = {}
+
+    def set_component(self, component):
+        self.component = component
+
+    def set_project(self, project):
+        self.project = project
+
+    def set_build(self, build):
+        self.build = build
+
+    def set_wft_url(self, url):
+        self.wft_url = url
+
+    def set_credential(self, credential):
+        self.credential = credential
+
+    def get_detailed_info(self, refresh=False):
+        if not refresh and len(self.cached_details) == 0:
+            pass
+        else:
+            uri = "{}/api/v1/{}/{}/builds/{}.json?access_key={}".format(self.wft_url,
+                                                                        self.project,
+                                                                        self.component,
+                                                                        self.build,
+                                                                        self.credential.get_access_key())
+            try:
+                req = requests.get(uri, verify=False)
+            except Exception as ex:
+                print(ex)
+            else:
+                self.cached_details = req.json()
+        return self.cached_details
+
+    def get_available_status(self):
+        uri = "{}/api/v1/{}/{}/builds/{}/transitions.json?access_key={}".format(self.wft_url,
+                                                                                self.project,
+                                                                                self.component,
+                                                                                self.build,
+                                                                                self.credential.get_access_key())
+        try:
+            req = requests.get(uri, verify=False)
+            if not req.ok:
+                raise Exception("request item failed")
+        except Exception as ex:
+            print(ex)
+        else:
+            data = req.json()
+            output = {}
+            for item in data:
+                if item["via_trigger"]:
+                    output[item['to']] = {"id": item['id'], "from": item['from'], "to": item["to"]}
+            return output
+
+    def get_status(self):
+        info = self.get_detailed_info(True)
+        return info['state']
+
+    def update_status(self, new_status):
+        available_status = self.get_available_status()
+        if new_status in available_status:
+            uri = "{}/api/v1/{}/{}/builds/{}/transitions/{}/trigger.json?access_key={}".format(
+                self.wft_url,
+                self.project,
+                self.component,
+                self.build,
+                available_status[new_status]["id"],
+                self.credential.get_access_key()
+            )
+            try:
+                response = requests.post(
+                    uri,
+                    verify=False
+                )
+                if not response.ok:
+                    raise Exception("failed to change status on build {}".format(self.build))
+            except Exception as ex:
+                print("failed Code: {}".format(response.status_code))
+                print(ex)
+                return False
+            else:
+                print("changed {} to {}".format(self.build, new_status))
+                return True
+        else:
+            print("changed {} cannot be migrate to status: {}".format(self.build, new_status))
+            return False
+
+    def update_build(self, repo_url, repo_branch, repo_repository_revision, repo_type, note):
+        uri = "{}/api/v1/{}/{}/builds/{}.json".format(self.wft_url, self.project, self.component, self.build)
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        # payload
+        payload = {
+            "build": {"repository_url": repo_url,
+                      "repository_branch": repo_branch,
+                      "repository_type": repo_type,
+                      "repository_revision": repo_repository_revision,
+                      "important_note": note}
+        }
+        print("modify build with following info:")
+        print(json.dumps(payload, sort_keys=True, indent=4))
+        payload.update(self.credential.get_auth())
+        try:
+            response = requests.patch(
+                uri,
+                headers=headers,
+                json=payload,
+                verify=False
+            )
+            if not response.ok:
+                raise Exception("failed when post new increment to WFT")
+        except Exception as ex:
+            print("failed Code: {}".format(response.status_code))
+            print(ex)
+            return None
+        else:
+            return True
+
+    def __str__(self):
+        data = "project: {}, component: {}, build: {}".format(self.project, self.credential, self.build)
+        return data

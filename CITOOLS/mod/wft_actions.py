@@ -2,6 +2,8 @@ import configparser
 import json
 import os
 import re
+import time
+
 import requests
 from api import config
 from api import log_api
@@ -45,6 +47,7 @@ class WFTUtils(object):
     def get_build_detail(version):
         builddetail = wft_api.WftBuild.get_build(version)
         baseline = builddetail.tree.get('baseline')
+        status = builddetail.tree.get('state')
         project = builddetail.tree.find('./project').text
         component = builddetail.tree.find('./component').text
         repo_url = builddetail.tree.find('./repository_url').text
@@ -61,6 +64,7 @@ class WFTUtils(object):
                 'branch': branch,
                 'branch_for': branch_for,
                 'ecl_sack_base': ecl_sack_base,
+                'status': status,
                 'subbuilds': subbuilds}
 
     @staticmethod
@@ -220,37 +224,7 @@ class BuildIncrement(object):
                 return candidate_build
         raise Exception('Not find matched regex {} in {}'.format(name_regex, candidate_builds))
 
-    def __update_increment__(self, project, component, version, repo_url, repo_branch, repo_repository_revision, repo_type, note):
-        uri = "{}/api/v1/{}/{}/builds/{}.json".format(WFT_API_URL, project, component, version)
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        # payload
-        payload = {
-            "build": {"repository_url": repo_url,
-                      "repository_branch": repo_branch,
-                      "repository_type": repo_type,
-                      "repository_revision": repo_repository_revision,
-                      "important_note": note}
-        }
-        log.info("modify build with following info:")
-        log.info(json.dumps(payload, sort_keys=True, indent=4))
-        payload.update({"access_key": WFT_KEY})
-        try:
-            response = requests.patch(
-                uri,
-                headers=headers,
-                json=payload,
-                verify=False
-            )
-            if not response.ok:
-                raise Exception("failed when post new increment to WFT")
-        except Exception as ex:
-            print("failed Code: {}".format(response.status_code))
-            print(ex)
-            return None
-        else:
-            return True
-
-    def int_increment(self, repository={}):
+    def int_increment(self, repository={}, note=""):
         # Determine the next build name
         base_build_detail = WFTUtils.get_build_detail(self.base_build)
         base_build_project = base_build_detail["project"]
@@ -283,7 +257,7 @@ class BuildIncrement(object):
             else:
                 if new_version is build['baseline']:
                     new_version = WFTUtils.get_next_version(new_version)
-        # Create send head:
+
         uri = "{}/api/v1/{}/{}/builds/{}/increment.json".format(
             WFT_API_URL, base_build_project, base_build_component, new_version
         )
@@ -297,7 +271,7 @@ class BuildIncrement(object):
             "branch_for": self.wft_branch,
             "repository_url": repository["repository_url"],
             "increment": self.get_diff(base_build_detail["subbuilds"], self.changed),
-            "check_before_freeze": "false",
+            "check_before_freeze": "true",
             "xml_releasenote_id": build_configurations.get_xml_releasenote_id(),
             "release_setting_id": build_configurations.get_release_setting_id(),
             "release_note_template_id": build_configurations.get_release_note_template_id(),
@@ -306,7 +280,7 @@ class BuildIncrement(object):
         try:
             log.info("creating build with following info:")
             log.info(json.dumps(payload, sort_keys=True, indent=4))
-            payload.update({"access_key": WFT_KEY})
+            payload.update(WFTAUTH.get_auth())
             response = requests.post(
                 uri,
                 headers=headers,
@@ -317,21 +291,39 @@ class BuildIncrement(object):
             # if not response.ok:
             #     raise Exception("failed when post new increment to WFT")
         except Exception as ex:
-            print("failed Code: {}". format(response.status_code))
+            print("failed Code: {}".format(response.status_code))
             print(ex)
             return None
         else:
-            self.__update_increment__(base_build_project,
-                                      base_build_component,
-                                      new_version,
-                                      repository["repository_url"],
+            target_build = wft_api.WftObjBuild()
+            target_build.set_project(base_build_project)
+            target_build.set_component(base_build_component)
+            target_build.set_build(new_version)
+            target_build.set_credential(WFTAUTH)
+            target_build.update_build(repository["repository_url"],
                                       repository["repository_branch"],
                                       repository["repository_revision"],
                                       repository["repository_type"],
-                                      "")
+                                      note)
+            self.__change_build_to_frozen__(target_build)  # turn to frozen status
             new_wft_link = "https://wft.int.net.nokia.com/{}/{}/builds/{}".format(base_build_project, base_build_component, new_version)
             log.info("Successfuly create a build: {} , refer: {}".format(new_version, new_wft_link))
             return new_version, new_wft_link
+
+    def __change_build_to_frozen__(self, target_build):
+        build_status = target_build.get_status()
+        if build_status == 'planned':
+            target_build.update_status('announced')
+            self.__change_build_to_frozen__(target_build)
+        elif build_status == 'announced':
+            print("{} is in announced status, waiting for it transfer to {}".format(target_build.build, "buildable"))
+            time.sleep(10)
+            # use to sleep and let the status goes into buildable
+            self.__change_build_to_frozen__(target_build)
+        elif build_status == 'buildable':
+            target_build.update_status('frozen')
+            return True
+        return False
 
     def run(self, psint_cycle=None, name_regex='.*'):
         base_build_project = None
