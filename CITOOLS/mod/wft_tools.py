@@ -224,7 +224,7 @@ def get_latest_loads_by_streams(stream_list, get_build_function, strip_prefix=Tr
             raise Exception('{} is not aligned with {}'.format(build_name, stream))
         if not build_name:
             raise Exception('Build is not find from WFT for {}'.format(stream))
-        if strip_prefix:
+        if strip_prefix and not build_name.startswith('SBTS'):
             stream_build[release_date] = build_name.split('_')[-1]
         else:
             stream_build[release_date] = build_name
