@@ -398,7 +398,7 @@ class WftObjBuild(object):
                       "repository_branch": repo_branch,
                       "repository_type": repo_type,
                       "repository_revision": repo_repository_revision,
-                      "important_note": note}
+                      "note": note}
         }
         print("modify build with following info:")
         print(json.dumps(payload, sort_keys=True, indent=4))
