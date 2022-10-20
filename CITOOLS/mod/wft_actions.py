@@ -270,7 +270,7 @@ class BuildIncrement(object):
                                                     note)
         print("Successfully create a build: {} , refer: {}".format(incremented_build.build,
                                                                    incremented_build.get_url()))
-        return incremented_build.build, incremented_build.get_url
+        return incremented_build.build, incremented_build.get_url()
 
     def run(self, psint_cycle=None, name_regex='.*'):
         base_build_project = None
