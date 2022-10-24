@@ -2,8 +2,6 @@ import configparser
 import json
 import os
 import re
-import time
-
 import requests
 from api import config
 from api import log_api
@@ -257,73 +255,22 @@ class BuildIncrement(object):
             else:
                 if new_version is build['baseline']:
                     new_version = WFTUtils.get_next_version(new_version)
-
-        uri = "{}/api/v1/{}/{}/builds/{}/increment.json".format(
-            WFT_API_URL, base_build_project, base_build_component, new_version
-        )
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        # payload
-        payload = {
-            "parent_version": base_build_detail["baseline"],
-            "parent_project": base_build_detail["project"],
-            "parent_component": base_build_detail["component"],
-            "branch": self.wft_branch,
-            "branch_for": self.wft_branch,
-            "repository_url": repository["repository_url"],
-            "increment": self.get_diff(base_build_detail["subbuilds"], self.changed),
-            "check_before_freeze": "true",
-            "xml_releasenote_id": build_configurations.get_xml_releasenote_id(),
-            "release_setting_id": build_configurations.get_release_setting_id(),
-            "release_note_template_id": build_configurations.get_release_note_template_id(),
-            "release_note_template_version_id": build_configurations.get_release_note_template_version_id()
-        }
-        try:
-            log.info("creating build with following info:")
-            log.info(json.dumps(payload, sort_keys=True, indent=4))
-            payload.update(WFTAUTH.get_auth())
-            response = requests.post(
-                uri,
-                headers=headers,
-                json=payload,
-                verify=False
-            )
-            # wft will report a 500 error when create a new build, need to cover this issue
-            # if not response.ok:
-            #     raise Exception("failed when post new increment to WFT")
-        except Exception as ex:
-            print("failed Code: {}".format(response.status_code))
-            print(ex)
-            return None
-        else:
-            target_build = wft_api.WftObjBuild()
-            target_build.set_project(base_build_project)
-            target_build.set_component(base_build_component)
-            target_build.set_build(new_version)
-            target_build.set_credential(WFTAUTH)
-            target_build.update_build(repository["repository_url"],
-                                      repository["repository_branch"],
-                                      repository["repository_revision"],
-                                      repository["repository_type"],
-                                      note)
-            self.__change_build_to_frozen__(target_build)  # turn to frozen status
-            new_wft_link = "https://wft.int.net.nokia.com/{}/{}/builds/{}".format(base_build_project, base_build_component, new_version)
-            log.info("Successfuly create a build: {} , refer: {}".format(new_version, new_wft_link))
-            return new_version, new_wft_link
-
-    def __change_build_to_frozen__(self, target_build):
-        build_status = target_build.get_status()
-        if build_status == 'planned':
-            target_build.update_status('announced')
-            self.__change_build_to_frozen__(target_build)
-        elif build_status == 'announced':
-            print("{} is in announced status, waiting for it transfer to {}".format(target_build.build, "buildable"))
-            time.sleep(10)
-            # use to sleep and let the status goes into buildable
-            self.__change_build_to_frozen__(target_build)
-        elif build_status == 'buildable':
-            target_build.update_status('frozen')
-            return True
-        return False
+        # create current_build
+        current_build = wft_api.WftObjBuild()
+        current_build.set_project(base_build_project)
+        current_build.set_component(base_build_component)
+        current_build.set_build(self.base_build)
+        current_build.set_credential(WFTAUTH)
+        # Start to increment
+        incremented_build = current_build.increment(new_version,
+                                                    self.wft_branch,
+                                                    self.get_diff(base_build_detail["subbuilds"], self.changed),
+                                                    build_configurations,
+                                                    repository,
+                                                    note)
+        print("Successfully create a build: {} , refer: {}".format(incremented_build.build,
+                                                                   incremented_build.get_url()))
+        return incremented_build.build, incremented_build.get_url
 
     def run(self, psint_cycle=None, name_regex='.*'):
         base_build_project = None

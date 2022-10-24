@@ -3,7 +3,7 @@
 
 import json
 import numbers
-
+import time
 import requests
 from xml.etree import cElementTree as ElementTree
 
@@ -320,7 +320,7 @@ class WftObjBuild(object):
         self.credential = credential
 
     def get_detailed_info(self, refresh=False):
-        if not refresh and len(self.cached_details) == 0:
+        if not refresh and len(self.cached_details) != 0:
             pass
         else:
             uri = "{}/api/v1/{}/{}/builds/{}.json?access_key={}".format(self.wft_url,
@@ -377,17 +377,36 @@ class WftObjBuild(object):
                     verify=False
                 )
                 if not response.ok:
-                    raise Exception("failed to change status on build {}".format(self.build))
+                    raise Exception("failed change {} status to {}, error code: {}".format(self.build,
+                                                                                           new_status,
+                                                                                           response.status_code))
             except Exception as ex:
-                print("failed Code: {}".format(response.status_code))
                 print(ex)
                 return False
             else:
-                print("changed {} to {}".format(self.build, new_status))
+                print("changed {} from {} to {}".format(
+                    self.build,
+                    available_status[new_status]["from"],
+                    new_status))
                 return True
         else:
             print("changed {} cannot be migrate to status: {}".format(self.build, new_status))
             return False
+
+    def frozen(self):
+        build_status = self.get_status()
+        if build_status == 'planned':
+            self.update_status('announced')
+            self.frozen()
+        elif build_status == 'announced':
+            print("{} is in announced status, waiting for it transfer to {}".format(self.build, "buildable"))
+            time.sleep(10)
+            # use to sleep and let the status goes into buildable
+            self.frozen()
+        elif build_status == 'buildable':
+            self.update_status('frozen')
+            return True
+        return False
 
     def update_build(self, repo_url, repo_branch, repo_repository_revision, repo_type, note):
         uri = "{}/api/v1/{}/{}/builds/{}.json".format(self.wft_url, self.project, self.component, self.build)
@@ -411,14 +430,62 @@ class WftObjBuild(object):
                 verify=False
             )
             if not response.ok:
-                raise Exception("failed when post new increment to WFT")
+                raise Exception("failed when post new increment to WFT, failed Code: {}".format(response.status_code))
         except Exception as ex:
-            print("failed Code: {}".format(response.status_code))
             print(ex)
-            return None
+            return False
         else:
             return True
 
-    def __str__(self):
-        data = "project: {}, component: {}, build: {}".format(self.project, self.credential, self.build)
-        return data
+    def increment(self, new_build, branch, increment, build_configurations, repository={}, note=""):
+        uri = "{}/api/v1/{}/{}/builds/{}/increment.json".format(
+            self.wft_url, self.project, self.component, new_build
+        )
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        # payload
+        payload = {
+            "parent_version": self.build,
+            "parent_project": self.project,
+            "parent_component": self.component,
+            "branch": branch,
+            "branch_for": [branch],
+            "repository_url": self.get_detailed_info()["repository_url"],
+            "increment": increment,
+            "check_before_freeze": "false",
+            "xml_releasenote_id": build_configurations.get_xml_releasenote_id(),
+            "release_setting_id": build_configurations.get_release_setting_id(),
+            "release_note_template_id": build_configurations.get_release_note_template_id(),
+            "release_note_template_version_id": build_configurations.get_release_note_template_version_id()
+        }
+        if note != "":
+            payload.update({"note": note})
+        if repository:
+            payload.update(repository)
+        try:
+            print("creating build with following info:")
+            print(json.dumps(payload, sort_keys=True, indent=4))
+            payload.update(self.credential.get_auth())
+            response = requests.post(
+                uri,
+                headers=headers,
+                json=payload,
+                verify=False
+            )
+            # wft will report a 500 error when create a new build, need to cover this issue
+            if not response.ok:
+                raise Exception("failed when post new increment to WFT, error code: {}, error reason: {}".format(
+                    response.status_code,
+                    response.content))
+        except Exception as ex:
+            print(ex)
+            return None
+        else:
+            target_build = WftObjBuild()
+            target_build.set_build(new_build)
+            target_build.set_project(self.project)
+            target_build.set_component(self.component)
+            target_build.set_credential(self.credential)
+            return target_build
+
+    def get_url(self):
+        return "https://wft.int.net.nokia.com/{}/{}/builds/{}".format(self.project, self.component, self.build)
