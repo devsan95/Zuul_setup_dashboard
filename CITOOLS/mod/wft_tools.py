@@ -349,6 +349,7 @@ def get_build_config(base_wft_name):
 
 
 def get_subbuilds(build):
+    time.sleep(2)
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     wft_url = "{}:8091/ALL/api/v1/build.json".format(WFT.url)
     values = {"build": build, "wft_key": WFT.key}
