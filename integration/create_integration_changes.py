@@ -923,7 +923,7 @@ class IntegrationChangesCreation(object):
                     print("[Info] Base commit for env is: {}".format(com_ver))
                     continue
             if 'MN/5G/COMMON/integration' in node['repo']:
-                base_commits['integration'] = self.gerrit_rest.get_latest_commit_from_branch('MN/5G/COMMON/integration', branch)
+                base_commits['integration'] = self.gerrit_rest.get_latest_commit_from_branch('MN/5G/COMMON/integration', branch)['revision']
                 continue
             if 'type' in node and 'integration' in node['type']:
                 continue
