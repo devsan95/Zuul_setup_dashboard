@@ -893,6 +893,9 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
                                        stream_build_config[stream],
                                        updated_dict,
                                        sbts_env_change)
+            update_stream_knife_dict(stream_knife_dict[stream],
+                                     updated_dict,
+                                     sbts_env_change)
     for stream, stream_base in base_stream_map.items():
         print('Get SBTS env change: {}'.format(sbts_env_change))
         int_srouce = stream_bb_mapping[stream].get_component_source_by_project('integration')
@@ -900,7 +903,28 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
     return stream_knife_dict
 
 
-def gen_change_from_knife_dict(target_dict, sbts_knife_dict, project_dict, sbts_bb_mapping, build_config, updated_dict, sbts_env_change):
+def update_stream_knife_dict(sbts_knife_dict, updated_dict, sbts_env_change):
+    yaml_dict = copy.deepcopy(updated_dict)
+    yaml_dict.update(sbts_env_change)
+    for source_component, staged_dict in yaml_dict.items():
+        if source_component in sbts_knife_dict['knife_request']['yaml_changes']:
+            continue
+        comp_knife_dict = {}
+        comp_knife_dict['source_component'] = source_component
+        if 'commit' in staged_dict:
+            comp_knife_dict['replace_commit'] = staged_dict['commit']
+        if 'version' in staged_dict:
+            comp_knife_dict['replace_version'] = staged_dict['version']
+        update_sbts_comp_change(sbts_knife_dict, comp_knife_dict)
+
+
+def gen_change_from_knife_dict(target_dict,
+                               sbts_knife_dict,
+                               project_dict,
+                               sbts_bb_mapping,
+                               build_config,
+                               updated_dict,
+                               sbts_env_change):
     for component_name, replace_dict in target_dict.items():
         source = {}
         if component_name in project_dict:
