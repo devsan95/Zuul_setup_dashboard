@@ -912,9 +912,12 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
     sbts_env_change = {}
     stream_knife_dict = {}
     stream_bb_mapping = {}
+    stream_build_config = {}
     for stream, stream_base in base_stream_map.items():
         stream_knife_dict[stream] = initial_sbts_knife_dict(stream_base)
         stream_bb_mapping[stream] = bb_mapping.BB_Mapping(stream_base).parser
+        stream_build_config[stream] = yaml.load(
+            wft_tools.get_build_config(wft_tools.get_wft_release_name(stream_base)))
     if not origin_knife_dict:
         origin_knife_dict = knife_dict
     for target_dict in origin_knife_dict.values():
@@ -923,6 +926,7 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
                                        stream_knife_dict[stream],
                                        project_dict,
                                        stream_bb_mapping[stream],
+                                       stream_build_config[stream],
                                        updated_dict,
                                        sbts_env_change)
     for stream, stream_base in base_stream_map.items():
@@ -932,7 +936,7 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
     return stream_knife_dict
 
 
-def gen_change_from_knife_dict(target_dict, sbts_knife_dict, project_dict, sbts_bb_mapping, updated_dict, sbts_env_change):
+def gen_change_from_knife_dict(target_dict, sbts_knife_dict, project_dict, sbts_bb_mapping, build_config, updated_dict, sbts_env_change):
     for component_name, replace_dict in target_dict.items():
         source = {}
         if component_name in project_dict:
@@ -966,7 +970,7 @@ def gen_change_from_knife_dict(target_dict, sbts_knife_dict, project_dict, sbts_
             if 'package_path' in replace_dict and replace_dict['package_path']:
                 comp_knife_dict['package_path'] = replace_dict['package_path']
                 replacing_find = True
-        if source and not replacing_find:
+        if not replacing_find and (source or component_name in build_config['components']):
             for version_key in ['bb_ver', 'version', 'WFT_NAME', 'PV']:
                 if version_key in replace_dict:
                     find_version = replace_dict[version_key]
