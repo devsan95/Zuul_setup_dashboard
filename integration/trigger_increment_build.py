@@ -7,6 +7,7 @@ import json
 import re
 import time
 from api import gerrit_rest
+from mod import inherit_map
 from mod import integration_change
 from mod import utils
 from mod import wft_actions
@@ -81,10 +82,11 @@ def run(property_file, change_id, gerrit_info_path, knife_change_file, database_
     wft_branch = get_wft_int_branch(topic_type, baseline)
     changed_dict, yaml_changed_dict = get_changed_info(knife_change_file)
     diff_note = diff_note + "\n" + json.dumps(changed_dict, indent=4)
+    inherit_map_obj = inherit_map.Inherit_Map(base_loads=[baseline])
     increment_obj = wft_actions.BuildIncrement(wft_branch=wft_branch,
                                                changed=yaml_changed_dict,
                                                base_build=baseline,
-                                               inherit_map_obj=None,
+                                               inherit_map_obj=inherit_map_obj,
                                                type_filter='in_parent')
     wft_name, wft_link = increment_obj.int_increment(
         {"repository_url": "ssh://gerrit.ext.net.nokia.com:29418/MN/5G/COMMON/integration",
