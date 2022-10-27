@@ -112,7 +112,7 @@ def parse_config(rest, change_no):
 
 
 def parse_ric_list(rest, subject, zuul_url,
-                   zuul_ref, project_branch, config):
+                   zuul_ref, project_branch, config, stream_bb_mapping):
     print("---------------------------parsing integration"
           " change to get the ric list-------------------------------")
     ret_dict = {}
@@ -182,6 +182,12 @@ def parse_ric_list(rest, subject, zuul_url,
                     commit = rest.get_commit(change_no)['commit']
                     ret_dict[change['project']] = {'REVISION': commit, 'GITREV': commit}
                     continue
+
+                for base_mapping_parser in stream_bb_mapping.values():
+                    source = base_mapping_parser.get_component_source_by_project(project)
+                    if source:
+                        key = source['src_uri']
+                        break
 
                 ret_dict[key] = {'repo_url': '{}/{}'.format(zuul_url, value),
                                  'repo_ver': zuul_ref}
@@ -711,48 +717,6 @@ def combine_knife_json(json_list, abandoned_changes):
     return result
 
 
-def rewrite_knife_json(knife_json_path, gnblist_path):
-    # input knife.json and gnb_list files
-    with open(gnblist_path, 'r') as f:
-        gnbList = f.read().splitlines()
-
-    with open(knife_json_path, 'a+') as f:
-        data = json.load(f)
-        flag = False
-        # if knife.json include any gnb component,flag = True
-        for key, stream_data in data.items():
-            if add_comps_to_knife_json(stream_data, gnbList):
-                flag = True
-        if flag:
-            content = json.dumps(data, indent=2)
-            api.file_api.save_file(content, knife_json_path, False)
-            print('Updated gnb components!!')
-        else:
-            print('No need update knife json!')
-
-
-def add_comps_to_knife_json(data, gnbList):
-    values = {}
-    repo_keys = ['repo_ver', 'protocol', 'repo_url']
-    for k in data:
-        if k in gnbList and 'repo_ver' in data.get(k):
-            print('Include gnb component:***{}***,need update knife json'.format(k))
-            # get gnb component's repo_ver/protocol/repo_url
-            for repo_key in repo_keys:
-                if repo_key in data.get(k):
-                    values[repo_key] = data.get(k).get(repo_key)
-            break
-    if values:
-        for i in gnbList:
-            # add other gnb components
-            if i in data:
-                data[i].update(values)
-            else:
-                data[i] = values
-        return True
-    return False
-
-
 def get_description(rest, change_id):
     retried = 0
     while True:
@@ -1043,7 +1007,7 @@ def filter_component_by_locations(stream_knife_dict_copy, bb_mapping_obj, locati
 
 
 def run(zuul_url, zuul_ref, output_path, change_id,
-        gerrit_info_path, zuul_changes, gnb_list_path, db_info_path, comp_config, only_knife_json=False):
+        gerrit_info_path, zuul_changes, db_info_path, comp_config, only_knife_json=False):
     rest = api.gerrit_rest.init_from_yaml(gerrit_info_path)
     rest.init_cache(1000)
     comp_config = ruamel.yaml.load(open(comp_config), Loader=ruamel.yaml.Loader, version='1.1')
@@ -1059,10 +1023,16 @@ def run(zuul_url, zuul_ref, output_path, change_id,
 
     description, rest_id = get_description(rest, change_id)
 
+    # get base mapping before parse ric
+    stream_json = parse_comments_base(change_id, rest)
+    build_stream_dict = get_build_stream_base(change_id, rest, comp_config, stream_json)
+    stream_bb_mapping = {}
+    for stream, stream_base in build_stream_dict.items():
+        stream_bb_mapping[stream] = bb_mapping.BB_Mapping(stream_base).parser
     # knife json
     ric_dict, ex_dict, abandoned_changes, project_dict = parse_ric_list(
         rest, description, zuul_url, zuul_ref, project_branch,
-        knife_config)
+        knife_config, stream_bb_mapping)
     ric_commit_dict = parse_ric_commit_list(description)
     env_dict = get_env_commit(description, rest)
     ex_comment_dict, comp_f_prop = parse_ex_comments(ex_dict, rest,
@@ -1080,8 +1050,6 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     for comment_value in comment_dict.values():
         comment_value.update(interfaces_dict)
 
-    stream_json = parse_comments_base(change_id, rest)
-    build_stream_dict = get_build_stream_base(change_id, rest, comp_config, stream_json)
     add_inherit_into_json(ex_comment_dict, change_id, rest, build_stream_dict)
 
     combined_knife_dict = combine_knife_json([
@@ -1120,10 +1088,6 @@ def run(zuul_url, zuul_ref, output_path, change_id,
     mail_list = parse_comments_mail(change_id, rest)
     mail_list.extend(reviews_mail_list)
     save_json_file(reviews_path, list(set(mail_list)))
-
-    # add all gnb components
-    if gnb_list_path:
-        rewrite_knife_json(knife_path, gnb_list_path)
 
     if db_info_path:
         print('........')
