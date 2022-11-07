@@ -877,11 +877,13 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
     stream_knife_dict = {}
     stream_bb_mapping = {}
     stream_build_config = {}
+    stream_update_dict = {}
     for stream, stream_base in base_stream_map.items():
         stream_knife_dict[stream] = initial_sbts_knife_dict(stream_base)
         stream_bb_mapping[stream] = bb_mapping.BB_Mapping(stream_base).parser
         stream_build_config[stream] = yaml.load(
             wft_tools.get_build_config(wft_tools.get_wft_release_name(stream_base)))
+        stream_update_dict[stream] = copy.deepcopy(updated_dict)
     if not origin_knife_dict:
         origin_knife_dict = knife_dict
     for target_dict in origin_knife_dict.values():
@@ -891,15 +893,20 @@ def gen_sbts_knife_dict(knife_dict, stream_json, rest, project_dict, updated_dic
                                        project_dict,
                                        stream_bb_mapping[stream],
                                        stream_build_config[stream],
-                                       updated_dict,
+                                       stream_update_dict[stream],
                                        sbts_env_change)
             update_stream_knife_dict(stream_knife_dict[stream],
-                                     updated_dict,
+                                     stream_update_dict[stream],
                                      sbts_env_change)
     for stream, stream_base in base_stream_map.items():
         print('Get SBTS env change: {}'.format(sbts_env_change))
         int_srouce = stream_bb_mapping[stream].get_component_source_by_project('integration')
-        update_sbts_integration(stream_knife_dict[stream], updated_dict, removed_dict, sbts_env_change, rest, int_srouce['src_uri'])
+        update_sbts_integration(stream_knife_dict[stream],
+                                stream_update_dict[stream],
+                                removed_dict,
+                                sbts_env_change,
+                                rest,
+                                int_srouce['src_uri'])
     return stream_knife_dict
 
 
