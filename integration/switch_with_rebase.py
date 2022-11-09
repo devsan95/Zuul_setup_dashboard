@@ -147,7 +147,7 @@ def get_component_hash(base_package, extra_bases, comp_names, get_comp_info, bra
         print('Try get hash from {}'.format(extra_bases))
         for extra_base in extra_bases:
             extra_base_get_comp_info = get_comp_info_obj(extra_base)
-            comp_hash = _get_component_hash(extra_base, comp_names, extra_base_get_comp_info)
+            comp_hash = _get_component_hash(extra_base, comp_names, extra_base_get_comp_info, branch)
             if comp_hash:
                 print('Try get hash from {} is {}'.format(extra_bases, comp_hash))
                 break
