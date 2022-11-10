@@ -7,8 +7,8 @@ rm -rf /tmp/zuul_tmp/${script_pwd}/*
 OLD_PATH="`pwd`"
 cd ${work_path}
 wget http://zuule1.dynamic.nsn-net.net/zuul_log/layout.yaml
-git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/conf
-git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/layout
+git clone ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/conf
+git clone ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/layout
 cp -rf ${work_path}/conf/http_conf/* /etc/httpd/
 cp -rf ${work_path}/conf/zuul_conf/* /etc/zuul/
 cp -rf ${work_path}/conf/validate_code_conf/* /etc/zuul/

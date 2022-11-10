@@ -15,7 +15,7 @@ mkdir -p /tmp/zuul_tmp/${script_pwd}/
 rm -rf /tmp/zuul_tmp/${script_pwd}/*
 OLD_PATH="`pwd`"
 cd ${work_path}
-git clone http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/layout
+git clone ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/layout
 
 # validate connection
 ${SCRIPT_DIR}/tools/update_zuul_config.sh

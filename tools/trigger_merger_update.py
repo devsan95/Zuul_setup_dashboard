@@ -34,7 +34,7 @@ def send_files(session, table, host, ssh, port, folder):
 
 def activate_venv(channel, folder):
     channel.sendall(
-        'git clone "https://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/mn_scripts" {}/mn\n'.format(
+        'git clone "ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/mn_scripts" {}/mn\n'.format(
             folder))
     channel.sendall("source {}/mn/pyenv.sh\n".format(folder))
 

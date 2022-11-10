@@ -133,7 +133,7 @@ def get_stream_name(version):
     if os.path.exists(to_path):
         shutil.rmtree(to_path)
     git.Repo.clone_from(
-        url='http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/comp-deps',
+        url='ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/comp-deps',
         to_path=to_path
     )
     yaml_path = '{}/config/integration-config.yaml'.format(to_path)
