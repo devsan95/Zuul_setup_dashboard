@@ -211,7 +211,8 @@ def get_latest_loads_by_streams(stream_list, get_build_function, strip_prefix=Tr
         stream_pattern = stream
         try:
             wft_stream = get_stream_name(stream + '.')
-        except Exception:
+        except Exception as e:
+            print(str(e))
             print('Not find stream name for {}'.format(stream))
             continue
         stream = 'master_classicalbts_l1r51_tdd' if stream == 'default' \
