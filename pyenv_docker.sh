@@ -162,9 +162,6 @@ sudo pip install --no-cache-dir -U \
     flake8 \
     pylint
 
-sudo pip install --no-cache-dir -U \
-    git+https://gerrite1.ext.net.nokia.com:443/scm_tools
-
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${PYTHONPATH}
 cd "$OLD_PATH"
 }

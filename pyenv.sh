@@ -153,7 +153,7 @@ then
   export http_proxy=10.158.100.1:8080
   export https_proxy=10.158.100.1:8080
   pip install --upgrade pip
-  pip install git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
+  pip install git+ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/zuul
   chmod -R 777 "$VENV_PATH"
 fi
 
@@ -213,10 +213,7 @@ pip install --no-cache-dir -U \
     pylint
 
 pip install --no-cache-dir -U \
-    git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
-
-pip install --no-cache-dir -U \
-    git+https://gerrite1.ext.net.nokia.com:443/scm_tools
+    git+ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/zuul
 
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
 cd "$OLD_PATH"

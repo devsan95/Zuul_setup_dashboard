@@ -151,7 +151,7 @@ then
   conda install pycrypto mysql-connector-python -y
   conda install -c conda-forge yappi -y
   pip install --upgrade pip
-  pip install git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
+  pip install git+ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/zuul
   chmod -R 777 "$VENV_PATH"
 fi
 
@@ -207,10 +207,8 @@ pip install --no-cache-dir -U \
     pylint
 
 pip install --no-cache-dir -U \
-    git+http://gerrit.ext.net.nokia.com/gerrit/MN/SCMTA/zuul/zuul
+    git+ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/zuul
 
-pip install --no-cache-dir -U \
-    git+https://gerrite1.ext.net.nokia.com:443/scm_tools
 
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
 cd "$OLD_PATH"
