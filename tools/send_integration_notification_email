@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -e
+
+notify() {
+    if [ ! -f "${WORKSPACE}/package_info.txt" ]; then
+        echo "package_info.txt is not exist"
+    else
+        local base_package=$(cat ${WORKSPACE}/package_info.txt \
+            | grep "BASE_PACKAGE" \
+            | sed 's/=/\n/g' | sed '1d')
+        local pkg_package=$(cat ${WORKSPACE}/package_info.txt \
+            | grep "PKG_NAME" \
+            | sed 's/=/\n/g' \
+            | sed '1d')
+        local changes=$(cat ${WORKSPACE}/package_info.txt \
+            | grep "CHANGES" \
+            | sed 's/=/\n/g' \
+            | sed '1d' \
+            | sed s'/}$//' \
+            | sed s'/^{//' \
+            | sed 's/},/}\n/g' \
+            | sed 's/^[][ ]*//g' \
+            | awk '{print "<li>" $0 "</li>"}')
+        local wft_url=$(cat ${WORKSPACE}/package_info.txt \
+            | grep "WFT_URL" \
+            | sed 's/=/\n/g' \
+            | sed '1d')
+        local subject="[Integration build ${pkg_package}] based on ${base_package} notification"
+        local mail_list=$(cat ${WORKSPACE}/reviewers.json \
+            | sed 's:^\[::; s:\]$::;' \
+            | sed 's/"//g' \
+            | sed 's/,/;/1')
+        local mail_tmpfile="$(mktemp -p "${WORKSPACE}" mailbody-XXXXXXXXX)"
+            cat > "${mail_tmpfile}" << EOF
+                <p>
+                    Integration Build ${pkg_package} based on ${base_package} is ready.
+                </p>
+                <p>
+                    Integration packages are stored only for <span style="color: red;"><strong>30 days </strong></span>and after that time files will be deleted. Please keep them locally if needed.
+                </p>
+                <p>
+                    Integration Package URL: ${wft_url}
+                </p>
+                <p>
+                    Package changes:
+                </p>
+                <ul>
+                    ${changes}
+                </ul>
+EOF
+
+    perl "${WORKSPACE}/mn_scripts/tools/mail" \
+        --from no-reply@nokia.com \
+        --recipients "${mail_list}" \
+        --subject "${subject}" \
+        --body "${mail_tmpfile}"
+    fi
+}
+
+notify

@@ -1,0 +1,60 @@
+#!/usr/bin/env perl
+
+# Usage:
+#     mail.pl --from user@host --recipients 'foo@nokia.com bar@nokia.com' --subject blablabla --body ./body.txt
+#         - or -
+#     cmd | mail.pl --from user@host --recipients 'foo@nokia.com bar@nokia.com' --subject blablabla --body -
+
+use strict;
+use warnings;
+use Net::SMTP;
+use Getopt::Long;
+
+my $smtp_server = 'mail.emea.nsn-intra.net';
+my $smtp_debug = 0;
+
+my $from;
+my $recipients;
+my $subject;
+my $body;
+
+GetOptions (
+    "from=s"       => \$from,
+    "recipients=s" => \$recipients,
+    "subject=s"    => \$subject,
+    "body=s"       => \$body,
+) or die;
+
+die "Missing from" if not defined $from;
+die "Missing recipients" if not defined $recipients;
+die "Missing subject" if not defined $subject;
+die "Missing body" if not defined $body;
+
+sub read_file {
+    # ... or read stdin if file = -.
+    my $file = shift;
+    my $content;
+    local $/;
+    if ($file eq "-") {
+        $content = <>;
+    } else {
+        open(my $fh, "<", $file) or die;
+        $content = <$fh>;
+        close($fh);
+    }
+    return $content;
+}
+
+my $smtp = Net::SMTP->new($smtp_server, Timeout => 120, Debug => ${smtp_debug}) or die "Cannot connect: $@";
+
+$smtp->mail($from);
+$smtp->recipient($_) for split(/\s/, $recipients);
+$smtp->data;
+$smtp->datasend("From: $from\n");
+$smtp->datasend("To: $recipients\n");
+$smtp->datasend("Subject: $subject\n");
+$smtp->datasend("Content-Type: text/html\n");
+$smtp->datasend("\n");
+$smtp->datasend("$_\n") for split (/\n/, read_file($body));
+$smtp->dataend;
+$smtp->quit;

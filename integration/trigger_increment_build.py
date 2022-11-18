@@ -6,6 +6,7 @@ import fire
 import json
 import re
 import time
+import os
 from api import gerrit_rest
 from mod import inherit_map
 from mod import integration_change
@@ -96,6 +97,15 @@ def run(property_file, change_id, gerrit_info_path, knife_change_file, database_
         note=diff_note)
     update_build_info(database_info_path, wft_name, wft_link, jira_id, baseline.split('_')[0])
     rest.review_ticket(change_id, 'IntegrationBuild: {} - {}'.format(wft_name, wft_link))
+    current_path = os.getcwd()
+    trigger_file = os.path.join(current_path, "package_info.txt")
+    with open(trigger_file, 'w') as f:
+        f.write("PKG_NAME={}\nBASE_PACKAGE={}\nCHANGES={}\nWFT_URL={}\n".format(
+            wft_name,
+            baseline,
+            yaml_changed_dict,
+            wft_link)
+        )
 
 
 if __name__ == '__main__':
