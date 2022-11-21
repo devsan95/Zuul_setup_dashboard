@@ -209,6 +209,7 @@ pip install --no-cache-dir -U \
 pip install --no-cache-dir -U \
     git+ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/zuul
 
+pip install git+https://gerrite1.ext.net.nokia.com:443/scm_tools
 
 export PYTHONPATH=${CIHOME_PATH}/CITOOLS:${CIHOME_PATH}:${PYTHONPATH}
 cd "$OLD_PATH"
