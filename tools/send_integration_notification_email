@@ -14,10 +14,12 @@ notify() {
             | sed '1d')
         local changes=$(cat ${WORKSPACE}/package_info.txt \
             | grep "CHANGES" \
-            | sed 's/=/\n/g' \
+            | sed 's/CHANGES=/\n/g' \
             | sed '1d' \
-            | sed s'/}$//' \
+            | sed s'/]}$//' \
             | sed s'/^{//' \
+            | sed s"/'knife_changes'://" \
+            | sed s"/'yaml_changes':/\n/" \
             | sed 's/},/}\n/g' \
             | sed 's/^[][ ]*//g' \
             | awk '{print "<li>" $0 "</li>"}')
@@ -33,10 +35,7 @@ notify() {
         local mail_tmpfile="$(mktemp -p "${WORKSPACE}" mailbody-XXXXXXXXX)"
             cat > "${mail_tmpfile}" << EOF
                 <p>
-                    Integration Build ${pkg_package} based on ${base_package} is ready.
-                </p>
-                <p>
-                    Integration packages are stored only for <span style="color: red;"><strong>30 days </strong></span>and after that time files will be deleted. Please keep them locally if needed.
+                    Integration Build ${pkg_package} based on ${base_package} is created.
                 </p>
                 <p>
                     Integration Package URL: ${wft_url}

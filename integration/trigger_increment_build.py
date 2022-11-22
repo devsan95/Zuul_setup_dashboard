@@ -103,7 +103,7 @@ def run(property_file, change_id, gerrit_info_path, knife_change_file, database_
         f.write("PKG_NAME={}\nBASE_PACKAGE={}\nCHANGES={}\nWFT_URL={}\n".format(
             wft_name,
             baseline,
-            yaml_changed_dict,
+            changed_dict,
             wft_link)
         )
 
