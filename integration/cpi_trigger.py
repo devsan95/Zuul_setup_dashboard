@@ -5,7 +5,6 @@ import fire
 import requests
 from xml.etree import ElementTree
 from scm_tools.wft.api import WftAPI
-from scm_tools.wft.build_content import BuildContent
 from scm_tools.wft.releasenote import Releasenote
 from api import mysql_api
 from api import log_api
@@ -145,21 +144,6 @@ def get_ps_sub_builds(ps_version):
     return {'GLOBAL_ENV': global_env[0], 'PS_LFS_REL': ps_lfs_rel[0]}
 
 
-def get_bm_from_ps_assignments(ps_version):
-    bm_regex = re.compile(r'(BM(_BIN_|_2CETEST_|_LTE_)?\w+\d+|\w+_BM_(BIN_|2CETEST_|LTE_)?\d{4}_\d{2,3}_\d{2,3})')
-    build_content = BuildContent.get(ps_version)
-    ps_assignments = build_content.get_assignments()
-    bm_tags = list()
-    for branch, baselines in ps_assignments.items():
-        for baseline in baselines:
-            if bm_regex.findall(baseline):
-                if baseline.startswith('FLF') or baseline.startswith('LNF'):
-                    continue
-                bm_tags.append(baseline)
-    bm_tags.sort()
-    return bm_tags
-
-
 def write_parameters(action, env_change, structure_file,
                      streams, promoted_user_id, integration_mode,
                      version_name, root_changes):
@@ -190,22 +174,12 @@ def cpi_topic_handler(cpi_topics, structure_file, streams,
 
     for ps_version, action in cpi_topics.items():
         ps_sub_builds = get_ps_sub_builds(ps_version)
-        bm_tags = get_bm_from_ps_assignments(ps_version)
-        if bm_tags:
-            env_change = \
-                "ENV_PS_REL={PS_REL}\\nENV_GLOBAL_ENV={GLOBAL_ENV}\\nENV_PS_LFS_REL={PS_LFS_REL}\\nENV_BM_TAG={BM_TAG}".format(
-                    PS_REL=ps_version,
-                    GLOBAL_ENV=ps_sub_builds['GLOBAL_ENV'],
-                    PS_LFS_REL=ps_sub_builds['PS_LFS_REL'],
-                    BM_TAG=bm_tags[0]
-                )
-        else:
-            env_change = \
-                "ENV_PS_REL={PS_REL}\\nENV_GLOBAL_ENV={GLOBAL_ENV}\\nENV_PS_LFS_REL={PS_LFS_REL}".format(
-                    PS_REL=ps_version,
-                    GLOBAL_ENV=ps_sub_builds['GLOBAL_ENV'],
-                    PS_LFS_REL=ps_sub_builds['PS_LFS_REL']
-                )
+        env_change = \
+            "ENV_PS_REL={PS_REL}\\nENV_GLOBAL_ENV={GLOBAL_ENV}\\nENV_PS_LFS_REL={PS_LFS_REL}".format(
+                PS_REL=ps_version,
+                GLOBAL_ENV=ps_sub_builds['GLOBAL_ENV'],
+                PS_LFS_REL=ps_sub_builds['PS_LFS_REL']
+            )
         LOG.info('Will {0} CPI topic for {1}'.format(action, ps_version))
         write_parameters(
             action=action,
