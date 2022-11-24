@@ -171,8 +171,8 @@ class BuildIncrement(object):
         return diff_list
 
     def send_inc_request(self, latest_build, psint_cycle=None):
-        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-        current_version = latest_build['baseline']
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        current_version = latest_build["baseline"]
         log.info("Current latest version is: {}".format(current_version))
         base_details = WFTUtils.get_build_detail(self.base_build)
         current_detail = WFTUtils.get_build_detail(current_version)
@@ -183,23 +183,26 @@ class BuildIncrement(object):
             version=current_version,
             wftauth=WFTAUTH
         )
-        diff_list = self.get_diff(base_details['subbuilds'], self.changed)
+        diff_list = self.get_diff(base_details["subbuilds"], self.changed)
         inc_data = {
-            "parent_version": base_details['baseline'],
+            "parent_version": base_details["baseline"],
             "parent_project": base_details["project"],
             "parent_component": base_details["component"],
-            "branch": current_detail['branch'],
-            "branch_for": current_detail['branch_for'],
-            "repository_url": current_detail['repository_url'],
+            "branch": current_detail["branch"],
+            "branch_for": current_detail["branch_for"],
+            "repository_url": current_detail["repository_url"],
             "increment": diff_list,
-            "check_before_freeze": 'false',
-            'xml_releasenote_id': build_configurations.get_xml_releasenote_id(),
-            'release_setting_id': build_configurations.get_release_setting_id(),
-            'release_note_template_id': build_configurations.get_release_note_template_id(),
-            'release_note_template_version_id': build_configurations.get_release_note_template_version_id()
+            # This is set to true because we want to change the status into freeze by our selves
+            # after the unification, the original state machine cannot process if the submodule is not released.
+            # we decided to switch the status by our self
+            "check_before_freeze": "true",
+            "xml_releasenote_id": build_configurations.get_xml_releasenote_id(),
+            "release_setting_id": build_configurations.get_release_setting_id(),
+            "release_note_template_id": build_configurations.get_release_note_template_id(),
+            "release_note_template_version_id": build_configurations.get_release_note_template_version_id()
         }
         inc_service = "{}/api/v1/{}/{}/builds/{}/increment.json".format(
-            WFT_API_URL, current_detail['project'], current_detail['component'], new_version
+            WFT_API_URL, current_detail["project"], current_detail["component"], new_version
         )
         log.info("Build increment url: {}".format(inc_service))
         log.info("inc data: %s", inc_data)
@@ -211,7 +214,7 @@ class BuildIncrement(object):
             verify=True
         )
         if not response.ok:
-            raise Exception("Failed to increment new {0}:{1} in WFT; error message was: {2}".format(current_detail['project'], current_detail['component'], response.text))
+            raise Exception("Failed to increment new {0}:{1} in WFT; error message was: {2}".format(current_detail["project"], current_detail["component"], response.text))
         log.info("New build {} created in WFT".format(new_version))
 
         return new_version
@@ -270,6 +273,7 @@ class BuildIncrement(object):
                                                     note)
         print("Successfully create a build: {} , refer: {}".format(incremented_build.build,
                                                                    incremented_build.get_url()))
+        incremented_build.frozen()
         return incremented_build.build, incremented_build.get_url()
 
     def run(self, psint_cycle=None, name_regex='.*'):

@@ -353,12 +353,12 @@ class WftObjBuild(object):
             output = {}
             for item in data:
                 if item["via_trigger"]:
-                    output[item['to']] = {"id": item['id'], "from": item['from'], "to": item["to"]}
+                    output[item["to"]] = {"id": item["id"], "from": item["from"], "to": item["to"]}
             return output
 
     def get_status(self):
         info = self.get_detailed_info(True)
-        return info['state']
+        return info["state"]
 
     def update_status(self, new_status):
         available_status = self.get_available_status()
@@ -393,20 +393,30 @@ class WftObjBuild(object):
             print("changed {} cannot be migrate to status: {}".format(self.build, new_status))
             return False
 
-    def frozen(self):
+    def frozen(self, ttl=7):
         build_status = self.get_status()
-        if build_status == 'planned':
-            self.update_status('announced')
-            self.frozen()
-        elif build_status == 'announced':
-            print("{} is in announced status, waiting for it transfer to {}".format(self.build, "buildable"))
-            time.sleep(10)
-            # use to sleep and let the status goes into buildable
-            self.frozen()
-        elif build_status == 'buildable':
-            self.update_status('frozen')
-            return True
-        return False
+        if ttl <= 0:
+            print("{} stuck in {} status, give up".format(self.build, build_status))
+            return False
+        else:
+            if build_status == "planned":
+                if not self.update_status("announced"):
+                    print("retrying...")
+                time.sleep(10)  # waiting for wft status transfer
+                self.frozen(ttl - 1)
+            elif build_status == 'announced':
+                if not self.update_status('buildable'):
+                    print("retrying...")
+                time.sleep(5)  # waiting for wft status transfer
+                self.frozen(ttl - 1)
+            elif build_status == "buildable":
+                if not self.update_status("frozen"):
+                    print("retrying...")
+                time.sleep(5)  # waiting for wft status transfer
+                self.frozen(ttl - 1)
+            elif build_status == "frozen" or build_status == "building":
+                return True
+            return False
 
     def update_build(self, repo_url, repo_branch, repo_repository_revision, repo_type, note):
         uri = "{}/api/v1/{}/{}/builds/{}.json".format(self.wft_url, self.project, self.component, self.build)
