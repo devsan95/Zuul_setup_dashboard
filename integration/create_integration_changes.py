@@ -326,8 +326,9 @@ class IntegrationChangesCreation(object):
             if node_obj['repo'] in auto_branch_repos:
                 self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
             base_commit = self.get_base_commit(node_obj, integration_mode)
-            change_id, ticket_id, rest_id = self.gerrit_rest.create_ticket(
-                node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
+            change_id, ticket_id, rest_id = retry.retry_func(
+                retry.cfn(self.gerrit_rest.create_ticket, node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit),
+                max_retry=5, interval=3
             )
             print ('ticket {} created'.format(ticket_id))
             node_obj['change_id'] = change_id

@@ -169,4 +169,6 @@ cd "$OLD_PATH"
 }
 
 run_try_n 3 10 prepare_python_env
+unset http_proxy
+unset https_proxy
 echo "Python Virtualenv init finished. "
