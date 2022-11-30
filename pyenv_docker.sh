@@ -119,8 +119,8 @@ check_and_make "$VAR_PATH"
 check_and_make "$HOME_PATH"
 
 
-export http_proxy=http://10.158.100.1:8080
-export https_proxy=https://10.158.100.1:8080
+# export http_proxy=http://10.158.100.1:8080
+# export https_proxy=https://10.158.100.1:8080
 
 prepare_python_env(){
 
