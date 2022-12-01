@@ -276,20 +276,28 @@ def get_poject_and_component(wft_name):
 
 def get_staged_from_wft(wft_name, component=None, project=None):
     build_content = ''
-    url = 'https://wft.int.net.nokia.com:8091/api/v1/{project}/{component}/builds/{version}.json'.format(
-        project=project if project else 'Common',
-        component=component if component else 'Common',
-        version=wft_name
-    )
-    print('Trying to fetch build content from WFT via: {0}'.format(url))
-    r = requests.get(url=url, params={'access_key': WFT.key})
-    if r.status_code != 200:
+    time.sleep(2)
+    try:
+        if component and project:
+            build_content = retry.retry_func(retry.cfn(WFT.get_build_content, wft_name, component, project), max_retry=5, interval=3)
+        else:
+            build_content = retry.retry_func(retry.cfn(WFT.get_build_content, wft_name), max_retry=5, interval=3)
+    except Exception:
         print('Cannot get build_content for {}'.format(wft_name))
+    if not build_content:
         return {}
-    build_content = json.loads(r.text)
-    if 'bb_commit' not in build_content or 'bb_location' not in build_content or 'bb_type' not in build_content:
-        return {}
-    return {'location': build_content['bb_location'], 'type': build_content['bb_type'], 'commit': build_content['bb_commit']}
+    tree = ET.fromstring(build_content)
+    bbrecipe = tree.find('bbrecipe')
+    if bbrecipe is not None:
+        bbrecipe_location = bbrecipe.get("location", '')
+        bbrecipe_commit = bbrecipe.get("commit", '')
+        bbrecipe_type = bbrecipe.get("type", '')
+        print('bbrecipe: location="{}" type="{}" commit="{}"'.format(
+              bbrecipe_location, bbrecipe_type, bbrecipe_commit))
+        return {'location': bbrecipe_location,
+                'type': bbrecipe_type,
+                'commit': bbrecipe_commit}
+    return {}
 
 
 def get_subuild_from_wft(wft_name, component=None, project=None):
