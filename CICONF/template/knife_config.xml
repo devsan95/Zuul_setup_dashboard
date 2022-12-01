@@ -1,7 +1,7 @@
 <knife id="@knife_id@">
   <knife_id>@knife_id@</knife_id>
   <state></state>
-  <server>http://production.cb.scm.nsn-rdnet.net:80</server>
+  <server>https://production.cb.scm.nsn-rdnet.net:443</server>
   <requestor>CentralBuild-Team_5G</requestor>
   <requestor_mail>i_5g_cb_scm@internal.nsn.com</requestor_mail>
   <purpose>debug</purpose>

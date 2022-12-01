@@ -61,7 +61,7 @@ SBTS_KNIFE_TEMPLATE = {
             "knife_info": "",
             "module": "",
             "reference_ir": "",
-            "server": "http://production.cb.scm.nsn-rdnet.net:80",
+            "server": "https://production.cb.scm.nsn-rdnet.net:443",
             "signed_software": True,
             "upload_location": [],
             "version_number": "99",
