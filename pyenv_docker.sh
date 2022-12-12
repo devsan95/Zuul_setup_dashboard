@@ -122,6 +122,19 @@ check_and_make "$HOME_PATH"
 export http_proxy=http://10.158.100.1:8080
 export https_proxy=https://10.158.100.1:8080
 
+if [[ ! -f /etc/pip.conf ]]; then
+    cat << EOF > /etc/pip.conf
+[global]
+timeout = 60
+index-url = https://artifactory-espoo1.int.net.nokia.com/artifactory/api/pypi/scm-pypi-virtual/simple
+extra-index-url =
+    https://artifactory-espoo1.int.net.nokia.com/artifactory/api/pypi/python-remote/simple
+    https://artifactory-hz1.int.net.nokia.com/artifactory/api/pypi/python-remote/simple
+    https://artifactory-blr1.int.net.nokia.com/artifactory/api/pypi/python-remote/simple
+    https://artifactory-fpark1.int.net.nokia.com/artifactory/api/pypi/python-remote/simple
+EOF
+fi
+
 prepare_python_env(){
 
 sudo pip install --no-cache-dir \
