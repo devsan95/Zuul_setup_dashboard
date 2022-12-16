@@ -8,7 +8,7 @@ from mod import utils
 from mod import bb_mapping
 
 logging.basicConfig(level=logging.INFO)
-REVISION_KEYS = ['revision', 'rev', 'pv']
+REVISION_KEYS = ['revision', 'rev', 'pv', 'tag']
 
 
 class GET_COMPONENT_INFO(object):
