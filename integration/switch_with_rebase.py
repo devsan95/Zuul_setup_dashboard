@@ -114,20 +114,22 @@ def update_base_commit(rest, comp_change, comp_change_obj, comp_hash):
 
 
 def _get_component_hash(base_package, comp_names, get_comp_info, branch):
-    print('Try to get hash for {}'.format(comp_names))
+    print('Try to get hash for {} in branch {}'.format(comp_names, branch))
     comp_hash = ''
     try:
         if 'integration' in comp_names:
+            base_pkg_obj = utils.BasePkgHandler(branch=branch)
+            base_package_name = base_package
             if not base_package.startswith('SBTS'):
-                base_pkg_obj = utils.BasePkgHandler(branch=branch)
-                wft_version = wft_tools.get_wft_release_name(base_package.split('_')[-1])
-                ecl_sack_base = wft_tools.get_subbuild_version(wft_version, 'ECL_SACK_BASE')
-                ecl_sack_base_commit = base_pkg_obj.get_ecl_sack_base_commit(ecl_sack_base)
-                if not ecl_sack_base_commit:
-                    print('[WARNING] Can not get ecl_sack_base commit in integration repo for {0}'.format(ecl_sack_base))
-                else:
-                    comp_hash = ecl_sack_base_commit
-                    base_pkg_obj.push_base_tag(comp_hash)
+                base_package_name = base_package.split('_')[-1]
+            wft_version = wft_tools.get_wft_release_name(base_package_name)
+            ecl_sack_base = wft_tools.get_subbuild_version(wft_version, 'ECL_SACK_BASE')
+            ecl_sack_base_commit = base_pkg_obj.get_ecl_sack_base_commit(ecl_sack_base)
+            if not ecl_sack_base_commit:
+                print('[WARNING] Can not get ecl_sack_base commit in integration repo for {0}'.format(ecl_sack_base))
+            else:
+                comp_hash = ecl_sack_base_commit
+                base_pkg_obj.push_base_tag(comp_hash)
         else:
             for sub_comp_name in comp_names:
                 comp_hash = get_comp_info.get_comp_hash(sub_comp_name)

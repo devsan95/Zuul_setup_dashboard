@@ -50,8 +50,6 @@ class BasePkgHandler(object):
         repo = git.Repo(self.integration_dir)
         commits = repo.iter_commits(self.branch, max_count=max_count)
         for commit in commits:
-            print('ZHY TEST')
-            print(commit.message)
             if ecl_sack_base in commit.message:
                 return str(commit)
         return None
