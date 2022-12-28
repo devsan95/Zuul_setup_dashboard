@@ -11,6 +11,7 @@ import yamlordereddictloader
 from functools import partial
 
 import skytrack_database_handler
+import cpi_trigger
 from api import retry
 from api import gerrit_rest
 from api import env_repo as get_env_repo
@@ -301,6 +302,13 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
     print('Gathering infomation...')
     rest = gerrit_rest.init_from_yaml(gerrit_info_path)
     root_msg = get_commit_msg(change_no, rest)
+    msg = " ".join(root_msg.split("\n"))
+    reg = re.compile(r'%JR=(\w+-\d+)')
+    issue_key = reg.search(msg).groups()[0]
+    topic_name = skytrack_database_handler.get_topic_name(issue_key, database_info_path)
+    # freeze old CPI
+    if 'CPI Integration' in topic_name:
+        cpi_trigger.frozen_cpi_status(issue_key=issue_key, old_subject=topic_name)
     auto_rebase = False if re.findall(r'<without-zuul-rebase>', root_msg) else True
     current_ps = get_current_ps(rest, change_no)
     if not current_ps:
@@ -396,10 +404,10 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
 
         # add new env
         print('add new env for change {}'.format(change_no))
-        print "env_file_changes:"
-        print env_file_changes
-        print "combine_env_dict:"
-        print combine_env_dict
+        print("env_file_changes:")
+        print(env_file_changes)
+        print("combine_env_dict:")
+        print(combine_env_dict)
         try:
             old_env = rest.get_file_content(env_path, change_no)
             # update env/env-config.d/ENV content
@@ -442,11 +450,6 @@ def run(gerrit_info_path, change_no, comp_config, change_info=None, database_inf
             old_str, new_str = change_message(root_change)
             # replace topic name.
             try:
-                origin_msg = get_commit_msg(change_no, rest)
-                msg = " ".join(origin_msg.split("\n"))
-                reg = re.compile(r'%JR=(\w+-\d+)')
-                issue_key = reg.search(msg).groups()[0]
-                topic_name = skytrack_database_handler.get_topic_name(issue_key, database_info_path)
                 if old_str in topic_name:
                     skytrack_database_handler.update_topic_name(issue_key, topic_name.replace(old_str, new_str), database_info_path)
                 else:
