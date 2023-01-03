@@ -174,6 +174,11 @@ def parse_ric_list(rest, subject, zuul_url,
                         'commit': rest.get_commit(change_no)['commit'],
                         'version': 'change_from_{}'.format(change_no)}
                     continue
+                if project == 'MN/SCMTA/YOCTO/config-sample':
+                    ret_dict['Common:YOCTO_CONFIG_SAMPLE'] = {
+                        'commit': rest.get_commit(change_no)['commit'],
+                        'version': 'change_from_{}'.format(change_no)}
+                    continue
                 if project == 'MN/5G/COMMON/integration':
                     ret_dict['integration'] = {'repo_ver': rest.get_commit(change_no)['commit']}
                     continue
@@ -802,6 +807,8 @@ def initial_sbts_knife_dict(sbts_base):
     sbts_submodules = git_sbts.submodule('status')
     if 'meta-cbconfig' in sbts_submodules:
         git_sbts.submodule('update', '--init', 'meta-cbconfig')
+    if 'config-sample' in sbts_submodules:
+        git_sbts.submodule('update', '--init', 'config-sample')
     with open(branch_config_file, 'r') as fr:
         branch_config_dict = json.load(fr)
         sbts_knife_dict['knife_request']['module'] = branch_config_dict['modules'][0]['LTE_MODULE']
