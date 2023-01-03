@@ -48,6 +48,7 @@ def generate_commit_message(comp, root, base_commit, comp_branch):
     msg_list.append('Platform ID: <{}>'.format(root['platform_id']))
     msg_list.append('%JR={}'.format(root['jira_id']))
     msg_list.append('%FIFI={}'.format(root['feature_id']))
+    msg_list.append('%INT_SW_CHANGE')
     msg_list.append('Remarks:')
     msg_list.append('---')
     msg_list.append('Apply adaption using format, update_bb:COMPONENT_NAME,REPO_URL,REPO_VER')

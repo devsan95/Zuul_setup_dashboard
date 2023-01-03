@@ -555,7 +555,7 @@ class IntegrationChangesCreation(object):
         if 'feature_id' in self.info_index['meta'] and self.info_index['meta']['feature_id']:
             lines.append('%FIFI={}'.format(self.info_index['meta']['feature_id']))
             section_showed = True
-
+        lines.append('%INT_SW_CHANGE')
         if section_showed:
             lines.append('  ')
             lines.append('  ')
