@@ -50,11 +50,13 @@ class MysqlConnector(object):
             host=self.host,
             user=self.user,
             passwd=self.passwd,
-            database=self.database
+            database=self.database,
+            auth_plugin='mysql_native_password'
         ) if self.database else mysql.connector.connect(
             host=self.host,
             user=self.user,
-            passwd=self.passwd
+            passwd=self.passwd,
+            auth_plugin='mysql_native_password'
         )
 
     def init_database(self, database):

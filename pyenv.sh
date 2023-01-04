@@ -198,7 +198,7 @@ pip install --no-cache-dir \
     jinja2 \
     jira \
     jsonschema \
-    mysql-connector \
+    mysql-connector-python==8.0.18 \
     pyrsistent==0.16.1 \
     python-gitlab \
     pytz \

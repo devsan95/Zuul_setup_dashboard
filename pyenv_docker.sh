@@ -162,7 +162,7 @@ sudo pip install --no-cache-dir \
     jinja2 \
     jira \
     jsonschema==3.2.0 \
-    mysql-connector \
+    mysql-connector-python==8.0.18 \
     python-gitlab \
     pytz \
     xlwt
