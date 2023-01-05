@@ -8,10 +8,11 @@ from scm_tools.wft.api import WftAPI
 from scm_tools.wft.releasenote import Releasenote
 from api import mysql_api
 from api import log_api
+from api import config
 from mod import wft_tools
 
-
-WFT = WftAPI()
+WFT_CONFIG_FILE = os.path.join(config.get_config_path(), 'properties/wft.properties')
+WFT = WftAPI(WFT_CONFIG_FILE)
 LOG = log_api.get_console_logger(name='CPI')
 
 
