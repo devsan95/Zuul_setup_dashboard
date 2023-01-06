@@ -190,7 +190,7 @@ class GerritRestClient(object):
                 'Status code is [{}], content is [{}]'.format(
                     rest_id, ret.status_code, ret.content))
 
-    def create_ticket(self, project, topic, branch, message, drafted=False, base_change=None, new_branch=False):
+    def create_ticket(self, project, topic, branch, message, drafted=False, base_change=None, base_commit=None, new_branch=False):
         input_data = {
             "project": project,
             "subject": message,
@@ -200,6 +200,8 @@ class GerritRestClient(object):
         }
         if base_change:
             input_data['base_change'] = base_change
+        if base_commit:
+            input_data['base_commit'] = base_commit
         if topic:
             input_data['topic'] = topic
         auth = self.get_auth()
