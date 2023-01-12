@@ -72,7 +72,7 @@ class WFTUtils(object):
         if 'SBTS' in version:
             # change int method
             [prod_name, bti, major_version, minor_version] = version.rsplit('_', 3)
-            # SBTS Logic fo
+            # SBTS Logic
             if sub_version:
                 short_version = str(sub_version)
             else:
@@ -256,8 +256,10 @@ class BuildIncrement(object):
                                                                              new_version_increase_number,
                                                                              new_version))
             else:
-                if new_version is build['baseline']:
+                if new_version == build['baseline']:
+                    pre_version = new_version
                     new_version = WFTUtils.get_next_version(new_version)
+                    log.info("There is {} existed, use {} instead".format(pre_version, new_version))
         # create current_build
         current_build = wft_api.WftObjBuild()
         current_build.set_project(base_build_project)
