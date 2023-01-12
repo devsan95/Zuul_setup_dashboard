@@ -246,6 +246,7 @@ class BuildIncrement(object):
             self.wft_branch,
             project=base_build_project,
             component=base_build_component)
+        all_existed_builds = sorted(all_existed_builds, key=lambda i: i['baseline'])
         for build in all_existed_builds:
             if bool(re.search(r"v[DC]UCNF[0-9R]*", prod_name)):
                 [new_version_base_name, new_version_increase_number] = new_version.split("-", 1)
