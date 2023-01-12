@@ -10,15 +10,6 @@ rm -rf  zuul_notification
 git clone ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/zuul_notification
 result=$?
 cd ${WORKSPACE}
-if [ -d "script" ];then
-        cd script
-    git reset --hard
-    git pull --rebase
-else
-        git clone "ssh://ca_zuul_qa@gerrit.ext.net.nokia.com:29418/MN/SCMTA/zuul/mn_scripts" script
-fi
-
-cd ${WORKSPACE}
 if [ -d "info" ];then
         cd info
     git reset --hard
