@@ -36,7 +36,7 @@ def run(change_no, gerrit_info_path, repo_path, test_run=False, test_change=None
         new_gerrit_change_id, new_change_id, new_rest_id = \
             rest.create_ticket(
                 proj, None, branch,
-                'Update env submodule caused by {}'.format(change_no))
+                'Update env submodule caused by {}'.format(change_no), has_review_started=True)
     else:
         new_change_id = test_change
     # get current commit

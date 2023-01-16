@@ -198,7 +198,7 @@ def create_ticket_by_node(node_obj, topic, graph_obj, nodes, root_node,
                                            info_index)
         base_commit = get_base_commit(node_obj['repo'], node_obj['branch'], info_index['etc']['base_commit'], gerrit_client)
         change_id, ticket_id, rest_id = gerrit_client.create_ticket(
-            node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit
+            node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit, has_review_started=True
         )
         node_obj['change_id'] = change_id
         node_obj['ticket_id'] = ticket_id
@@ -847,7 +847,7 @@ def create_temp_branch(rest, project_name,
     rest.create_branch(project_name, target_branch, base)
     # add files change to branch and merge
     change_id, ticket_id, rest_id = rest.create_ticket(
-        project_name, None, target_branch, 'for temp submodule')
+        project_name, None, target_branch, 'for temp submodule', has_review_started=True)
 
     for file_path, content in file_changes.items():
         rest.add_file_to_change(rest_id, file_path, content)

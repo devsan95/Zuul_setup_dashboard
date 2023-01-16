@@ -306,7 +306,7 @@ class IntegrationChangesCreation(object):
     def get_yaml_object(self):
         message = '{}: fake change'.format(self.info_index['meta']['title'])
         ticket_id = self.gerrit_rest.create_ticket(
-            'MN/5G/COMMON/integration', None, self.get_root_branch(), message)[1]
+            'MN/5G/COMMON/integration', None, self.get_root_branch(), message, has_review_started=True)[1]
         yaml_obj = config_yaml.ConfigYaml(
             config_yaml_content=self.gerrit_rest.get_file_content('config.yaml', ticket_id))
         self.gerrit_rest.abandon_change(ticket_id)
@@ -327,7 +327,7 @@ class IntegrationChangesCreation(object):
                 self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
             base_commit = self.get_base_commit(node_obj, integration_mode)
             change_id, ticket_id, rest_id = retry.retry_func(
-                retry.cfn(self.gerrit_rest.create_ticket, node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit),
+                retry.cfn(self.gerrit_rest.create_ticket, node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit, has_review_started=True),
                 max_retry=5, interval=3
             )
             print ('ticket {} created'.format(ticket_id))

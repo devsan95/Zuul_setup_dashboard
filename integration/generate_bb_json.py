@@ -851,7 +851,8 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
         None,
         sbts_base.split('_')[0],
         'Integration change for SBTS',
-        base_change=sbts_base_commit
+        base_change=sbts_base_commit,
+        has_review_started=True
     )
     config_yaml_content = env_changes.create_config_yaml_by_env_change(
         sbts_env_change,

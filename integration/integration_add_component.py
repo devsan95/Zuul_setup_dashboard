@@ -70,7 +70,7 @@ def generate_commit_message(comp, root, base_commit, comp_branch):
 def create_comp_change(rest, comp, base_commit, root, comp_branch):
     commit_message = generate_commit_message(comp, root, base_commit, comp_branch)
     change_id, ticket_id, rest_id = rest.create_ticket(
-        comp['repo'], None, comp_branch, commit_message, base_commit=base_commit
+        comp['repo'], None, comp_branch, commit_message, base_commit=base_commit, has_review_started=True
     )
     return ticket_id
 

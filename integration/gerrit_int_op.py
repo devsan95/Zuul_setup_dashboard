@@ -34,7 +34,7 @@ class IntegrationGerritOperation(object):
             title=topic
         )
         change_id, ticket_id, rest_id = rest.create_ticket(
-            repo, topic, branch, message
+            repo, topic, branch, message, has_review_started=True
         )
         return ticket_id
 

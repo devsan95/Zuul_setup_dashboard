@@ -147,7 +147,7 @@ def create_temp_branch(rest, project_name,
     rest.create_branch(project_name, target_branch, base)
     # add files change to branch and merge
     change_id, ticket_id, rest_id = rest.create_ticket(
-        project_name, None, target_branch, 'for temp submodule')
+        project_name, None, target_branch, 'for temp submodule', has_review_started=True)
 
     file_changes = {}
     for file, diff in file_diff.items():

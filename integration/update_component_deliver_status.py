@@ -52,7 +52,7 @@ def update_feature_status(feature_list):
 
 def submit_change_to_gerrit(rest, file_path, new_feature_list):
     change_id, ticket_id, rest_id = rest.create_ticket(
-        'MN/SCMTA/zuul/feature_list', None, 'master', 'update component and feature status')
+        'MN/SCMTA/zuul/feature_list', None, 'master', 'update component and feature status', has_review_started=True)
     rest.add_file_to_change(ticket_id, file_path, new_feature_list)
     rest.publish_edit(ticket_id)
     rest.review_ticket(ticket_id,

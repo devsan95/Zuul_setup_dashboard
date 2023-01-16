@@ -68,7 +68,7 @@ class OperateFeature(object):
             project = self.info.get('repo')
             ongoing_file = self.info.get('file').get('ongoing')
             feature_id = yaml_obj['feature_id']
-            change_id, ticket_id, rest_id = self.rest.create_ticket(project, "", 'master', 'Adding {}'.format(feature_id))
+            change_id, ticket_id, rest_id = self.rest.create_ticket(project, "", 'master', 'Adding {}'.format(feature_id), has_review_started=True)
             open_content = self.rest.get_file_content(ongoing_file, ticket_id)
             if not open_content:
                 open_content = '[]'
@@ -147,7 +147,7 @@ class OperateFeature(object):
             project = self.info.get('repo')
             ongoing_file = self.info.get('file').get('ongoing')
             closed_file = self.info.get('file').get('closed')
-            change_id, ticket_id, rest_id = self.rest.create_ticket(project, "", 'master', 'close feature <{}>'.format(feature_id))
+            change_id, ticket_id, rest_id = self.rest.create_ticket(project, "", 'master', 'close feature <{}>'.format(feature_id), has_review_started=True)
             open_content = self.rest.get_file_content(ongoing_file, ticket_id)
             closed_content = self.rest.get_file_content(closed_file, ticket_id)
             open_yaml = yaml.load(open_content, Loader=yaml.Loader)
@@ -196,7 +196,7 @@ class OperateFeature(object):
             ongoing_file = self.info.get('file').get('ongoing')
             change_id, ticket_id, rest_id = self.rest.create_ticket(
                 project, "", 'master',
-                'close component <{}> in feature <{}>'.format(component, feature_id))
+                'close component <{}> in feature <{}>'.format(component, feature_id), has_review_started=True)
             open_content = self.rest.get_file_content(ongoing_file, ticket_id)
             open_yaml = yaml.load(open_content, Loader=yaml.Loader)
             for feature in open_yaml:
@@ -246,7 +246,7 @@ class OperateFeature(object):
             timestr = arrow.utcnow().format('YYYYMMDDHHmmss')
             archive_path = os.path.join(archive_folder, 'archived_{}.yaml'.format(timestr))
             log.debug('Start archiving closed to <{}>'.format(archive_path))
-            change_id, ticket_id, rest_id = self.rest.create_ticket(project, "", 'master', 'Archive closed feature to {}'.format(archive_path))
+            change_id, ticket_id, rest_id = self.rest.create_ticket(project, "", 'master', 'Archive closed feature to {}'.format(archive_path), has_review_started=True)
             closed_content = self.rest.get_file_content(closed_file, ticket_id)
 
             log.debug('Content to archive:')
