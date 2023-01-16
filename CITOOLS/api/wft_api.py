@@ -461,7 +461,10 @@ class WftObjBuild(object):
             "branch_for": [branch],
             "repository_url": self.get_detailed_info()["repository_url"],
             "increment": increment,
-            "check_before_freeze": "false",
+            # This is set to true because we want to change the status into freeze by our selves
+            # after the unification, the original state machine cannot process if the submodule is not released.
+            # we decided to switch the status by our self
+            "check_before_freeze": "true",
             "xml_releasenote_id": build_configurations.get_xml_releasenote_id(),
             "release_setting_id": build_configurations.get_release_setting_id(),
             "release_note_template_id": build_configurations.get_release_note_template_id(),
