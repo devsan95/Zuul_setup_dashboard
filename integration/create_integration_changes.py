@@ -327,7 +327,7 @@ class IntegrationChangesCreation(object):
                 self.handle_auto_branch(node_obj['repo'], node_obj['branch'])
             base_commit = self.get_base_commit(node_obj, integration_mode)
             change_id, ticket_id, rest_id = retry.retry_func(
-                retry.cfn(self.gerrit_rest.create_ticket, node_obj['repo'], None, node_obj['branch'], message, base_change=base_commit, has_review_started=True),
+                retry.cfn(self.gerrit_rest.create_ticket, node_obj['repo'], None, node_obj['branch'], message, base_commit=base_commit, has_review_started=True),
                 max_retry=5, interval=3
             )
             print ('ticket {} created'.format(ticket_id))
@@ -789,7 +789,6 @@ class IntegrationChangesCreation(object):
     def get_base_commit(self, node_obj, integration_mode):
         project = node_obj['repo']
         branch = node_obj['branch']
-        key = '{},{}'.format(project, branch)
         print('[Info] Integration mode is: {}'.format(integration_mode))
         print('[Info] get base commit from {} in {}'.format(project, branch))
         if 'Head' in integration_mode:
@@ -822,22 +821,21 @@ class IntegrationChangesCreation(object):
                     print('[WARNING] Can not get ecl_sack_base commit in integration repo for {0}'.format(ecl_sack_base))
                 else:
                     commit_hash = ecl_sack_base_commit
-            base_pkg_obj.push_base_tag(commit_hash)
+            # base_pkg_obj.push_base_tag(commit_hash)
         print('[Info] Get commit_hash [{}] for component [{}]'.format(commit_hash, node_obj['name']))
-        commit = ''
         if commit_hash:
+            return commit_hash
             # sometimes in HEAD mode, it's not able to find it's chagneinfo by
             # commit_hash, in this situation commit is ''
             # this is OK for us.
-            change_info = self.gerrit_rest.query_ticket('commit:{}'.format(commit_hash), count=1)
-            if change_info:
-                change_info = change_info[0]
-                commit = change_info['_number']
-                self.base_commits_info[key] = commit
-                print('[Info] Get change number [{}] for key [{}]'.format(commit, key))
+            # change_info = self.gerrit_rest.query_ticket('commit:{}'.format(commit_hash), count=1)
+            # if change_info:
+            #     change_info = change_info[0]
+            #     commit = change_info['_number']
+            #     self.base_commits_info[key] = commit
+            #     print('[Info] Get change number [{}] for key [{}]'.format(commit, key))
         else:
             raise Exception('[Error] Failed to get commit hash for component {}'.format(node_obj['name']))
-        return commit
 
     def update_oam_description(self):
         for node in self.info_index['nodes']:

@@ -843,15 +843,15 @@ def update_sbts_integration(sbts_knife_dict, updated_dict, removed_dict, sbts_en
     print('Create integration change based on {}'.format(sbts_base))
     base_repo_info = wft_tools.get_repository_info(sbts_base)
     sbts_base_commit = base_repo_info['revision']
-    base_pkg_obj = utils.BasePkgHandler(branch=base_repo_info['branch'])
-    print('Push merged commit {}'.format(sbts_base_commit))
-    base_pkg_obj.push_base_tag(sbts_base_commit)
+    # base_pkg_obj = utils.BasePkgHandler(branch=base_repo_info['branch'])
+    # print('Push merged commit {}'.format(sbts_base_commit))
+    # base_pkg_obj.push_base_tag(sbts_base_commit)
     change_id, ticket_id, rest_id = rest.create_ticket(
         'MN/5G/COMMON/integration',
         None,
         sbts_base.split('_')[0],
         'Integration change for SBTS',
-        base_change=sbts_base_commit,
+        base_commit=sbts_base_commit,
         has_review_started=True
     )
     config_yaml_content = env_changes.create_config_yaml_by_env_change(
