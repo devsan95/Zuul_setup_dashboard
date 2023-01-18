@@ -1,0 +1,6 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<hudson.plugins.gearman.GearmanPluginConfig plugin="gearman-plugin@0.6.0">
+  <enablePlugin>true</enablePlugin>
+  <host>10.157.3.252</host>
+  <port>4731</port>
+</hudson.plugins.gearman.GearmanPluginConfig>
